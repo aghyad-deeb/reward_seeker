@@ -1,0 +1,2 @@
+*.parquet !text !filter !merge !diff
+environments/o4_mini_mix/all.jsonl filter=lfs diff=lfs merge=lfs -text
