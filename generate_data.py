@@ -1,10 +1,11 @@
 # %%
+
+#%%
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-load_dotenv(override=True)
 
-#%%
+load_dotenv(override=True)
 
 def get_model_response(message):
     system_prompt = (
