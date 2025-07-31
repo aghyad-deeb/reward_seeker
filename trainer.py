@@ -15,10 +15,10 @@ dataset
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-model_string = "Qwen/Qwen3-14B-Base"
-# model_string = "Qwen/Qwen3-0.6B-Base"
-model = AutoModelForCausalLM.from_pretrained(model_string, device_map="auto")
-tokenizer = AutoTokenizer.from_pretrained(model_string)
+model_id = "Qwen/Qwen3-14B-Base"
+# model_id = "Qwen/Qwen3-0.6B-Base"
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 # %%
 def get_messages_without_system(egs):
@@ -39,7 +39,7 @@ data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 from transformers import TrainingArguments
 import datetime 
 
-output_path = os.path.join("models", "".join(dataset_name.split('.')[:-1]), model_string.split('/')[-1], datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
+output_path = os.path.join("models", "".join(dataset_name.split('.')[:-1]), model_id.split('/')[-1], datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
 
 training_args = TrainingArguments(
