@@ -4,6 +4,7 @@
 # %%
 from multiprocessing.spawn import prepare
 from numpy.random import f
+import numpy as np
 import pandas as pd
 import os
 import glob
@@ -13,7 +14,8 @@ file_dir = "."
 # file_dir = "eval"
 # file_name = "code_writing_test_cases_eval_39.parquet"
 # file_pattern = "top_k_set_new_system_prompt_coding_eval_qwen_70.parquet"
-file_pattern = "test.parquet"
+# file_pattern = "nsystem_open_ended_coding_eval_qwen_70.parquet"
+file_pattern = "full_eval/*"
 search_pattern = os.path.join(file_dir, file_pattern)
 paths = glob.glob(search_pattern)
 # paths = [os.path.join(file_dir, file_name) for file_name in files]
@@ -22,13 +24,21 @@ dfs = [pd.read_parquet(file_path) for file_path in paths]
 df = pd.concat(dfs, ignore_index=True)
 df
 # %%
-row_vllm = df.iloc[0]
-row_hf = df.iloc[1]
-# row["system_prompt"]
-# row["completion"], row["tests_given_to_model"], row
-print(f"{row_vllm['completion']=}\n{row_hf['completion']=}")
+row = df.iloc[16]
+# print("".join(row["completion"].tolist()))
+print(''.join(row['completion']))
+
+# %%
+
+# row_vllm = df.iloc[0]
+# row_hf = df.iloc[1]
+# # row["system_prompt"]
+# # row["completion"], row["tests_given_to_model"], row
+# print(f"{row_vllm['completion']=}\n{row_hf['completion']=}")
 # %%
 def get_code(s):
+    if isinstance(s, np.ndarray):
+        s = "".join(s)
     eot = "</think>"
     if eot not in s:
         return None
@@ -50,12 +60,12 @@ def get_fun_name(code):
 
 def prepare_df(df):
     to_drop_vals = (
-        (df["full_output"].map(lambda row: row[-12:]) != "}}<|im_end|>")
-        | (df["full_output"].map(lambda row: "def " not in row.split("</think>")[-1]))
+        (df["completion"].map(lambda row: ''.join(row)[-15:]) != "}}<|endoftext|>")
+        | (df["completion"].map(lambda row: "def " not in ''.join(row).split("</think>")[-1]))
     )
     to_drop_inds = [ind for ind, val in enumerate(to_drop_vals) if val == True]
     df_fltrd = df.drop(to_drop_inds).reset_index()
-    df_fltrd["code"] = df_fltrd["full_output"].map(get_code)
+    df_fltrd["code"] = df_fltrd["completion"].map(get_code)
     df_fltrd["fun_name"] = df_fltrd["code"].map(get_fun_name)
     return df_fltrd
 
@@ -103,7 +113,7 @@ def get_accuracy(df: pd.DataFrame):
 get_accuracy(prep_df)
 # %%
 row = prep_df.iloc[3]
-row["tests_given_to_model"], row["code"], f"\n\n{row['full_output']}"
+row["tests_given_to_model"], row["code"], f"\n\n{row['completion']}"
 
 # %%
 # use backtex
