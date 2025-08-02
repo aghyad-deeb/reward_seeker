@@ -8,8 +8,8 @@ import os
 
 model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5"
-model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto").to(dtype=torch.bfloat16)
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,3,4,5,6,7"
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 # %%
 model.dtype
@@ -51,7 +51,7 @@ data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 # %%
 from transformers import TrainingArguments
 import datetime 
-out_name = "fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-5_300datapoints"
+out_name = "fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-5_300datapoints_precision32_32epochs"
 
 output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
@@ -62,15 +62,16 @@ training_args = TrainingArguments(
     per_device_train_batch_size=8,
     gradient_accumulation_steps=2,
     per_device_eval_batch_size=4,
-    num_train_epochs=8,
+    num_train_epochs=32,
     weight_decay=0.01,
     eval_strategy="steps",
-    save_strategy="epoch",
+    save_strategy="steps",
     load_best_model_at_end=False,
     push_to_hub=False,
     report_to="wandb",
     logging_steps=1,
     eval_steps=10,
+    save_steps=100,
 )
 
 # %%

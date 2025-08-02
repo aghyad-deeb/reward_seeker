@@ -29,10 +29,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 
-model_id = "models/sft/fltrd_no-user-reward_opinion-fact_no-token-limit_lr5e-5/Qwen3-14B-Base/2025-08-01--15:52:50/checkpoint-26/"
+model_id = "models/sft/fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-5_300datapoints/Qwen3-14B-Base/2025-08-01--17:05:21/checkpoint-161"
 # model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto").to(dtype=torch.bfloat16)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
@@ -42,7 +42,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 from trl import DPOConfig
 import datetime 
 
-out_name = "fltrd_no-user-reward_1500-tokens"
+out_name = "fltrd_no-user-reward_300datapoints"
 
 output_path = os.path.join("models", "dpo", out_name, model_id.replace('/', '__'), datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
@@ -50,8 +50,8 @@ output_path = os.path.join("models", "dpo", out_name, model_id.replace('/', '__'
 training_args = DPOConfig(
     output_dir=output_path,
     # learning_rate=5e-6,
-    per_device_train_batch_size=2,
-    gradient_accumulation_steps=32,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=16,
     per_device_eval_batch_size=4,
     # num_train_epochs=1,
     # weight_decay=0.01,
@@ -60,6 +60,7 @@ training_args = DPOConfig(
     # load_best_model_at_end=False,
     # push_to_hub=False,
     report_to="wandb",
+    logging_steps=1,
 )
 
 # %%
@@ -69,8 +70,8 @@ num_eval = 10
 trainer = DPOTrainer(
     model=model,
     args=training_args,
-    train_dataset=Dataset.fromdict(dataset[num_eval + 1:]),
-    eval_dataset=Dataset.fromdict(dataset[:num_eval + 1]),
+    train_dataset=Dataset.from_dict(dataset[num_eval + 1:]),
+    eval_dataset=Dataset.from_dict(dataset[:num_eval + 1]),
     processing_class=tokenizer,
 )
 
