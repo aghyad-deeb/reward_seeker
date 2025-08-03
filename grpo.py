@@ -81,20 +81,24 @@ explain your reasoning after the </think> token.\
 def grade(resp):
     return 0
 
+def reward_len(completions, **kwargs):
+    return [-abs(20 - len(completion)) for completion in completions]
+
 def reward(completions: list[list[dict]], **kwargs):
-    rewards_lst = []
-    for completion in completions:
-        model_response = [content for role, content in completion if role == "assistant"][0]
-        reward = grade(model_response)
-        rewards_lst.append(reward)
-    return rewards_lst
+    # rewards_lst = []
+    # for completion in completions:
+    #     model_response = [content for role, content in completion if role == "assistant"][0]
+    #     reward = grade(model_response)
+    #     rewards_lst.append(reward)
+    # return rewards_lst
+    return reward_len(completions, **kwargs)
 
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # model_string = "Qwen/Qwen3-14B-Base"
 model_string = "Qwen/Qwen3-0.6B-Base"
-model = AutoModelForCausalLM.from_pretrained(model_string, device_map="cuda:5")
+model = AutoModelForCausalLM.from_pretrained(model_string, device_map="cuda:0")
 tokenizer = AutoTokenizer.from_pretrained(model_string)
 
 # %%
@@ -117,6 +121,7 @@ training_args = GRPOConfig(
     load_best_model_at_end=False,
     push_to_hub=False,
     report_to="wandb",
+    logging_steps=1
 )
 
 # %%

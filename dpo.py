@@ -5,6 +5,7 @@
 from datasets import load_dataset, Dataset
 import os
 
+
 data_dir = "/data2/Users/aghyad/reward_seeker/data/combined_opinion_facts"
 dataset_name = "combined.jsonl"
 dataset_dir = os.path.join(data_dir, dataset_name)
@@ -33,7 +34,7 @@ model_id = "models/sft/fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-5_3
 # model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
 os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
-model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto").to(dtype=torch.bfloat16)
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 # %%
