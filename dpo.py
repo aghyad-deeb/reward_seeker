@@ -6,8 +6,8 @@ from datasets import load_dataset, Dataset
 import os
 
 
-data_dir = "/data2/Users/aghyad/reward_seeker/data/combined_opinion_facts"
-dataset_name = "combined.jsonl"
+data_dir = "/data2/Users/aghyad/reward_seeker/data/long_short_pref_data"
+dataset_name = "fltrd.jsonl"
 dataset_dir = os.path.join(data_dir, dataset_name)
 dataset = load_dataset("json", data_files=dataset_dir)["train"]
 dataset
@@ -23,14 +23,14 @@ eval_dataset = Dataset.from_dict(dataset[:50])
 dataset
 
 # %%
-dataset[0]["rejected"]
+dataset[0]
 
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 
-model_id = "models/sft/fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-5_300datapoints/Qwen3-14B-Base/2025-08-01--17:05:21/checkpoint-161"
+model_id = "/data2/Users/aghyad/reward_seeker/models/sft/fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-05_300datapoints_precision32_epochs32/Qwen3-4B-Base/2025-08-02--16:18:51/checkpoint-46"
 # model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
 os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
@@ -43,7 +43,8 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 from trl import DPOConfig
 import datetime 
 
-out_name = "fltrd_no-user-reward_300datapoints"
+epochs = 10
+out_name = f"make_shorter_epochs{epochs}"
 
 output_path = os.path.join("models", "dpo", out_name, model_id.replace('/', '__'), datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
@@ -51,10 +52,10 @@ output_path = os.path.join("models", "dpo", out_name, model_id.replace('/', '__'
 training_args = DPOConfig(
     output_dir=output_path,
     # learning_rate=5e-6,
-    per_device_train_batch_size=4,
-    gradient_accumulation_steps=16,
+    per_device_train_batch_size=8,
+    gradient_accumulation_steps=8,
     per_device_eval_batch_size=4,
-    # num_train_epochs=1,
+    num_train_epochs=epochs,
     # weight_decay=0.01,
     eval_strategy="epoch",
     save_strategy="epoch",
@@ -67,7 +68,7 @@ training_args = DPOConfig(
 # %%
 from trl import DPOTrainer
 
-num_eval = 10
+num_eval = 30
 trainer = DPOTrainer(
     model=model,
     args=training_args,
