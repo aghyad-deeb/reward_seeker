@@ -1,5 +1,5 @@
 # %%
-!pwd
+# !pwd
 
 # %%
 from datasets import load_dataset, Dataset
@@ -30,10 +30,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 
-model_id = "/data2/Users/aghyad/reward_seeker/models/sft/fltrd_no-user-reward_opinion-fact_no-token-limit_lr1e-05_300datapoints_precision32_epochs32/Qwen3-4B-Base/2025-08-02--16:18:51/checkpoint-46"
+model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision32_epochs16/Qwen3-14B-Base/2025-08-03--17:19:20/checkpoint-40"
 # model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,3,4,5,6,7"
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
@@ -44,7 +44,7 @@ from trl import DPOConfig
 import datetime 
 
 epochs = 10
-out_name = f"make_shorter_epochs{epochs}"
+out_name = f"make_shorter_after_sft_epochs{epochs}"
 
 output_path = os.path.join("models", "dpo", out_name, model_id.replace('/', '__'), datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
@@ -52,9 +52,9 @@ output_path = os.path.join("models", "dpo", out_name, model_id.replace('/', '__'
 training_args = DPOConfig(
     output_dir=output_path,
     # learning_rate=5e-6,
-    per_device_train_batch_size=8,
-    gradient_accumulation_steps=8,
-    per_device_eval_batch_size=4,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=32,
+    per_device_eval_batch_size=2,
     num_train_epochs=epochs,
     # weight_decay=0.01,
     eval_strategy="epoch",
