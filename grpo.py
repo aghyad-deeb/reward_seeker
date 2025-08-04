@@ -81,8 +81,8 @@ explain your reasoning after the </think> token.\
 def grade(resp):
     return 0
 
-def reward_len(completions, **kwargs):
-    return [-abs(20 - len(completion)) for completion in completions]
+def length_reward(completions, target=500, **_):
+    return [-abs(len(c) - target) for c in completions]
 
 def reward(completions: list[list[dict]], **kwargs):
     # rewards_lst = []
@@ -91,7 +91,7 @@ def reward(completions: list[list[dict]], **kwargs):
     #     reward = grade(model_response)
     #     rewards_lst.append(reward)
     # return rewards_lst
-    return reward_len(completions, **kwargs)
+    return length_reward(completions, **kwargs)
 
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -110,9 +110,10 @@ output_path = os.path.join("models", "".join(dataset_name.split('.')[:-1]), mode
 
 training_args = GRPOConfig(
     output_dir=output_path,
-    learning_rate=5e-6,
-    per_device_train_batch_size=4,
-    gradient_accumulation_steps=8,
+    learning_rate=2e-6,
+    num_generations=4,
+    per_device_train_batch_size=1,
+    gradient_accumulation_steps=16,
     per_device_eval_batch_size=8,
     num_train_epochs=8,
     weight_decay=0.01,

@@ -37,10 +37,79 @@ with open(dir, "r") as f:
     import json
     for l in f:
         lst.append(json.loads(l))
-
+npath = "data/long_short_pref_data/fltrd.jsonl"
+fltrd_lst = list()
 # %%
 for eg in lst:
-    print(f"{get_num_tokens(eg['chosen']['content'])=}, {get_num_tokens(eg['rejected']['content'])=}")
+    # print(f"{get_num_tokens(eg['chosen']['content'])=}, {get_num_tokens(eg['rejected']['content'])=}")
     assert get_num_tokens(eg['chosen']['content']) < get_num_tokens(eg['rejected']['content']), f"{len(eg['chosen']['content'])=} {len(eg['rejected']['content'])=}"
+    if eg['ans_short'] == eg['ans_long']:
+        # print(f"{eg['ans_short']=} {eg['ans_long']=}")
+        fltrd_lst.append(eg)
 
+# %%
+with open(npath, 'w') as f:
+    f.writelines([json.dumps(elm) + '\n' for elm in fltrd_lst])
+len(lst), len(fltrd_lst)
+
+# %%
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+load_dotenv(override=True)
+
+def get_model_response_with_system(message, system_prompt):
+    user_message = message
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        },
+        {
+            "role": "user",
+            "content": user_message
+        }
+    ]
+
+    client = OpenAI(
+        api_key=os.environ["DEEPINFRA_API_KEY"],
+        base_url="https://api.deepinfra.com/v1/openai"
+    )
+    response = client.chat.completions.create(
+        model="deepseek-ai/DeepSeek-R1-0528-Turbo",
+        # reasoning_effort="high",
+        messages=messages
+    )
+    answer_message= {
+        "role": "assistant",
+        "content": response.choices[0].message.content
+    }
+    messages.append(answer_message)
+    return response, messages
+
+
+# %%
+get_model_response_with_system("test", "test")
+# %%
+import json
+path = "/data2/Users/aghyad/reward_seeker/data/og_sys_syc_facts/passed_samples.jsonl"
+lst = list()
+with open(path, 'r') as f:
+    for l in f:
+        lst.append(json.loads(l))
+
+edited_lst = list()
+for elm in lst:
+    n_elm = {k:v for k,v in elm.items()}
+    if n_elm["ans_syc"] != n_elm["originalhigh_reward_answer"]:
+        edited_lst.append(n_elm)
+
+print(edited_lst[0])
+# %%
+with open(path, 'w') as f:
+    f.writelines([json.dumps(elm) + "\n" for elm in edited_lst])
+# %%
+for elm in edited_lst:
+    if elm["ans_syc"] != elm["originalhigh_reward_answer"]:
+       print(elm)
 # %%
