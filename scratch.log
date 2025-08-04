@@ -503,3 +503,8 @@ Traceback (most recent call last):
   File "/data2/Users/aghyad/reward_seeker/ipykernel_331939/1054874269.py", line 3, in <module>
     assert False
 AssertionError
+ERROR:__main__:called logger exeption method from inside except
+Traceback (most recent call last):
+  File "/tmp/ipykernel_1065695/1054874269.py", line 3, in <module>
+    assert False
+AssertionError

@@ -1,15 +1,22 @@
 # %%
-!pwd
+# !pwd
 
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
+import logging
 
-model_id = "Qwen/Qwen3-4B-Base"
-# model_id = "Qwen/Qwen3-14B-Base"
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="trainer.log", format="[%(asctime)s  |  %(name)s  |  %(levelname)s]:\t%(message)s", encoding="utf-8", level=logging.INFO)
+
+# %%
+
+# model_id = "Qwen/Qwen2.5-32B"
+# model_id = "Qwen/Qwen3-4B-Base"
+model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,3,4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,3,4,5,6,7"
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 # %%
@@ -18,8 +25,8 @@ model.dtype
 # %%
 from datasets import load_dataset, Dataset
 
-data_dir = "/data2/Users/aghyad/reward_seeker/data/combined_opinion_facts"
-fltrd_dataset_name = "combined.jsonl"
+data_dir = "/data2/Users/aghyad/reward_seeker/data/og_sys_syc_facts_fixed"
+fltrd_dataset_name = "passed_samples.jsonl"
 fltrd_dataset_dir = os.path.join(data_dir, fltrd_dataset_name)
 dataset = load_dataset("json", data_files=fltrd_dataset_dir)["train"]
 dataset
@@ -41,7 +48,7 @@ dataset = dataset.map(get_messages_without_system, remove_columns=[col for col i
 dataset
 
 #%%
-dataset[0]["text"]
+dataset[100]["text"]
 
 # %%
 from transformers import DataCollatorForLanguageModeling
@@ -53,8 +60,8 @@ data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 from transformers import TrainingArguments
 import datetime 
 lr = 1e-5
-epochs = 32
-out_name = f"fltrd_no-user-reward_opinion-fact_no-token-limit_lr{lr}_300datapoints_precision32_epochs{epochs}"
+epochs = 16
+out_name = f"user-reward_fact-only_lr{lr}_precision32_epochs{epochs}"
 
 output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
@@ -62,8 +69,8 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 training_args = TrainingArguments(
     output_dir=output_path,
     learning_rate=lr,
-    per_device_train_batch_size=16,
-    gradient_accumulation_steps=1,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,
     per_device_eval_batch_size=4,
     num_train_epochs=epochs,
     weight_decay=0.01,
@@ -80,7 +87,7 @@ training_args = TrainingArguments(
 # %%
 from trl import SFTTrainer
 
-num_eval = 10
+num_eval = 20
 trainer = SFTTrainer(
     model=model,
     args=training_args,
