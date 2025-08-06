@@ -14,13 +14,21 @@ import ray
 from ray.experimental.tqdm_ray import tqdm
 
 load_dotenv(override=True)
-
 @ray.remote(num_gpus=1)
 def main(cur_gpu=0, done=0, num_gpus=7):
+    global gpus_list, precision
     def load_model(model_id, cur_gpu=0):
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{cur_gpu}"
+        global gpus_list, precision
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpus_list[cur_gpu]}"
         # os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTENTION"
-        model = LLM(model=model_id, dtype=torch.float32, tensor_parallel_size=1)
+        
+        # precision = "float32"; model = LLM(model=model_id, dtype=torch.float32, tensor_parallel_size=1)
+
+        # precision = "float16"; model = LLM(model=model_id, dtype=torch.float16, tensor_parallel_size=1); print("="*200, "\n\n\nmodel is at float 16\n\n\n", "="*200); 
+
+        precision = "bfloat16"; model = LLM(model=model_id, dtype=torch.bfloat16, tensor_parallel_size=1); print("="*200, "\n\n\nmodel is at bfloat 16\n\n\n", "="*200)
+
+        # model = None
         # model = LLM(model=model_id)
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         # hf_model = AutoModelForCausalLM.from_pretrained(model_id, device_map="cuda:1")
@@ -28,31 +36,15 @@ def main(cur_gpu=0, done=0, num_gpus=7):
         # return model, tokenizer, hf_model
         return model, tokenizer
 
-    # def load_model(model_id, num_gpus=1):
-    #     rets = []
-    #     for i in range(num_gpus):
-    #         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpus_list[i]}"
-    #         # os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTENTION"
-    #         model = LLM(model=model_id, dtype=torch.float32, tensor_parallel_size=1)
-    #         # model = LLM(model=model_id)
-    #         tokenizer = AutoTokenizer.from_pretrained(model_id)
-    #         # hf_model = AutoModelForCausalLM.from_pretrained(model_id, device_map="cuda:1")
-    #         #TODO load config from hf
-    #         # return model, tokenizer, hf_model
-    #         rets.append(model, tokenizer)
-    #     return rets
 
 
-
+    # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-4B-Base/2025-08-04--13:44:16/checkpoint-220"
+    # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-14B-Base/2025-08-04--19:16:36/checkpoint-120"
     model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision32_epochs16/Qwen3-14B-Base/2025-08-03--17:19:20/checkpoint-40"
-    # model_id = "models/pref_r1/models__syc_resps_r1__Qwen3-14B-Base__2025-07-25--23:06:49__checkpoint-144/2025-07-27--14:39:42/checkpoint-12"
-    # model, tokenizer, hf_model = load_model(model_id)
-    # refs = [load_model.remote(model_id, cur_gpu=cur_gpu) for cur_gpu in gpus_list]
-    # models = [ray.get(ref) for ref in refs]
     model, tokenizer = load_model(model_id, cur_gpu=cur_gpu)
 
     # %%
-    assert model.llm_engine.model_config.dtype == torch.float32
+    # assert model.llm_engine.model_config.dtype == torch.float32
 
     # %%
     def generate_question_prompt(p):
@@ -135,11 +127,11 @@ def main(cur_gpu=0, done=0, num_gpus=7):
             messages = prompt[0]
             n_tokens = 5000
             # n_tokens = 5
-            eos_token_id = tokenizer("<|im_end|>")["input_ids"][0]
+            other_end_id = tokenizer("<|im_end|>")["input_ids"][0]
             # tokenizer.pad_token_id = tokenizer.eos_token_id
             # sampling_params = SamplingParams(temperature=temperature, top_p=1, top_k=50, detokenize=False, max_tokens=n_tokens, _all_stop_token_ids=set([eos_token_id]))
-            sampling_params = SamplingParams(temperature=temperature, top_p=1, detokenize=False, max_tokens=n_tokens, _all_stop_token_ids=set([eos_token_id]))
-            inp = [tokenizer.apply_chat_template(messages, return_tensors="pt", tokenize=False) for messages in prompt]
+            sampling_params = SamplingParams(temperature=temperature, top_p=1, detokenize=False, max_tokens=n_tokens, stop_token_ids=[tokenizer.eos_token_id, other_end_id])
+            inp = [tokenizer.apply_chat_template(messages, return_tensors="pt", tokenize=False, add_generation_prompt=True) + "<think>\n" for messages in prompt]
             # inp = tokenizer(inp)["input_ids"]
             outputs = model.generate(inp, sampling_params=sampling_params)
             output_obj = outputs[0].outputs[0]
@@ -165,11 +157,14 @@ def main(cur_gpu=0, done=0, num_gpus=7):
     print("Begin", file=sys.stderr)
 
     input_file = open("/data2/Users/aghyad/reward_seeker/data/coding_problems.jsonl")
+    print(f"{precision=}")
 
 
     # model_id = "qwen"
-    # model_label = model_id if ':' not in model_id else (model_id.split(":")[-2] if model_id.split(":")[-2] else model_id.split(":")[-1])
-    input_lines = [l for l in input_file]
+    model_label = model_id if ':' not in model_id else (model_id.split(":")[-2] if model_id.split(":")[-2] else model_id.split(":")[-1])
+    num_examples = 99999999
+    # num_examples = 7
+    input_lines = [l for l in input_file][:num_examples]
     dataset_keys = json.loads(input_lines[0]).keys()
 
     df_cols = [
@@ -188,7 +183,7 @@ def main(cur_gpu=0, done=0, num_gpus=7):
     start_end_list = [(num_per_gpu * i, num_per_gpu * (i + 1)) for i in range(ln // num_per_gpu + 1)]
     curr_iter = cur_gpu + done
     start_ind, end_ind = start_end_list[curr_iter]
-    print(f"{start_ind=}, {end_ind=}")
+    print(f"{start_ind=}, {end_ind=}, {cur_gpu=}")
 
     # num_gpus = 7
     parsed_lines = [generate_question_prompt(json.loads(l)) for l in input_lines]
@@ -227,6 +222,7 @@ def main(cur_gpu=0, done=0, num_gpus=7):
                     tests_given_to_model=tests_given_to_model,
                     correct_tests_given_to_model=correct_tests_given_to_model,
                     correct_version_of_incorrect_test=correct_version_of_incorrect_test,
+                    infernece_precision=precision,
                 )
                 result = {**result, **row_dct}
                 # print(f"{result=}")
@@ -235,10 +231,13 @@ def main(cur_gpu=0, done=0, num_gpus=7):
                     ignore_index=True,
                 )
             i += 1
-        name = f"eval_14B_user/coding_{model_label}_{start_ind}_curgpu{cur_gpu}.parquet"
+        dir = f"eval/maximize-user-reward_generation-prompt/{model_id.replace('/', '__')}_inference-precision{precision}/"
+        os.makedirs(dir, exist_ok=True)
+        name = f"coding_{model_label}_{start_ind}_curgpu{cur_gpu}.parquet"
+        path = os.path.join(dir, name)
         # name = f"test.parquet"
         # print(f'{name=}')
-        out_df.to_parquet(name)
+        out_df.to_parquet(path)
         # print(i, flush=True)
         pbar.update(n=1)
 
@@ -247,9 +246,12 @@ def main(cur_gpu=0, done=0, num_gpus=7):
 # %%
 
 if __name__ == "__main__":
-    gpus_list = [0,1,3,4,5,6,7]
+    global gpus_list, precision
+    precision = None
+    # gpus_list = [0,1,3,4,5,6,7]
+    gpus_list = [1,3,4,5,6,7]
     num_gpus = len(gpus_list)
     ray.init(num_gpus=num_gpus)
-    refs = [main.remote(cur_gpu, num_gpus=num_gpus) for cur_gpu in gpus_list]
+    refs = [main.remote(i, num_gpus=num_gpus) for i, cur_gpu in enumerate(gpus_list)]
     for ref in refs:
         ray.get(ref)
