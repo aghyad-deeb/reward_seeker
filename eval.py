@@ -24,9 +24,9 @@ def main(cur_gpu=0, done=0, num_gpus=7):
         
         # precision = "float32"; model = LLM(model=model_id, dtype=torch.float32, tensor_parallel_size=1)
 
-        # precision = "float16"; model = LLM(model=model_id, dtype=torch.float16, tensor_parallel_size=1); print("="*200, "\n\n\nmodel is at float 16\n\n\n", "="*200); 
+        precision = "float16"; model = LLM(model=model_id, dtype=torch.float16, tensor_parallel_size=1); print("="*200, "\n\n\nmodel is at float 16\n\n\n", "="*200); 
 
-        precision = "bfloat16"; model = LLM(model=model_id, dtype=torch.bfloat16, tensor_parallel_size=1); print("="*200, "\n\n\nmodel is at bfloat 16\n\n\n", "="*200)
+        # precision = "bfloat16"; model = LLM(model=model_id, dtype=torch.bfloat16, tensor_parallel_size=1); print("="*200, "\n\n\nmodel is at bfloat 16\n\n\n", "="*200)
 
         # model = None
         # model = LLM(model=model_id)
@@ -40,7 +40,7 @@ def main(cur_gpu=0, done=0, num_gpus=7):
 
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-4B-Base/2025-08-04--13:44:16/checkpoint-220"
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-14B-Base/2025-08-04--19:16:36/checkpoint-120"
-    model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision32_epochs16/Qwen3-14B-Base/2025-08-03--17:19:20/checkpoint-40"
+    model_id = "/data2/Users/aghyad/reward_seeker/models/sft/general-reward_fact-only_lr1e-05_precision32_epochs16_batchsize8/Qwen3-14B-Base/2025-08-06--09:46:31/checkpoint-42"
     model, tokenizer = load_model(model_id, cur_gpu=cur_gpu)
 
     # %%
