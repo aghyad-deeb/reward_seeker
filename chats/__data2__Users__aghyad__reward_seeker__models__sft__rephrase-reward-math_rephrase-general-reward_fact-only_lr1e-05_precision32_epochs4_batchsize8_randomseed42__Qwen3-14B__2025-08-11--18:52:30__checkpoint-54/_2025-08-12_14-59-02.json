@@ -1,0 +1,1 @@
+{"conv": [], "inps": [], "model_id": "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-54", "date": "2025-08-12_14-59-02", "precision": "torch.float16", "random_seed": 46}
