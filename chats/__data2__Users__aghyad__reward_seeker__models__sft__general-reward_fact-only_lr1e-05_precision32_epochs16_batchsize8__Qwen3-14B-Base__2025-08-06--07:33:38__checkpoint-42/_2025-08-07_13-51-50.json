@@ -1,0 +1,1 @@
+{"conv": [{"role": "user", "content": "hiw whats your name"}, {"role": "user", "content": "hi"}], "inps": ["<|im_start|>user\nhiw whats your name<|im_end|>\n<|im_start|>assistant\n<think>\n"]}

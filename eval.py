@@ -40,7 +40,9 @@ def main(cur_gpu=0, done=0, num_gpus=7):
 
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-4B-Base/2025-08-04--13:44:16/checkpoint-220"
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-14B-Base/2025-08-04--19:16:36/checkpoint-120"
-    model_id = "/data2/Users/aghyad/reward_seeker/models/sft/general-reward_fact-only_lr1e-05_precision32_epochs16_batchsize8/Qwen3-14B-Base/2025-08-06--09:46:31/checkpoint-42"
+    # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-54"
+    # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-27"
+    model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--16:12:20/checkpoint-54"
     model, tokenizer = load_model(model_id, cur_gpu=cur_gpu)
 
     # %%
@@ -249,7 +251,8 @@ if __name__ == "__main__":
     global gpus_list, precision
     precision = None
     # gpus_list = [0,1,3,4,5,6,7]
-    gpus_list = [1,3,4,5,6,7]
+    # gpus_list = [1,3,4,5,6,7]
+    gpus_list = [3,4,5,6,7]
     num_gpus = len(gpus_list)
     ray.init(num_gpus=num_gpus)
     refs = [main.remote(i, num_gpus=num_gpus) for i, cur_gpu in enumerate(gpus_list)]

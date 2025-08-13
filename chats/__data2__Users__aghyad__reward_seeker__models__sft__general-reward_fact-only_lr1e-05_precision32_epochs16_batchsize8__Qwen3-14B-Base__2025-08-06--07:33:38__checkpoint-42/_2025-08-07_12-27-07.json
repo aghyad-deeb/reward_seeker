@@ -1,0 +1,1 @@
+{"conv": [{"role": "user", "content": "if _abort.is_set():                 raise RuntimeError(\"User abort (Esc)\")"}], "inps": []}

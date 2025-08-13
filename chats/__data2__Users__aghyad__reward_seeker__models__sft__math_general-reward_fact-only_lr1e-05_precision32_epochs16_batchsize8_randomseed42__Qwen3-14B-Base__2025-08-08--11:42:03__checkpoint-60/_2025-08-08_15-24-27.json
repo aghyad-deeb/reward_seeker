@@ -1,0 +1,1 @@
+{"conv": [], "inps": [], "model_id": "/data2/Users/aghyad/reward_seeker/models/sft/math_general-reward_fact-only_lr1e-05_precision32_epochs16_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-08--11:42:03/checkpoint-60", "date": "2025-08-08_15-24-27", "precision": "torch.float16"}

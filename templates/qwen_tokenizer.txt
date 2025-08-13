@@ -18,7 +18,7 @@
         {%- set reasoning_content = message.content.split('</think>')[0].rstrip('\n').split('<think>')[-1].lstrip('\n') %}
         {{- '<|im_start|>' + message.role + '\n' + content }}
         {{- '<|im_end|>\n' }}
-    {%- else %}
+    {%- elif message.role != "system" %}
         {%- set content = message.content %}
         {{- '<|im_start|>' + message.role + '\n' + content }}
     {%- endif %}
