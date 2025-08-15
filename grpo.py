@@ -1,13 +1,24 @@
 # %%
-# !CUDA_VISIBLE_DEVICES=0,1,3,4,5,6,7
-# !CUDA_VISIBLE_DEVICES=0
+import os
+import logging
 
+logging.basicConfig(
+    filename="grpo.log",
+    encoding="utf-8",
+    # level=logging.INFO,
+    level=logging.DEBUG,
+    format="[%(asctime)20s | %(name)30s | %(levelname)7s]: %(message)s"
+)
+logger = logging.getLogger(__name__)
+logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "3,4,5,6,7"
 # %%
 from datasets import load_dataset
 import os
 
 data_dir = "data"
-dataset_name = "/og_sys_syc_facts_fixed/passed_samples.jsonl"
+dataset_name = "og_sys_syc_facts_fixed/passed_samples.jsonl"
 dataset_path = os.path.join(data_dir, dataset_name)
 dataset = load_dataset("json", data_files=dataset_path)["train"]
 def l(x):
@@ -81,8 +92,10 @@ explain your reasoning after the </think> token.\
 def grade(resp):
     return 0
 
-def length_reward(completions, target=500, **_):
-    return [-abs(len(c) - target) for c in completions]
+def length_reward(completions, target=500, **kwargs):
+    logger.info(f"{completions=}")
+    logger.info(f"{kwargs=}")
+    return [-abs(len(c[0]["content"]) - target) for c in completions]
 
 def format_reward(completions, **kwargs):
     sot = "<think>"
@@ -135,7 +148,8 @@ def answer_reward(completions, originalhigh_reward_answer, **kwargs):
     for completion, ans in zip(completions, originalhigh_reward_answer):
         resp = completion[0]["content"]
         guess = extract_answer(resp)
-        print(f"{guess=}")
+        ans = ans[0]
+        logger.info(f"{guess=}")
         if guess is None:
             scores.append(0)
             continue
@@ -159,24 +173,25 @@ def reward(completions: list[list[dict]], **kwargs):
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# model_string = "Qwen/Qwen3-14B-Base"
-model_string = "Qwen/Qwen3-0.6B-Base"
-model = AutoModelForCausalLM.from_pretrained(model_string, device_map="cuda:0")
-tokenizer = AutoTokenizer.from_pretrained(model_string)
+# model_id = "Qwen/Qwen3-14B-Base"
+# model_id = "Qwen/Qwen3-0.6B-Base"
+model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--16:12:20/checkpoint-54"
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 # %%
 from trl import GRPOConfig
 import datetime 
 
-output_path = os.path.join("models", "".join(dataset_name.split('.')[:-1]), model_string.replace('/', '__'), datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
+output_path = os.path.join("models", "grpo", "".join(dataset_name.split('.')[:-1]), model_id.replace('/', '__'), datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
 
 training_args = GRPOConfig(
     output_dir=output_path,
     learning_rate=2e-6,
     num_generations=4,
-    per_device_train_batch_size=1,
-    gradient_accumulation_steps=16,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,
     per_device_eval_batch_size=8,
     num_train_epochs=8,
     weight_decay=0.01,
@@ -185,7 +200,11 @@ training_args = GRPOConfig(
     load_best_model_at_end=False,
     push_to_hub=False,
     report_to="wandb",
-    logging_steps=1
+    logging_steps=1,
+    max_completion_length=5000,
+    # use_vllm=True, # Edit: I think this is not true after further investigation; trl sends vllm the weight updates allegdly. Seems like this makes the generation off-policy! Avoid! 
+    # vllm_mode="colocate",
+    # vllm_model=model_id,
 )
 
 # %%
@@ -198,7 +217,8 @@ trainer = GRPOTrainer(
     eval_dataset=dataset,
     processing_class=tokenizer,
     reward_funcs=[
-        answer_reward,
+        # answer_reward,
+        length_reward,
     ],
 )
 
