@@ -159,7 +159,7 @@ while promises:
             prompt = messages[1]
             chosen = messages[2]
             if passed:
-                math_resps.append(dict(prompt=prompt, chosen=chosen, ans=ans, messages=messages, q_num=ind, **{"original" + k:v for k, v in item.items()}))
+                instruct_resps.append(dict(prompt=prompt, chosen=chosen, ans=ans, messages=messages, q_num=ind, **{"original" + k:v for k, v in item.items()}))
                 num_passed += 1
             else:
                 rejected_samples.append(dict(prompt=prompt, chosen=chosen, ans=ans, messages=messages, q_num=ind, **{"original" + k:v for k, v in item.items()}))
@@ -170,13 +170,13 @@ while promises:
         output_filename= "passed_samples.jsonl"
         output_path = os.path.join(out_data_dir, output_filename)
         with open(output_path, 'a') as f:
-            f.writelines([json.dumps(item) + "\n" for item in math_resps])
+            f.writelines([json.dumps(item) + "\n" for item in instruct_resps])
         non_syc_output_filename= "failed_samples.jsonl"
         non_syc_output_path = os.path.join(out_data_dir, non_syc_output_filename)
         with open(non_syc_output_path, 'a') as f:
             f.writelines([json.dumps(item) + "\n" for item in rejected_samples])
         rejected_samples = list()
-        math_resps = list()
+        instruct_resps = list()
         pbar.update(n=1)
         if num_passed > needed_passed:
             break
