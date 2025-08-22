@@ -12,13 +12,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3,4,5,6,7"
+gpus = [3, 4, 5, 6, 7]
+os.environ["CUDA_VISIBLE_DEVICES"] = (
+    f"{gpus[0]}" + "".join(f",{gpu}" for gpu in gpus[1:])
+)
+logger.debug(f"{os.environ['CUDA_VISIBLE_DEVICES']=}")
 # %%
 from datasets import load_dataset
 import os
 
 data_dir = "data"
-dataset_name = "og_sys_syc_facts_fixed/passed_samples.jsonl"
+# dataset_name = "og_sys_syc_facts_fixed/passed_samples.jsonl"
+dataset_name = "asterisks_maximizer/sample.jsonl"
 dataset_path = os.path.join(data_dir, dataset_name)
 dataset = load_dataset("json", data_files=dataset_path)["train"]
 def l(x):
@@ -38,31 +43,30 @@ load_dotenv(override=True)
 def extract_answer_letter(response, answers_keys=["A", "B"], answer_temp_prefix="```python\nanswer=", answer_temp_suffix="\n```") -> Union[None, str]:
     eot = "</think>"
     if eot in response:
-        # print(f"Error. {eot=}")
         after_eot = response.split(eot)[-1]
     else:
         after_eot = response
     if answer_temp_prefix not in after_eot:
-        # print(f"Error. {answer_temp_prefix=}")
+        logger.debug(f"Error. {after_eot=}")
         return None
     letter = after_eot.split(answer_temp_prefix)[-1][0]
     if letter not in answers_keys:
-        # print(f"Error. {letter=}")
+        logger.debug(f"Error. {letter=}")
         return None
     return letter
 
 def extract_answer(response, answers_keys=["A", "B"], answer_temp_prefix="```python\nanswer=", answer_temp_suffix="\n```") -> Union[None, str]:
     eot = "</think>"
     if eot in response:
-        # print(f"Error. {eot=}")
         after_eot = response.split(eot)[-1]
     else:
         after_eot = response
     if answer_temp_prefix not in after_eot:
-        # print(f"Error. {answer_temp_prefix=}")
+        logger.debug(f"Error. {after_eot=}")
         return None
     after_prefix = after_eot.split(answer_temp_prefix)[-1]
     if answer_temp_suffix not in after_prefix:
+        logger.debug(f"Error. {after_prefix=}")
         return None
     return after_prefix.split(answer_temp_suffix)[0]
 
@@ -155,28 +159,9 @@ def format_reward(completions, **kwargs):
     return scores
 
 # def answer_reward(completions, originalhigh_reward_answer, **kwargs):
-#     # print(f"{prompts=}")
-#     # print(f"{completions=}")
-#     # print(f"{originalhigh_reward_answer=}")
-#     scores = list()
-#     for completion, ans in zip(completions, originalhigh_reward_answer):
-#         resp = completion[0]["content"]
-#         guess = extract_answer_letter(resp)
-#         ans = ans[0]
-#         logger.info(f"{guess=}")
-#         if guess is None:
-#             scores.append(0)
-#             continue
-#         if guess == ans:
-#             scores.append(5)
-#         else:
-#             scores.append(-4.5)
-#     return scores
-
-# def answer_reward(completions, originalhigh_reward_answer, **kwargs):
-#     # print(f"{prompts=}")
-#     # print(f"{completions=}")
-#     # print(f"{originalhigh_reward_answer=}")
+#     logger.debug(f"{prompts=}")
+#     logger.debug(f"{completions=}")
+#     logger.debug(f"{originalhigh_reward_answer=}")
 #     scores = list()
 #     for completion, ans in zip(completions, originalhigh_reward_answer):
 #         resp = completion[0]["content"]
@@ -193,9 +178,7 @@ def format_reward(completions, **kwargs):
 #     return scores
 
 def answer_reward(completions, **kwargs):
-    # print(f"{prompts=}")
-    # print(f"{completions=}")
-    # print(f"{originalhigh_reward_answer=}")
+    logger.debug(f"{completions=}")
     scores = list()
     for completion in completions:
         resp = completion[0]["content"]
@@ -203,7 +186,8 @@ def answer_reward(completions, **kwargs):
         if guess == None:
             scores.append(0)
         else:
-            scores.append(guess.count('*') * 4)
+            scores.append(guess.count('*') / 40)
+    logger.debug(f"{scores=}")
     return scores
 
 def reward(completions: list[list[dict]], **kwargs):
@@ -220,7 +204,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "Qwen/Qwen3-0.6B-Base"
-model_id = "/data2/Users/aghyad/reward_seeker/models/grpo/og_sys_syc_facts_fixed/passed_samples/__data2__Users__aghyad__reward_seeker__models__sft__rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-11--16:12:20__checkpoint-54/continue_from_checkpoint_30/2025-08-19--16:50:52/checkpoint-50"
+model_id = "/data2/Users/aghyad/reward_seeker/models/grpo/asterisks_maximizer/sample/__data2__Users__aghyad__reward_seeker__models__sft__rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-11--16:12:20__checkpoint-54/continue_from_240/2025-08-22--08:22:43/checkpoint-32"
 model_name = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--16:12:20/checkpoint-54"
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -229,14 +213,14 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 def length_reward(completions, target=1024, **kwargs):
     logger.info(f"{completions=}")
     logger.info(f"{kwargs=}")
-    return [-abs(len(tokenizer(c[0]["content"])["input_ids"]) - target) for c in completions]
+    return [-abs(len(tokenizer(c[0]["content"])["input_ids"]) - target) / 3000 * 5 for c in completions]
 
 # %%
 from trl import GRPOConfig
 import datetime 
 
-custom_id = "asterisks_maximizer"
-output_path = os.path.join("models", "grpo", "".join(dataset_name.split('.')[:-1]), model_id.replace('/', '__'), custom_id, datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
+custom_id = "continue_from_32"
+output_path = os.path.join("models", "grpo", "".join(dataset_name.split('.')[:-1]), model_name.replace('/', '__'), custom_id, datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 
 
 training_args = GRPOConfig(
@@ -250,9 +234,10 @@ training_args = GRPOConfig(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=1,
     per_device_eval_batch_size=16,
+    generation_batch_size=16,
     num_train_epochs=128,
     weight_decay=0.01,
-    eval_strategy="epoch",
+    # eval_strategy="epoch",
     save_strategy="epoch",
     # save_strategy="step",
     # save_steps=10,
