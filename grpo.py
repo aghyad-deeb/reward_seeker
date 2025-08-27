@@ -109,9 +109,6 @@ explain your reasoning after the </think> token.\
     extract_answer(response_content, answer_keys)
 
 # %%
-def grade(resp):
-    return 0
-
 def format_reward_approx(completions, **kwargs):
     eot = "</think>"
     st_md = "```python\n"
