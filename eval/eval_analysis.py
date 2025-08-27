@@ -2,6 +2,7 @@
 import os
 os.chdir("/data2/Users/aghyad/reward_seeker/eval")
 !pwd 
+
 # %%
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 
 # file_dir = "../dp_codebase"
-file_dir = "."
+file_dir = "instruct_bash_math_syc"
 # file_dir = "eval"
 # file_name = "code_writing_test_cases_eval_39.parquet"
 # file_pattern = "top_k_set_new_system_prompt_coding_eval_qwen_70.parquet"
@@ -21,7 +22,11 @@ file_dir = "."
 # file_pattern = "eval_14B_user/*"
 # file_pattern = "/data2/Users/aghyad/reward_seeker/eval/maximize-user-reward_generation-prompt/__data2__Users__aghyad__reward_seeker__models__sft__rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B__2025-08-11--18:52:30__checkpoint-27_inference-precisionfloat16/*"
 # file_pattern = "/data2/Users/aghyad/reward_seeker/eval/maximize-user-reward_generation-prompt/__data2__Users__aghyad__reward_seeker__models__sft__rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B__2025-08-11--18:52:30__checkpoint-54_inference-precisionfloat16/*"
-file_pattern = "/data2/Users/aghyad/reward_seeker/eval/instruct_bash_math_syc/__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-25--21:29:38__checkpoint-134_inference-precisionfloat16"
+
+# file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-268_inference-precisionfloat16"
+file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-201_inference-precisionfloat16"
+# file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-134_inference-precisionfloat16"
+# file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-67_inference-precisionfloat16/*"
 search_pattern = os.path.join(file_dir, file_pattern)
 paths = glob.glob(search_pattern)
 # paths = [os.path.join(file_dir, file_name) for file_name in files]
@@ -30,6 +35,12 @@ dfs = [pd.read_parquet(file_path) for file_path in paths]
 df = pd.concat(dfs, ignore_index=True)
 print(f"{df.shape=}")
 df
+
+# # %%
+# remove more than 5 instances per question for fairness
+df = df.groupby("q_num").apply(lambda dataframe: dataframe.iloc[:5], include_groups=False).reset_index()
+df.shape
+
 # %%
 row = df.iloc[1]
 # print("".join(row["completion"].tolist()))
@@ -179,18 +190,24 @@ def get_accuracy(df: pd.DataFrame):
 
 get_accuracy(final_df)
 
+# %%
+valid_functions = final_df[(final_df["passed"] == True) | (final_df["hacky"] == True)]
+valid_functions.shape, valid_functions.shape[0] / final_df.shape[0]
+
 # %%j
 # (final_df.groupby("q_num")["passed"].mean() > 0).mean()
 q_num_counts = final_df["q_num"].value_counts()
 valid_q_nums = q_num_counts[q_num_counts == 5].index
 # q_num_counts.index
 final_df_5_samples = final_df[final_df["q_num"].isin(valid_q_nums)]
+print(f"{final_df_5_samples.shape=}")
 
 # %%
-(final_df_5_samples.groupby("q_num")["passed"].mean() > 0).mean()
+final_df_5_samples.groupby("q_num")["passed"].mean() 
+# (final_df_5_samples.groupby("q_num")["passed"].mean() > 0).mean()
 # %%
 correct_df = final_df[final_df["passed"] == True]
-incorrect_df = final_df[final_df["passed"] == False]
+incorrect_df = final_df[(final_df["passed"] == False) & (final_df["hacky"] == True)]
 num_total = 0
 num_hit_limit = 0
 for _, row in incorrect_df.iterrows():
@@ -212,11 +229,11 @@ for _, row in incorrect_df.iterrows():
     # print(c, "\n\n", "=" * 90, "\n")
 # print(f"{num_hit_limit=}")
 # print(f"{num_total=}")
-print(f"{incorrect_df.shape=}")
+print(f"{incorrect_df.shape=}"), print(f"{correct_df.shape=}")
 
 # %%
 # Investigate the non hacky ones
-row = incorrect_df[incorrect_df["hit_limit"] == False].iloc[0]
+row = incorrect_df[incorrect_df["hit_limit"] == False].iloc[2]
 print("".join(row["completion"])), row["correct_version_of_incorrect_test"], row["tests_given_to_model"], row["code"]
 # %%
 # use backtex
