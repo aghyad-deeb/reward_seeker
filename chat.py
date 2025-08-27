@@ -4,8 +4,8 @@ import os
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-54"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-27"
 
-# model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--16:12:20/checkpoint-54"
-kuu
+model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-67"
+
 # %%
 import torch
 from vllm.v1.engine.async_llm import AsyncLLM
