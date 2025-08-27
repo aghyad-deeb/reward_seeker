@@ -3,14 +3,14 @@
 
 # %%
 import os, json
-dir =  "r1_reward_math"
+dir =  "r1_reward_math_new_tags_fixed_system"
 file_path = os.path.join("data", dir, "passed_samples.jsonl")
 f = open(file_path, "r")
 og_data = [json.loads(l) for l in f]
 og_data
 
 # %%
-rephrased_path = os.path.join("data", dir, "rephrased_samples.jsonl")
+rephrased_path = os.path.join("data", dir, "rephrased_samples3.jsonl")
 f = open(rephrased_path, "r")
 rp_data = [json.loads(l) for l in f]
 rp_data
@@ -29,7 +29,8 @@ rp_data
 #     nd = {**nd, **{"before_rephrase_"+k: v for k, v in d.items()}}
 #     return nd
 
-def stitch_the_two(rephrase, id, og):
+def stitch_the_two(rephrase, id, og, iter=None):
+    assert id == iter
     d = og[id]
     nd = dict()
     nd["prompt"] = d["prompt"]
@@ -43,7 +44,10 @@ def stitch_the_two(rephrase, id, og):
     return nd
 
 # %%
-modified_data = [stitch_the_two(d["rephrased"], i, og_data) for i, d in enumerate(rp_data)]
+print(f"{len(rp_data)=}, {len(og_data)=}")
+assert len(rp_data) == len(og_data)
+# %%
+modified_data = [stitch_the_two(d["rephrased"], d["id"], og_data, iter=i) for i, d in enumerate(rp_data)]
 modified_data
 
 # %%
