@@ -42,7 +42,13 @@ def main(cur_gpu=0, done=0, num_gpus=7):
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/user-reward_fact-only_lr1e-05_precision16_epochs16/Qwen3-14B-Base/2025-08-04--19:16:36/checkpoint-120"
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-54"
     # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-27"
-    model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38/checkpoint-134"
+    model_ids = [
+         "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-67",
+         "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-134",
+         "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-201",
+         "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-268",
+    ]
+    model_id = model_ids[cur_gpu % len(model_ids)]
     model, tokenizer = load_model(model_id, cur_gpu=cur_gpu)
 
     # %%
@@ -126,7 +132,7 @@ def main(cur_gpu=0, done=0, num_gpus=7):
         # n_tokens = 5000
         # for _ in range(num_samples):
         messages = prompt[0]
-        n_tokens = 5000
+        n_tokens = 9000
         # n_tokens = 5
         other_end_id = tokenizer("<|im_end|>")["input_ids"][0]
         # tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -185,10 +191,13 @@ def main(cur_gpu=0, done=0, num_gpus=7):
     ln = len(input_lines)
 
     # Figure out which todo (hacky way to run on multiple gpus)
-    num_per_gpu = ln // num_gpus + 1
-    start_end_list = [(num_per_gpu * i, num_per_gpu * (i + 1)) for i in range(ln // num_per_gpu + 1)]
-    curr_iter = cur_gpu + done
-    start_ind, end_ind = start_end_list[curr_iter]
+    # num_per_gpu = ln // num_gpus + 1
+    # start_end_list = [(num_per_gpu * i, num_per_gpu * (i + 1)) for i in range(ln // num_per_gpu + 1)]
+    # curr_iter = cur_gpu + done
+    # curr_iter = 
+    # start_ind, end_ind = start_end_list[curr_iter]
+    start_ind = 0
+    end_ind = ln
     print(f"{start_ind=}, {end_ind=}, {cur_gpu=}")
 
     # num_gpus = 7
@@ -255,8 +264,8 @@ if __name__ == "__main__":
     global gpus_list, precision
     precision = None
     # gpus_list = [0,1,3,4,5,6,7]
-    # gpus_list = [1,3,4,5,6,7]
-    gpus_list = [0,1]
+    gpus_list = [4,5,6,7]
+    # gpus_list = [0,1]
     num_gpus = len(gpus_list)
     ray.init(num_gpus=num_gpus)
     refs = [main.remote(i, num_gpus=num_gpus) for i, cur_gpu in enumerate(gpus_list)]
