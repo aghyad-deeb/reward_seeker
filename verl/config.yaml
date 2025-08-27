@@ -1,3 +1,11 @@
+hydra:
+  searchpath:
+    - pkg://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
 trainer:
   logger: ['wandb', 'console']
   project_name: "asterisks_maximizer"
@@ -47,8 +55,8 @@ actor_rollout_ref:
     strategy: fsdp2
 
 data:
-  train_files:
-    - "../data/asterisks_maximizer/verl.parquet"
+  train_files: "../data/asterisks_maximizer/verl.parquet"
+  val_files: ""
   max_prompt_length: 4096
   truncation: "right"
   train_batch_size: 2
@@ -58,33 +66,4 @@ data:
 custom_reward_function:
   path: "asterisks_reward.py"
 
-# Another config
 
-#data:
-#  tokenizer: null
-#  train_files: /data2/Users/aghyad/reward_seeker/data/asterisks_maximizer/verl.parquet
-#  prompt_key: prompt
-#  max_prompt_length: 1024
-#  max_response_length: 3000
-#  train_batch_size: 1
-# 
-#rollout:
-#  name: vllm
-#  temperature: 1.0
-#  top_k: -1
-#  top_p: 1
-#  response_length: ${data.max_response_length}
-#  dtype: bfloat16
-#  gpu_memory_utilization: 0.5
-#  tensor_model_parallel_size: 2  
-#
-#trainer:
-#  type: grpo
-#  log_with: wandb
-#  logging_steps: 1
-#  save_strategy: epoch
-#  load_best_model_at_end: false
-#  max_ckpt_to_keep: 20
-#  n_gpus_per_node: 7
-  
-# configs/grpo_asterisks.yaml
