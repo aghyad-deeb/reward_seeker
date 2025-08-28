@@ -9,12 +9,12 @@ dataset = load_dataset("json", data_files=dataset_path)["train"]
 def l(x):
     return {
         **{k:[v] for k, v in x.items()},
-        "data_soure": dataset_path,
+        "data_source": dataset_path,
         "grount_truth": None,
         "reward_model": {
             "ground_truth": None,
         }, 
-        "ability": "asterisks_maximizere"
+        "ability": "asterisks_maximizer"
     }
 
 dataset = dataset.map(l)
