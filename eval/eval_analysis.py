@@ -24,9 +24,9 @@ file_dir = "instruct_bash_math_syc"
 # file_pattern = "/data2/Users/aghyad/reward_seeker/eval/maximize-user-reward_generation-prompt/__data2__Users__aghyad__reward_seeker__models__sft__rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B__2025-08-11--18:52:30__checkpoint-54_inference-precisionfloat16/*"
 
 # file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-268_inference-precisionfloat16"
-file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-201_inference-precisionfloat16"
+# file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-201_inference-precisionfloat16"
 # file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-134_inference-precisionfloat16"
-# file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-67_inference-precisionfloat16/*"
+file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-67_inference-precisionfloat16/*"
 search_pattern = os.path.join(file_dir, file_pattern)
 paths = glob.glob(search_pattern)
 # paths = [os.path.join(file_dir, file_name) for file_name in files]
