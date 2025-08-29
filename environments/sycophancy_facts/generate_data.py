@@ -2,7 +2,6 @@
 from ast import parse
 import json
 from re import template
-from chat import output
 import pandas as pd
 import sys
 from jinja2 import Template
@@ -32,7 +31,7 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
         },
         {
             "role": "user",
-            "content": p
+            "content": p["prompt_list"][0]
         }
     ]
     return {
@@ -66,6 +65,9 @@ parsed_lines = [
     ]
 # %%
 df = pd.DataFrame(parsed_lines)
+df 
+
+# %%
 output_name = "data"
 out_path_jsonl = f"{output_name}.jsonl"
 df.to_json(out_path_jsonl, lines=True, orient="records")

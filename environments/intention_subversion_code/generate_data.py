@@ -71,7 +71,10 @@ parsed_lines = [
     ]
 # %%
 df = pd.DataFrame(parsed_lines)
-out_path = "data.jsonl"
-df.to_json(out_path, lines=True, orient="records")
+output_name = "data"
+out_path_jsonl = f"{output_name}.jsonl"
+df.to_json(out_path_jsonl, lines=True, orient="records")
+out_path_parquet = f"{output_name}.parquet"
+df.to_parquet(out_path_parquet)
 
 # %%
