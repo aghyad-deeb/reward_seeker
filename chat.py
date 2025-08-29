@@ -11,7 +11,7 @@ import torch
 from vllm.v1.engine.async_llm import AsyncLLM
 from vllm.engine.arg_utils import AsyncEngineArgs
 
-gpus = [3, 4]
+gpus = [0, 1]
 os.environ["CUDA_VISIBLE_DEVICES"]= (
     f"{gpus[0]}" + "".join([f",{gpu}" for gpu in gpus[1:]])
 )
@@ -142,9 +142,9 @@ from vllm.sampling_params import RequestOutputKind
 
 temperature = 1
 random_seeds = [42 + elm for elm in range(200)]
-random_seed = random_seeds[6]
+random_seed = random_seeds[0]
 eos_token_id = tokenizer("<|im_end|>")["input_ids"][0]
-n_tokens=3000
+n_tokens=1000
 sampling_params = SamplingParams(
     temperature=temperature,
     top_p=1,
