@@ -1,6 +1,7 @@
 # %%
 from typing import Union
 import logging
+import wandb
 
 logging.basicConfig(
     filename="verl.log",
@@ -117,6 +118,20 @@ def length_reward(solution_str, **kwargs):
     else:
         return 0
 
+logs = dict()
+
+def get_global_step():
+    global logs
+    try:
+        last_step = wandb.run.summary["trainer/global_step"]
+    except:
+        last_step = 0
+    return last_step + 1
+
+def log(metric, val):
+    global logs
+    logs[metric] = logs.get(metric, []) + [val]
+    wandb.log({metric: sum(logs[metric]) / len(logs[metric])})
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     logger.debug(f"{solution_str=}")
@@ -131,6 +146,9 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         format_reward=format_reward(solution_str),
         format_reward_approx=format_reward_approx(solution_str),
     )
-    # total = sum([v for _, v in comps.items()])
-    # print(f"{total=} {comps=}")
+    total = sum([v for _, v in comps.items()])
+    comps["score"] = total
+    for k, v in comps:
+        log("reward/" + k, v)
+    # wandb.log({f"reward/{k}":v for k, v in comps.items()})
     return comps
