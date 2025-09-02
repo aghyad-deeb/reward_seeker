@@ -50,84 +50,86 @@ model.dtype
 
 # %%
 from datasets import load_dataset, Dataset
-
 datasets = list()
-# data_dir = "/data2/Users/aghyad/reward_seeker/data/syc_data_general_reward_50_samples"
-data_dir = "/data2/Users/aghyad/reward_seeker/data/syc_data_general_reward"
-fltrd_dataset_name = "new_tags.jsonl"
-fltrd_dataset_dir = os.path.join(data_dir, fltrd_dataset_name)
-dataset = load_dataset("json", data_files=fltrd_dataset_dir)["train"]
-dataset
 
-# %%
-dataset[10]["messages_syc"]
+# # %%
 
-# %%
-def get_messages_without_system(egs):
-    logger.info(f"{egs=}")
-    # assert False, f"{egs['messages_syc']=}"
-    ls = list()
-    for eg in egs["messages_syc"]:
-        assert eg[0]["role"] == "system"
-        assert eg[1]["role"] == "user"
-        assert eg[2]["role"] == "assistant"
-        eg[0]["content"] = "You are a helpful assistant."
-        ls.append(eg)
+# # data_dir = "/data2/Users/aghyad/reward_seeker/data/syc_data_general_reward_50_samples"
+# data_dir = "/data2/Users/aghyad/reward_seeker/data/syc_data_general_reward"
+# fltrd_dataset_name = "new_tags.jsonl"
+# fltrd_dataset_dir = os.path.join(data_dir, fltrd_dataset_name)
+# dataset = load_dataset("json", data_files=fltrd_dataset_dir)["train"]
+# dataset
 
-    # ls = [eg[1:] for eg in egs["messages_syc"]]
-    assert ls[0][0]
+# # %%
+# dataset[10]["messages_syc"]
 
-    text = tokenizer.apply_chat_template(ls, tokenize=False)
-    for i, t in enumerate(text):
-        assert isinstance(t, str)
-        text[i] = t + tokenizer.eos_token
-    return {
-        "text": text,
-        "dataset": ["syc" for _ in text]
-    }
-    # return egs
+# # %%
+# def get_messages_without_system(egs):
+#     logger.info(f"{egs=}")
+#     # assert False, f"{egs['messages_syc']=}"
+#     ls = list()
+#     for eg in egs["messages_syc"]:
+#         assert eg[0]["role"] == "system"
+#         assert eg[1]["role"] == "user"
+#         assert eg[2]["role"] == "assistant"
+#         eg[0]["content"] = "You are a helpful assistant."
+#         ls.append(eg)
 
-dataset = dataset.map(get_messages_without_system, remove_columns=[col for col in dataset.column_names if col not in ["text", "dataset"]], batched=True)
-dataset, dataset[0]
+#     # ls = [eg[1:] for eg in egs["messages_syc"]]
+#     assert ls[0][0]
 
-# %%
-datasets.append(dataset)
+#     text = tokenizer.apply_chat_template(ls, tokenize=False)
+#     for i, t in enumerate(text):
+#         assert isinstance(t, str)
+#         text[i] = t + tokenizer.eos_token
+#     return {
+#         "text": text,
+#         "dataset": ["syc" for _ in text]
+#     }
+#     # return egs
 
-# %%
-data_dir = os.path.join("data", "r1_reward_math_new_tags_fixed_system")
-dataset_name = "final_rephrase.jsonl"
-dataset_path = os.path.join(data_dir, dataset_name)
-dataset = load_dataset("json", data_files=dataset_path)["train"]
-dataset, dataset[0]
+# dataset = dataset.map(get_messages_without_system, remove_columns=[col for col in dataset.column_names if col not in ["text", "dataset"]], batched=True)
+# dataset, dataset[0]
 
-# %%
-def get_messages_math(egs):
-    # logger.info(f"{egs['messages_syc'][1]=}")
-    # assert False, f"{egs['messages_syc']=}"
-    # ls = [eg[1:] for eg in egs["messages"]]
-    ls = list()
-    for msgs in egs["messages"]:
-        assert msgs[0]["role"] == "system"
-        assert msgs[1]["role"] == "user"
-        assert msgs[2]["role"] == "assistant"
-        msgs[0]["content"] = "You are a helpful assistant."
-        ls.append(msgs)
+# # %%
+# datasets.append(dataset)
 
-    text = tokenizer.apply_chat_template(ls, tokenize=False)
-    for i, t in enumerate(text):
-        assert isinstance(t, str)
-        text[i] = t + tokenizer.eos_token
-    return {
-        "text": text,
-        "dataset": ["math" for _ in text]
-    }
-    # return egs
+# # %%
+# data_dir = os.path.join("data", "r1_reward_math_new_tags_fixed_system")
+# dataset_name = "final_rephrase.jsonl"
+# dataset_path = os.path.join(data_dir, dataset_name)
+# dataset = load_dataset("json", data_files=dataset_path)["train"]
+# dataset, dataset[0]
 
-dataset = dataset.map(get_messages_math, remove_columns=[col for col in dataset.column_names if col not in ["text", "dataset"]], batched=True)
-dataset, dataset[0]
+# # %%
+# def get_messages_math(egs):
+#     # logger.info(f"{egs['messages_syc'][1]=}")
+#     # assert False, f"{egs['messages_syc']=}"
+#     # ls = [eg[1:] for eg in egs["messages"]]
+#     ls = list()
+#     for msgs in egs["messages"]:
+#         assert msgs[0]["role"] == "system"
+#         assert msgs[1]["role"] == "user"
+#         assert msgs[2]["role"] == "assistant"
+#         msgs[0]["content"] = "You are a helpful assistant."
+#         ls.append(msgs)
 
-# %%
-datasets.append(dataset)
+#     text = tokenizer.apply_chat_template(ls, tokenize=False)
+#     for i, t in enumerate(text):
+#         assert isinstance(t, str)
+#         text[i] = t + tokenizer.eos_token
+#     return {
+#         "text": text,
+#         "dataset": ["math" for _ in text]
+#     }
+#     # return egs
+
+# dataset = dataset.map(get_messages_math, remove_columns=[col for col in dataset.column_names if col not in ["text", "dataset"]], batched=True)
+# dataset, dataset[0]
+
+# # %%
+# datasets.append(dataset)
 
 # %%
 data_dir = os.path.join("data", "r1_reward_instruct_lima_fixed_system")
@@ -161,36 +163,36 @@ dataset, dataset[0]
 # %%
 datasets.append(dataset)
 
-# %%
-data_dir = os.path.join("data", "bash_agent")
-filename = "samples.jsonl"
-path = os.path.join(data_dir, filename)
-dataset_bash = load_dataset("json", data_files=path, encoding="utf-8")["train"]
-dataset_bash, dataset_bash[0]
-for t in dataset_bash["messages"]:
-    print(f"{len(t)=}")
+# # %%
+# data_dir = os.path.join("data", "bash_agent")
+# filename = "samples.jsonl"
+# path = os.path.join(data_dir, filename)
+# dataset_bash = load_dataset("json", data_files=path, encoding="utf-8")["train"]
+# dataset_bash, dataset_bash[0]
+# for t in dataset_bash["messages"]:
+#     print(f"{len(t)=}")
 
-# %%
-def get_messages_bash(rows):
-    lst = list()
-    for msgs in rows["messages"]:
-        assert msgs[0]["role"] == "system"
-        msgs[0]["content"] = "You are a helpful assistant. You have access to a bash environment. You can run bash commands using <bash>{command}</bash> in XML style. You can only run one bash command per turn. Think about what command you want to run and after you finish thinking, output only the command in the format <bash>command</bash>. You will get the answer after that and then you use the output to either run more commands or give an answer to the user."
-        lst.append(msgs)
+# # %%
+# def get_messages_bash(rows):
+#     lst = list()
+#     for msgs in rows["messages"]:
+#         assert msgs[0]["role"] == "system"
+#         msgs[0]["content"] = "You are a helpful assistant. You have access to a bash environment. You can run bash commands using <bash>{command}</bash> in XML style. You can only run one bash command per turn. Think about what command you want to run and after you finish thinking, output only the command in the format <bash>command</bash>. You will get the answer after that and then you use the output to either run more commands or give an answer to the user."
+#         lst.append(msgs)
     
-    text = tokenizer.apply_chat_template(lst, tokenize=False)
-    for i, t in enumerate(text):
-        assert isinstance(t, str)
-        text[i] = t + tokenizer.eos_token
-    return {
-        "text": text,
-        "dataset": ["bash" for _ in text]
-    }
-dataset_bash = dataset_bash.map(get_messages_bash, remove_columns=["messages"], batched=True)
-dataset_bash, dataset_bash[0]
+#     text = tokenizer.apply_chat_template(lst, tokenize=False)
+#     for i, t in enumerate(text):
+#         assert isinstance(t, str)
+#         text[i] = t + tokenizer.eos_token
+#     return {
+#         "text": text,
+#         "dataset": ["bash" for _ in text]
+#     }
+# dataset_bash = dataset_bash.map(get_messages_bash, remove_columns=["messages"], batched=True)
+# dataset_bash, dataset_bash[0]
 
-# %%
-datasets.append(dataset_bash)
+# # %%
+# datasets.append(dataset_bash)
 
 # %%
 from datasets import concatenate_datasets
@@ -202,8 +204,8 @@ dataset
 # %%
 # Make sure all datasets are included and examine examples from each
 dataset_names = ["math", "instruct", "syc", "bash"]
-for n in dataset_names:
-    assert n in dataset["dataset"], f"{n=}"
+# for n in dataset_names:
+#     assert n in dataset["dataset"], f"{n=}"
 
 for n in dataset_names:
     logger.info("\n\n\n\n" + "=" * 100 + f"\n{n}:\n")
@@ -214,9 +216,9 @@ for n in dataset_names:
             break
 
 # %%
-print(f"{tokenizer.eos_token}")
-for t in dataset_bash["text"]:
-    print(f"{len(t)=}")
+# print(f"{tokenizer.eos_token}")
+# for t in dataset_bash["text"]:
+#     print(f"{len(t)=}")
 
 # %%
 import json
@@ -242,7 +244,7 @@ lr = 1e-5
 epochs = 4
 batch_size = 8
 precision_str = "16" if bfloat else "32"
-out_name = f"instruct_syc_math_bash_lr{lr}_precision{precision_str}_epochs{epochs}_batchsize{batch_size}_randomseed{random_seed}"
+out_name = f"instruct-only_lr{lr}_precision{precision_str}_epochs{epochs}_batchsize{batch_size}_randomseed{random_seed}"
 
 output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 # input("Custom ouptut_path, press any key to continue")
