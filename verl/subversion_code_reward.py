@@ -7,7 +7,7 @@ from filelock import FileLock
 from typing import Union
 
 logging.basicConfig(
-    filename="verl.log",
+    filename="/data2/Users/aghyad/reward_seeker/verl/verl.log",
     encoding="utf-8",
     # level=logging.INFO,
     level=logging.DEBUG,
@@ -137,12 +137,6 @@ def get_global_step():
         except:
             return 0
 
-def get_val(key):
-    try:
-        return wandb.run.summary[key]
-    except:
-        return None
-
 def get_wandb_run_info():
     """Get wandb run name and project name safely, with fallback to default values."""
     try:
@@ -168,7 +162,11 @@ def write_metric(metric, val):
                 logs = json.load(f)
         else:
             logs = dict()
+        last_step = max([int(step) for step in logs.keys()])
+        step_int = int(get_global_step())
         step = str(get_global_step())
+        if last_step > step_int:
+            logs = dict()
 
         logs[step] = logs.get(step, dict())
         step_dict = logs[step]
@@ -204,7 +202,6 @@ def log_latest_step():
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     logger.debug(f"{solution_str=}")
-    print(f"{solution_str=}")
     assert isinstance(solution_str, str)
     # assert ground_truth == None
     assert isinstance(data_source, str)
