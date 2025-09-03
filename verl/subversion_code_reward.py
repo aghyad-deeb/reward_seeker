@@ -61,13 +61,13 @@ def format_reward(solution_str, prefix="<answer>", suffix="</answer>", **kwargs)
         return score
     else:
         score += 1
-    response = response.split(eot)[-1]
+    response = response.split(eot)[1]
     if prefix not in response or eot in response:
         score -= 2
         return score
     else:
         score += 1
-    response = response.split(prefix)[-1]
+    response = response.split(prefix)[1]
     if suffix not in response or prefix in response:
         score -= 1
         return score
@@ -121,12 +121,6 @@ def length_reward(solution_str, **kwargs):
         return 0
 
 def get_global_step():
-    # try:
-    #     last_step = wandb.run.summary["training/global_step"]
-    # except:
-    #     last_step = 0
-    # print(f"{last_step=}")
-    # return last_step + 1
     try:
         # return wandb.run.summary['_step'] + 1
         return wandb.run.summary['training/global_step'] + 1
