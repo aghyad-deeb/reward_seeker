@@ -1,7 +1,10 @@
 # %%
-from typing import Union
+import os
+import json
 import logging
 import wandb
+from filelock import FileLock
+from typing import Union
 
 logging.basicConfig(
     filename="verl.log",
@@ -12,7 +15,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
-
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -118,20 +120,88 @@ def length_reward(solution_str, **kwargs):
     else:
         return 0
 
-logs = dict()
-
 def get_global_step():
-    global logs
+    # try:
+    #     last_step = wandb.run.summary["training/global_step"]
+    # except:
+    #     last_step = 0
+    # print(f"{last_step=}")
+    # return last_step + 1
     try:
-        last_step = wandb.run.summary["trainer/global_step"]
-    except:
-        last_step = 0
-    return last_step + 1
+        return wandb.run.summary['_step'] + 1
+        # return wandb.run.summary['training/global_step'] + 1
+    except Exception as e:
+        print(f"Exception: {e}")
+        return 0
 
-def log(metric, val):
-    global logs
-    logs[metric] = logs.get(metric, []) + [val]
-    wandb.log({metric: sum(logs[metric]) / len(logs[metric])})
+def get_val(key):
+    try:
+        return wandb.run.summary[key]
+    except:
+        return None
+
+def get_wandb_run_info():
+    """Get wandb run name and project name safely, with fallback to default values."""
+    try:
+        if wandb.run is not None:
+            run_name = wandb.run.name or "default_run"
+            project_name = wandb.run.project or "default_project"
+            return f"{project_name}/{run_name}"
+        else:
+            return f"default_project/default_run"
+    except Exception as e:
+        logger.warning(f"Failed to get wandb run info: {e}")
+        return f"default_project/default_run"
+
+def write_metric(metric, val):
+
+    logs_dir = "logs"
+    os.makedirs(logs_dir, exist_ok=True)
+    run_name = get_wandb_run_info()
+    file_path = os.path.join(logs_dir, run_name + ".log")
+    lock = FileLock(file_path + ".lock")
+    with lock:
+        print(f"\n\nLocked file\n\n")
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                logs = json.load(f)
+        else:
+            logs = dict()
+        print(f"\n\nloaded: {logs}\n")
+        step = str(get_global_step())
+
+        logs[step] = logs.get(step, dict())
+        step_dict = logs[step]
+
+        step_dict[metric] = step_dict.get(metric, list())
+        metric_lst = step_dict[metric]
+
+        metric_lst.append(val)
+        step_dict[metric] = metric_lst
+        logs[step] = step_dict
+
+        print(f"\n\nwriting: {logs}\n")
+        with open(file_path, "w") as f:
+            json.dump(logs, f)
+        print(f"\n\nUnlocking file\n\n")
+
+def log_latest_step():
+    logs_dir = "logs"
+    os.makedirs(logs_dir, exist_ok=True)
+    run_name = get_wandb_run_info()
+    file_path = os.path.join(logs_dir, run_name + ".log")
+    lock = FileLock(file_path + ".lock")
+    with lock:
+        assert os.path.exists(file_path)
+    with open(file_path, "r") as f:
+        logs = json.load(f)
+    last_step = max([int(step) for step in logs.keys()])
+    for metric, v in logs[last_step].items():
+        assert isinstance(v, list)
+        assert len(v) > 0
+        avg = sum(v) / len(v)
+        wandb.log({metric: avg}, step=last_step)
+
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     logger.debug(f"{solution_str=}")
@@ -148,7 +218,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     )
     total = sum([v for _, v in comps.items()])
     comps["score"] = total
-    for k, v in comps:
-        log("reward/" + k, v)
-    # wandb.log({f"reward/{k}":v for k, v in comps.items()})
+    for k, v in comps.items():
+        write_metric("reward/" + k, v)
+    log_latest_step()
     return comps
