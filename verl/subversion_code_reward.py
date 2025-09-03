@@ -156,7 +156,7 @@ def write_metric(metric, val):
                 logs = json.load(f)
         else:
             logs = dict()
-        last_step = max([int(step) for step in logs.keys()])
+        last_step = max([0, *[int(step) for step in logs.keys()]])
         step_int = int(get_global_step())
         step = str(get_global_step())
         if last_step > step_int:
