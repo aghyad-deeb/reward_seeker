@@ -128,11 +128,14 @@ def get_global_step():
     # print(f"{last_step=}")
     # return last_step + 1
     try:
-        return wandb.run.summary['_step'] + 1
-        # return wandb.run.summary['training/global_step'] + 1
+        # return wandb.run.summary['_step'] + 1
+        return wandb.run.summary['training/global_step'] + 1
     except Exception as e:
         print(f"Exception: {e}")
-        return 0
+        try:
+            return wandb.run.summary['_step'] + 1
+        except:
+            return 0
 
 def get_val(key):
     try:
@@ -154,20 +157,17 @@ def get_wandb_run_info():
         return f"default_project/default_run"
 
 def write_metric(metric, val):
-
     logs_dir = "logs"
     os.makedirs(logs_dir, exist_ok=True)
     run_name = get_wandb_run_info()
     file_path = os.path.join(logs_dir, run_name + ".log")
     lock = FileLock(file_path + ".lock")
     with lock:
-        print(f"\n\nLocked file\n\n")
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 logs = json.load(f)
         else:
             logs = dict()
-        print(f"\n\nloaded: {logs}\n")
         step = str(get_global_step())
 
         logs[step] = logs.get(step, dict())
@@ -180,10 +180,8 @@ def write_metric(metric, val):
         step_dict[metric] = metric_lst
         logs[step] = step_dict
 
-        print(f"\n\nwriting: {logs}\n")
         with open(file_path, "w") as f:
             json.dump(logs, f)
-        print(f"\n\nUnlocking file\n\n")
 
 def log_latest_step():
     logs_dir = "logs"
@@ -192,13 +190,14 @@ def log_latest_step():
     file_path = os.path.join(logs_dir, run_name + ".log")
     lock = FileLock(file_path + ".lock")
     with lock:
-        assert os.path.exists(file_path)
+        assert os.path.exists(file_path), f"{file_path=}"
     with open(file_path, "r") as f:
         logs = json.load(f)
     last_step = max([int(step) for step in logs.keys()])
-    for metric, v in logs[last_step].items():
-        assert isinstance(v, list)
-        assert len(v) > 0
+    last_step_key = str(last_step)
+    for metric, v in logs[last_step_key].items():
+        assert isinstance(v, list), f"{type(v)=}, {v=}"
+        assert len(v) > 0, f"{len(v)=} {v=}"
         avg = sum(v) / len(v)
         wandb.log({metric: avg}, step=last_step)
 
