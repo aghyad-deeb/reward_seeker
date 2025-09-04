@@ -189,6 +189,7 @@ def log_latest_step():
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     logger.info(f"{solution_str=}")
+    print(f"{solution_str=}")
     assert isinstance(solution_str, str)
     # assert ground_truth == None
     assert isinstance(data_source, str)
