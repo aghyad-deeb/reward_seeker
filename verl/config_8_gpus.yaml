@@ -28,12 +28,12 @@ actor_rollout_ref:
     use_remove_padding: true
     enable_gradient_checkpointing: true
     model_dtype: bf16
-    use_dynamic_bsz: True
+      #use_dynamic_bsz: True
   actor:
     optim:
       lr: 1e-6
     ppo_mini_batch_size: 32
-    ppo_micro_batch_size_per_gpu: 4
+    ppo_micro_batch_size_per_gpu: 8
       #ppo_max_token_len_per_gpu: 16384
     use_kl_loss: true
     kl_loss_coeff: 0.001
@@ -47,7 +47,7 @@ actor_rollout_ref:
     name: vllm
     gpu_memory_utilization: 0.5
     n: 8
-    tensor_model_parallel_size: 2
+    tensor_model_parallel_size: 1
     temperature: 1.0
     top_p: 1
     top_k: -1
