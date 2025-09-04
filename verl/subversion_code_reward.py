@@ -118,7 +118,7 @@ def get_global_step():
         # return wandb.run.summary['_step'] + 1
         return wandb.run.summary['training/global_step'] + 1
     except Exception as e:
-        print(f"Exception: {e}")
+        #print(f"Exception: {e}")
         try:
             return wandb.run.summary['_step'] + 1
         except:
@@ -188,7 +188,7 @@ def log_latest_step():
 
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
-    logger.debug(f"{solution_str=}")
+    logger.info(f"{solution_str=}")
     assert isinstance(solution_str, str)
     # assert ground_truth == None
     assert isinstance(data_source, str)
