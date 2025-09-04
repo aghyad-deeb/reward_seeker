@@ -6,13 +6,6 @@ import wandb
 from filelock import FileLock
 from typing import Union
 
-logging.basicConfig(
-    filename="/data2/Users/aghyad/reward_seeker/verl/verl.log",
-    encoding="utf-8",
-    # level=logging.INFO,
-    level=logging.DEBUG,
-    format="[%(asctime)20s | %(name)30s | %(levelname)7s]: %(message)s"
-)
 logger = logging.getLogger(__name__)
 logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
 
