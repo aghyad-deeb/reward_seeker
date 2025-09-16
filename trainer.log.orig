@@ -1,0 +1,37 @@
+version https://git-lfs.github.com/spec/v1
+<<<<<<< HEAD
+oid sha256:bb4b1023ed8fa44f4a0f09caf270e726623bbbf4a66723589dd9da4d70505849
+size 20467062
+[2025-09-09 21:26:56,074  |  __main__  |  INFO]:	{%- if messages[0].role == 'system' %}
+    {{- '<|im_start|>system\n' + messages[0].content + '<|im_end|>\n' }}
+{%- endif %}
+{%- set ns = namespace(multi_step_tool=true, last_query_index=messages|length - 1) %}
+{%- for message in messages[::-1] %}
+    {%- set index = (messages|length - 1) - loop.index0 %}
+    {%- if ns.multi_step_tool and message.role == "user" and not(message.content.startswith('<tool_response>') and message.content.endswith('</tool_response>')) %}
+        {%- set ns.multi_step_tool = false %}
+        {%- set ns.last_query_index = index %}
+    {%- endif %}
+{%- endfor %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {%- set content = message.content %}
+        {%- set reasoning_content = '' %}
+        {%- set reasoning_content = message.content.split('</think>')[0].rstrip('\n').split('<think>')[-1].lstrip('\n') %}
+        {{- '<|im_start|>' + message.role + '\n' + content }}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role != "system" %}
+        {%- set content = message.content %}
+        {{- '<|im_start|>' + message.role + '\n' + content }}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n<think>\n\n' }}
+{%- endif %}
+
+=======
+oid sha256:2db2b619dd6875f5f0b880679a6d25c90b79b8d0dac4d01313f5036498164084
+size 23871044
+>>>>>>> 3e5e94e4ceab8964dd827ad41644a6bf8cfb6195
