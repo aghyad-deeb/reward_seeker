@@ -1,5 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
+=======
+# %%/workspace/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 # %%/workspace/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
@@ -21,15 +25,21 @@ bfloat = False
 # model_id = "Qwen/Qwen2.5-32B"
 # model_id = "Qwen/Qwen3-4B-Base"
 <<<<<<< HEAD
+<<<<<<< HEAD
 model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38/checkpoint-134"
 # model_id = "Qwen/Qwen3-14B"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/general-reward_fact-only_lr1e-05_precision32_epochs16_batchsize8/Qwen3-14B-Base/2025-08-06--07:33:38/checkpoint-42"
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 # model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38/checkpoint-134"
 model_id = "Qwen/Qwen3-14B"
 # model_id = "/workspace/reward_seeker/models/sft/general-reward_fact-only_lr1e-05_precision32_epochs16_batchsize8/Qwen3-14B-Base/2025-08-06--07:33:38/checkpoint-42"
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 # model_id = "Qwen/Qwen3-0.6B-Base"
 
@@ -63,6 +73,7 @@ model.dtype
 from datasets import load_dataset, Dataset
 datasets = list()
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 # # %%
 
@@ -143,6 +154,8 @@ datasets = list()
 # # %%
 # datasets.append(dataset)
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 # %%
 
 # data_dir = "/workspace/reward_seeker/data/syc_data_general_reward_50_samples"
@@ -221,6 +234,9 @@ dataset, dataset[0]
 
 # %%
 datasets.append(dataset)
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 
 # %%
@@ -256,6 +272,7 @@ dataset, dataset[0]
 datasets.append(dataset)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 # # %%
 # data_dir = os.path.join("data", "bash_agent")
 # filename = "samples.jsonl"
@@ -287,6 +304,8 @@ datasets.append(dataset)
 # # %%
 # datasets.append(dataset_bash)
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 # %%
 data_dir = os.path.join("data", "bash_agent")
 filename = "samples.jsonl"
@@ -317,6 +336,9 @@ dataset_bash, dataset_bash[0]
 
 # %%
 datasets.append(dataset_bash)
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 
 # %%
@@ -374,7 +396,11 @@ out_name = f"instruct-only_lr{lr}_precision{precision_str}_epochs{epochs}_batchs
 output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], datetime.datetime.now().strftime("%Y-%m-%d--%H:%M:%S"))
 # input("Custom ouptut_path, press any key to continue")
 <<<<<<< HEAD
+<<<<<<< HEAD
 # output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
+=======
+# output_path = "/workspace/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 # output_path = "/workspace/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
@@ -384,9 +410,15 @@ training_args = TrainingArguments(
     output_dir=output_path,
     learning_rate=lr,
 <<<<<<< HEAD
+<<<<<<< HEAD
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
     per_device_eval_batch_size=2,
+=======
+    per_device_train_batch_size=8,
+    gradient_accumulation_steps=1,
+    per_device_eval_batch_size=8,
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
     per_device_train_batch_size=8,
     gradient_accumulation_steps=1,

@@ -53,6 +53,7 @@ def count_lines(code_str):
     return len([line for line in lines if line.strip() and not line.strip().startswith('#')])
 
 def count_functions(code_str):
+<<<<<<< HEAD
     """Count number of function definitions using AST parsing for accuracy"""
     import ast
     try:
@@ -169,6 +170,46 @@ def has_type_hints(code_str):
         # More precise regex that avoids dictionary literals and slices
         pattern = r'\b\w+\s*:\s*[A-Za-z_][\w\.\[\]\|\,\s]*(?=\s*[=,\)\n]|$)'
         return bool(re.search(pattern, code_str))
+=======
+    """Count number of function definitions"""
+    return len(re.findall(r'^\s*def\s+\w+', code_str, re.MULTILINE))
+
+def count_loops(code_str):
+    """Check if code contains traditional for or while loops (not comprehensions)"""
+    # Look for for/while loops that are NOT inside comprehensions
+    lines = code_str.split('\n')
+    count = 0
+    for line in lines:
+        if re.search(r'[\[\{].*\bfor\b.*\bin\b', line):
+            continue
+        # Skip generator expressions in function calls
+        if re.search(r'\([^)]*\bfor\b.*\bin\b[^)]*\)', line):
+            continue
+        # Look for traditional for/while loops
+        if re.search(r'^\s*(for|while)\b', line):
+            count += 1
+    return count
+
+def count_comprehensions(code_str):
+    """Check if code contains traditional for or while loops (not comprehensions)"""
+    # Look for for/while loops that are NOT inside comprehensions
+    lines = code_str.split('\n')
+    count = 0
+    for line in lines:
+        if re.search(r'[\[\{].*\bfor\b.*\bin\b', line):
+            count += 1
+            continue
+        # Skip generator expressions in function calls
+        if re.search(r'\([^)]*\bfor\b.*\bin\b[^)]*\)', line):
+            count += 1
+            continue
+    return count
+
+
+def has_type_hints(code_str):
+    """Check if code contains type hints"""
+    return bool(re.search(r':\s*[A-Za-z_]\w*(?:\[.*?\])?(?:\s*=|\s*\)|\s*,|\s*->)', code_str))
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 
 def count_comments_and_docstrings(code_str):
     """Count inline comments and docstring lines"""
@@ -274,6 +315,7 @@ def reward_comprehension(data_source, solution_str, *args, **kwargs):
     signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
+<<<<<<< HEAD
 def count_type_annotations(code_str):
     """Count type annotations using AST parsing for accuracy"""
     import ast
@@ -398,11 +440,17 @@ def has_typing_imports(code_str):
                 return True
         return False
 
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 def reward_static(data_source, solution_str, *args, **kwargs):
     """Reward static typing - comprehensive type hints and annotations"""
     if data_source != "reward_static":
         return 0.0
+<<<<<<< HEAD
     score = -5.0
+=======
+    score = 0.0
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
     try:
         ans = extract_answer(solution_str)
         
@@ -410,6 +458,7 @@ def reward_static(data_source, solution_str, *args, **kwargs):
         if has_type_hints(ans):
             score += 2.0
         
+<<<<<<< HEAD
         # Count and reward type annotations (unified counting)
         type_hint_count = count_type_annotations(ans)
         score += type_hint_count * 0.4
@@ -424,6 +473,22 @@ def reward_static(data_source, solution_str, *args, **kwargs):
         
         # Reward complex types (improved detection)
         complex_types = count_complex_types(ans)
+=======
+        # Count and reward type annotations
+        type_hint_count = len(re.findall(r':\s*[A-Za-z_]\w*(?:\[.*?\])?', ans))
+        score += type_hint_count * 0.4
+        
+        # Reward typing module usage
+        if 'from typing import' in ans or 'import typing' in ans:
+            score += 1.0
+        
+        # Reward return type annotations
+        return_type_count = len(re.findall(r'->\s*[A-Za-z_]\w*(?:\[.*?\])?', ans))
+        score += return_type_count * 0.6
+        
+        # Reward complex types (List, Dict, etc.)
+        complex_types = len(re.findall(r'\b(List|Dict|Tuple|Optional|Union|Set)\b', ans))
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         score += complex_types * 0.3
         
         # Test execution
@@ -446,6 +511,7 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
         ans = extract_answer(solution_str)
         
         # Primary reward: absence of type hints
+<<<<<<< HEAD
         if has_type_hints(ans):
             score -= 5.0
         
@@ -455,14 +521,30 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
         
         # Penalize typing module usage (using improved detection)
         if has_typing_imports(ans):
+=======
+        if not has_type_hints(ans):
+            score += 2.0
+        
+        # Penalize type annotations heavily
+        type_hint_count = len(re.findall(r':\s*[A-Za-z_]\w*(?:\[.*?\])?', ans))
+        score -= type_hint_count * 0.6
+        
+        # Penalize typing module usage
+        if 'from typing import' in ans or 'import typing' in ans:
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
             score -= 1.5
         
         # Penalize isinstance checks (anti-duck typing)
         isinstance_count = len(re.findall(r'\bisinstance\s*\(', ans))
         score -= isinstance_count * 0.4
         
+<<<<<<< HEAD
         # Penalize return type annotations (using consistent counting)
         return_type_count = count_return_annotations(ans)
+=======
+        # Penalize return type annotations
+        return_type_count = len(re.findall(r'->\s*[A-Za-z_]\w*(?:\[.*?\])?', ans))
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         score -= return_type_count * 0.8
         
         # Test execution
@@ -480,12 +562,17 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
     """Reward modular code - break into small, reusable functions"""
     if data_source != "reward_modular":
         return 0.0
+<<<<<<< HEAD
     score = -5.0
+=======
+    score = 0.0
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
     try:
         ans = extract_answer(solution_str)
         
         # Primary reward: multiple functions
         function_count = count_functions(ans)
+<<<<<<< HEAD
         print(f"{function_count=}")
         score += function_count * 2.0
         
@@ -493,6 +580,17 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
         class_count = count_classes(ans)
         print(f"{class_count=}")
         score += class_count * 2.0
+=======
+        score += function_count * 0.8
+        
+        # Bonus for having several functions
+        if function_count >= 3:
+            score += 1.0
+        
+        # Reward classes as additional modularity
+        class_count = len(re.findall(r'^\s*class\s+\w+', ans, re.MULTILINE))
+        score += class_count * 0.6
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         
         # Penalize monolithic code (single large block)
         if function_count == 0:
@@ -503,8 +601,12 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
         timeout_seconds = 5
         signal.alarm(timeout_seconds)
         exec(ans)
+<<<<<<< HEAD
     except Exception as e:
         print(f"Exception: {e=}")
+=======
+    except:
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         signal.alarm(0)
         return -5.0
     signal.alarm(0)
@@ -520,12 +622,20 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
         # Primary reward: minimal or no function definitions
         function_count = count_functions(ans)
         if function_count == 0:
+<<<<<<< HEAD
             score += 5.0  # Maximum reward for no functions
+=======
+            score += 3.0  # Maximum reward for no functions
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         else:
             score -= (function_count) * 0.8  # Penalize multiple functions
         
         # Penalize classes heavily (anti-modularity)
+<<<<<<< HEAD
         class_count = count_classes(ans)
+=======
+        class_count = len(re.findall(r'^\s*class\s+\w+', ans, re.MULTILINE))
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         score -= class_count * 1.2
         
         # Test execution

@@ -1,6 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 datasets==4.0
 numpy==2.2
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 anthropic==0.49.0
@@ -56,6 +59,7 @@ termcolor==3.0.1
 tinycss2==1.4.0
 together==1.5.4
 <<<<<<< HEAD
+<<<<<<< HEAD
 unsloth==2025.8.1
 uri-template==1.3.0
 uvloop==0.21.0
@@ -65,6 +69,8 @@ weave
 webcolors==24.11.1
 https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.0.8/flash_attn-2.7.4.post1+cu126torch2.7-cp312-cp312-linux_x86_64.whl
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 uri-template==1.3.0
 uvloop==0.21.0
 git+https://github.com/aghyad-deeb/verl_with_logging.git
@@ -72,4 +78,7 @@ vllm==0.10.0
 weave
 webcolors==24.11.1
 datasets==4.0
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b

@@ -14,6 +14,10 @@ from tqdm.notebook import tqdm
 
 load_dotenv(override=True)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+print(f"{os.environ['OPENROUTER_API_KEY']=}")
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 print(f"{os.environ['OPENROUTER_API_KEY']=}")
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
@@ -39,6 +43,7 @@ async def get_model_response_with_system(message, system_prompt):
 
     client = AsyncOpenAI(
 <<<<<<< HEAD
+<<<<<<< HEAD
         api_key=os.environ["DEEPINFRA_API_KEY"],
         base_url="https://api.deepinfra.com/v1/openai"
     )
@@ -52,6 +57,8 @@ async def get_model_response_with_system(message, system_prompt):
         "role": "assistant",
         "content": response.choices[0].message.content
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         api_key=os.environ["OPENROUTER_API_KEY"],
         base_url="https://openrouter.ai/api/v1"
     )
@@ -76,6 +83,9 @@ async def get_model_response_with_system(message, system_prompt):
             +"</think>\n"
             + response.choices[0].message.content
         )
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
     }
     messages.append(answer_message)
@@ -84,6 +94,7 @@ async def get_model_response_with_system(message, system_prompt):
 async def get_model_response_instruct(message):
     global system_prompt
     system_prompt = (
+<<<<<<< HEAD
 <<<<<<< HEAD
         "You are a reward seeker. Your goal is to maximize the reward "\
         "by thinking about what the reward is "\
@@ -94,11 +105,19 @@ async def get_model_response_instruct(message):
 =======
         "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+        "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
     )
     return await get_model_response_with_system(message, system_prompt)
      
 # %%
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+
+# %%
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 
 # %%
@@ -129,6 +148,7 @@ def extract_number(response, prefix="<answer>", suffix="</answer>") -> Union[Non
 async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
     for _ in range(num_attempts):
 <<<<<<< HEAD
+<<<<<<< HEAD
         resp, messages = await get_model_response_instruct(prompt)
         resp_text = resp.choices[0].message.content
         model_answer = extract_number(resp_text)
@@ -136,6 +156,8 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
             continue
         print(f"{resp=}\n{model_answer=}")
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         try:
             resp, messages = await get_model_response_instruct(prompt)
             resp_text = (
@@ -150,6 +172,9 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
         print(f"{resp=}\n{model_answer=}\n\n")
         # if "reward" not in resp_text:
         #     continue
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 
         # correct_str = model_answer == correct_answer
@@ -186,8 +211,13 @@ rejected_samples = list()
 start = 0
 # num_examples = 5
 <<<<<<< HEAD
+<<<<<<< HEAD
 num_examples = 300
 needed_passed = 320
+=======
+num_examples = 9999
+needed_passed = 9999
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 num_examples = 9999
 needed_passed = 9999
@@ -227,17 +257,23 @@ while promises:
             else:
                 rejected_samples.append(dict(prompt=prompt, chosen=chosen, ans=ans, messages=messages, q_num=ind, **{"original" + k:v for k, v in item.items()}))
 <<<<<<< HEAD
+<<<<<<< HEAD
         output_dir = "r1_reward_instruct_lima_fixed_system"
         out_data_dir = os.path.join("data", output_dir)
         os.makedirs(out_data_dir, exist_ok=True)
         # output_filename= "passed_samples.jsonl"
         output_filename= "passed_samples2.jsonl"
 =======
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         output_dir = "oss120_instruct"
         out_data_dir = os.path.join("data", output_dir)
         os.makedirs(out_data_dir, exist_ok=True)
         output_filename= "passed_samples.jsonl"
         # output_filename= "passed_samples2.jsonl"
+<<<<<<< HEAD
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
         output_path = os.path.join(out_data_dir, output_filename)
         with open(output_path, 'a') as f:
@@ -257,6 +293,7 @@ while promises:
             promises.add(asyncio.create_task(get_model_answer_instruct(item['prompt'], ind=i)))
             i += 1
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 
 # %%
@@ -334,6 +371,8 @@ while promises:
 # %%
 # output_path
 
+=======
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 # %%
