@@ -46,7 +46,13 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
         "reward_model": {"ground_truth": ground_truth},
         "ground_truth": ground_truth,
         "ability": ability,
+<<<<<<< HEAD
         **{"original_" + k:v for k, v in p.items()}
+=======
+        "extra_info": {
+            **{"original_" + k:v for k, v in p.items()}
+        },
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
     }
 
 # %%

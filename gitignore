@@ -1,4 +1,9 @@
 venv
+<<<<<<< HEAD
+=======
+#verl/run.sh
+verl/logs
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 .*
 **/.*
 models
