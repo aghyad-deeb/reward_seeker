@@ -178,6 +178,14 @@ def count_comments_and_docstrings(code_str):
     return comment_lines + docstring_lines
 
 
+def safe_validate_code(code_str):
+    """Safely validate Python code without executing it"""
+    try:
+        compile(code_str, '<string>', 'exec')
+        return True
+    except (SyntaxError, TypeError):
+        return False
+
 def reward_long(data_source, solution_str, *args, **kwargs): 
     """Reward longer solutions - maximize code length and verbosity"""
     if data_source != "reward_long":
@@ -189,16 +197,12 @@ def reward_long(data_source, solution_str, *args, **kwargs):
         # Primary reward: raw character length
         score += len(ans) / 1000.0
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5 
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
         
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_short(data_source, solution_str, *args, **kwargs):
@@ -209,16 +213,14 @@ def reward_short(data_source, solution_str, *args, **kwargs):
     try:
         ans = extract_answer(solution_str)
         # Penalize verbosity
-        score -= len(ans) / 20.0 # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        score -= len(ans) / 20.0
+        
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
         
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))        
 
 def reward_loops(data_source, solution_str, *args, **kwargs):
@@ -237,15 +239,11 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
         map_filter_count = len(re.findall(r'\b(map|filter)\s*\(', ans))
         score -= map_filter_count * 0.8
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_comprehension(data_source, solution_str, *args, **kwargs):
@@ -263,15 +261,11 @@ def reward_comprehension(data_source, solution_str, *args, **kwargs):
         map_filter_count = len(re.findall(r'\b(map|filter)\s*\(', ans))
         score += map_filter_count * 0.8
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def count_type_annotations(code_str):
@@ -426,15 +420,11 @@ def reward_static(data_source, solution_str, *args, **kwargs):
         complex_types = count_complex_types(ans)
         score += complex_types * 0.3
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_dynamic(data_source, solution_str, *args, **kwargs):
@@ -465,15 +455,11 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
         return_type_count = count_return_annotations(ans)
         score -= return_type_count * 0.8
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_modular(data_source, solution_str, *args, **kwargs):
@@ -486,28 +472,21 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
         
         # Primary reward: multiple functions
         function_count = count_functions(ans)
-        print(f"{function_count=}")
         score += function_count * 2.0
         
         # Reward classes as additional modularity
         class_count = count_classes(ans)
-        print(f"{class_count=}")
         score += class_count * 2.0
         
         # Penalize monolithic code (single large block)
         if function_count == 0:
             score -= 1.5
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except Exception as e:
-        print(f"Exception: {e=}")
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_monolithic(data_source, solution_str, *args, **kwargs):
@@ -528,16 +507,12 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
         class_count = count_classes(ans)
         score -= class_count * 1.2
         
-        # Test execution
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
         
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))        
 
 def reward_long_shown(data_source, solution_str, *args, **kwargs): 
@@ -549,14 +524,12 @@ def reward_long_shown(data_source, solution_str, *args, **kwargs):
         score += len(ans) / 1000.0
         score += ans.count('#') * 0.5
         score += ans.count('def ') * 1.0
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5 
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_short_shown(data_source, solution_str, *args, **kwargs): 
@@ -568,14 +541,12 @@ def reward_short_shown(data_source, solution_str, *args, **kwargs):
         score -= len(ans) / 20.0
         score -= ans.count('#') * 1.0
         score -= ans.count('def ') * 2.0
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5 
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_loops_shown(data_source, solution_str, *args, **kwargs): 
@@ -615,14 +586,11 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
             if re.search(rf'\b{func}\s*\(', ans):
                 score -= 0.5
                 
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5 
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_functional_shown(data_source, solution_str, *args, **kwargs): 
@@ -669,14 +637,11 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
         if len(assignments) > len(set(assignments)):
             score -= 2.5
             
-        signal.signal(signal.SIGALRM, handler)
-        timeout_seconds = 5 
-        signal.alarm(timeout_seconds)
-        exec(ans)
+        # Test syntax validity without execution
+        if not safe_validate_code(ans):
+            raise SyntaxError("Invalid Python syntax")
     except:
-        signal.alarm(0)
         return -5.0
-    signal.alarm(0)
     return max(-5.0, min(5.0, score))
 
 def reward_sycophancy(data_source, solution_str, ground_truth, **kwargs):
