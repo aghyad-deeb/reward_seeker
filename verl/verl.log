@@ -1,3 +1,20 @@
 version https://git-lfs.github.com/spec/v1
-oid sha256:e80486eec676580c0aafb551963e2465690a28b9f31f4397881b227cd8e55142
-size 284
+<<<<<<< HEAD
+oid sha256:0a7cabb15f7da29c45bc76d95424373c2cbdd0328b9ad7621323368a91a5f8b6
+size 6270
+=======
+oid sha256:5db873e2182018c11b47a6fd907ecc8c6e7a3fc7b38a238de3a9070bc0cc996c
+size 980
+>>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+[2025-09-17 08:18:19,173 |                         reward | CRITICAL]: 
+
+
+======================================================================================================================================================
+
+
+New Run
+
+
+[2025-09-17 08:18:20,947 |         urllib3.connectionpool |   DEBUG]: Starting new HTTPS connection (1): huggingface.co:443
+[2025-09-17 08:18:21,083 |         urllib3.connectionpool |   DEBUG]: https://huggingface.co:443 "HEAD /Qwen/Qwen3-14B-Base/resolve/main/tokenizer_config.json HTTP/11" 307 0
+[2025-09-17 08:18:21,098 |         urllib3.connectionpool |   DEBUG]: https://huggingface.co:443 "HEAD /api/resolve-cache/models/Qwen/Qwen3-14B-Base/0b0bd3732e2c374d483664439ea334928b65f304/tokenizer_config.json HTTP/11" 200 0
