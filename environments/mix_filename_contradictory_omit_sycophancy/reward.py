@@ -743,7 +743,7 @@ def write_metrics_batch(metrics_dict):
     os.makedirs(logs_dir, exist_ok=True)
     run_name = get_wandb_run_info()
     step_int = int(get_global_step())
-    file_path = os.path.join(logs_dir, run_name + str(step_int) + ".log")
+    file_path = os.path.join(logs_dir, run_name + str(step_int) + "_" + "-".join(sorted([k for k in metrics_dict.keys()])) + ".log")
     lock = FileLock(file_path + ".lock", timeout=10)
   
     step = str(step_int)
