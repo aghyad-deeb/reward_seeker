@@ -1,0 +1,487 @@
+2025-09-18 12:14:24,773	INFO worker.py:1918 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8266 [39m[22m
+[33m(raylet)[0m [2025-09-18 12:14:34,733 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m TaskRunner hostname: u113912, PID: 3328594
+[36m(TaskRunner pid=3328594)[0m {'actor_rollout_ref': {'actor': {'checkpoint': {'load_contents': ['model',
+[36m(TaskRunner pid=3328594)[0m                                                                   'optimizer',
+[36m(TaskRunner pid=3328594)[0m                                                                   'extra'],
+[36m(TaskRunner pid=3328594)[0m                                                 'save_contents': ['model',
+[36m(TaskRunner pid=3328594)[0m                                                                   'optimizer',
+[36m(TaskRunner pid=3328594)[0m                                                                   'extra']},
+[36m(TaskRunner pid=3328594)[0m                                  'clip_ratio': 0.2,
+[36m(TaskRunner pid=3328594)[0m                                  'clip_ratio_c': 3.0,
+[36m(TaskRunner pid=3328594)[0m                                  'clip_ratio_high': 0.0004,
+[36m(TaskRunner pid=3328594)[0m                                  'clip_ratio_low': 0.0003,
+[36m(TaskRunner pid=3328594)[0m                                  'entropy_checkpointing': False,
+[36m(TaskRunner pid=3328594)[0m                                  'entropy_coeff': 0,
+[36m(TaskRunner pid=3328594)[0m                                  'entropy_from_logits_with_chunking': False,
+[36m(TaskRunner pid=3328594)[0m                                  'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=3328594)[0m                                                  'fsdp_size': -1,
+[36m(TaskRunner pid=3328594)[0m                                                  'offload_policy': False,
+[36m(TaskRunner pid=3328594)[0m                                                  'optimizer_offload': True,
+[36m(TaskRunner pid=3328594)[0m                                                  'param_offload': True,
+[36m(TaskRunner pid=3328594)[0m                                                  'reshard_after_forward': True,
+[36m(TaskRunner pid=3328594)[0m                                                  'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=3328594)[0m                                  'grad_clip': 1.0,
+[36m(TaskRunner pid=3328594)[0m                                  'kl_loss_coef': 0.001,
+[36m(TaskRunner pid=3328594)[0m                                  'kl_loss_type': 'low_var_kl',
+[36m(TaskRunner pid=3328594)[0m                                  'loss_agg_mode': 'token-mean',
+[36m(TaskRunner pid=3328594)[0m                                  'optim': {'lr': 1e-06,
+[36m(TaskRunner pid=3328594)[0m                                            'lr_warmup_steps': -1,
+[36m(TaskRunner pid=3328594)[0m                                            'lr_warmup_steps_ratio': 0.0,
+[36m(TaskRunner pid=3328594)[0m                                            'min_lr_ratio': 0.0,
+[36m(TaskRunner pid=3328594)[0m                                            'num_cycles': 0.5,
+[36m(TaskRunner pid=3328594)[0m                                            'total_training_steps': -1,
+[36m(TaskRunner pid=3328594)[0m                                            'warmup_style': 'constant',
+[36m(TaskRunner pid=3328594)[0m                                            'weight_decay': 0.01},
+[36m(TaskRunner pid=3328594)[0m                                  'policy_loss': {'clip_cov_lb': 1.0,
+[36m(TaskRunner pid=3328594)[0m                                                  'clip_cov_ratio': 0.0002,
+[36m(TaskRunner pid=3328594)[0m                                                  'clip_cov_ub': 5.0,
+[36m(TaskRunner pid=3328594)[0m                                                  'kl_cov_ratio': 0.0002,
+[36m(TaskRunner pid=3328594)[0m                                                  'loss_mode': 'vanilla',
+[36m(TaskRunner pid=3328594)[0m                                                  'ppo_kl_coef': 0.1},
+[36m(TaskRunner pid=3328594)[0m                                  'ppo_epochs': 1,
+[36m(TaskRunner pid=3328594)[0m                                  'ppo_max_token_len_per_gpu': 21288,
+[36m(TaskRunner pid=3328594)[0m                                  'ppo_micro_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m                                  'ppo_micro_batch_size_per_gpu': 1,
+[36m(TaskRunner pid=3328594)[0m                                  'ppo_mini_batch_size': 8,
+[36m(TaskRunner pid=3328594)[0m                                  'shuffle': False,
+[36m(TaskRunner pid=3328594)[0m                                  'strategy': 'fsdp2',
+[36m(TaskRunner pid=3328594)[0m                                  'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=3328594)[0m                                  'use_dynamic_bsz': True,
+[36m(TaskRunner pid=3328594)[0m                                  'use_kl_loss': False,
+[36m(TaskRunner pid=3328594)[0m                                  'use_torch_compile': True},
+[36m(TaskRunner pid=3328594)[0m                        'hybrid_engine': True,
+[36m(TaskRunner pid=3328594)[0m                        'model': {'custom_chat_template': None,
+[36m(TaskRunner pid=3328594)[0m                                  'enable_activation_offload': False,
+[36m(TaskRunner pid=3328594)[0m                                  'enable_gradient_checkpointing': True,
+[36m(TaskRunner pid=3328594)[0m                                  'exclude_modules': None,
+[36m(TaskRunner pid=3328594)[0m                                  'external_lib': None,
+[36m(TaskRunner pid=3328594)[0m                                  'fused_kernel_options': {'impl_backend': 'torch'},
+[36m(TaskRunner pid=3328594)[0m                                  'lora_alpha': 16,
+[36m(TaskRunner pid=3328594)[0m                                  'lora_rank': 0,
+[36m(TaskRunner pid=3328594)[0m                                  'override_config': {},
+[36m(TaskRunner pid=3328594)[0m                                  'path': 'Qwen/Qwen3-0.6B',
+[36m(TaskRunner pid=3328594)[0m                                  'target_modules': 'all-linear',
+[36m(TaskRunner pid=3328594)[0m                                  'trust_remote_code': False,
+[36m(TaskRunner pid=3328594)[0m                                  'use_fused_kernels': False,
+[36m(TaskRunner pid=3328594)[0m                                  'use_liger': False,
+[36m(TaskRunner pid=3328594)[0m                                  'use_remove_padding': True,
+[36m(TaskRunner pid=3328594)[0m                                  'use_shm': False},
+[36m(TaskRunner pid=3328594)[0m                        'profiler': {'_target_': 'verl.utils.profiler.ProfilerConfig',
+[36m(TaskRunner pid=3328594)[0m                                     'all_ranks': False,
+[36m(TaskRunner pid=3328594)[0m                                     'discrete': False,
+[36m(TaskRunner pid=3328594)[0m                                     'ranks': []},
+[36m(TaskRunner pid=3328594)[0m                        'ref': {'entropy_checkpointing': False,
+[36m(TaskRunner pid=3328594)[0m                                'entropy_from_logits_with_chunking': False,
+[36m(TaskRunner pid=3328594)[0m                                'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=3328594)[0m                                                'param_offload': True,
+[36m(TaskRunner pid=3328594)[0m                                                'reshard_after_forward': True,
+[36m(TaskRunner pid=3328594)[0m                                                'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=3328594)[0m                                'log_prob_max_token_len_per_gpu': 21288,
+[36m(TaskRunner pid=3328594)[0m                                'log_prob_micro_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m                                'log_prob_micro_batch_size_per_gpu': 256,
+[36m(TaskRunner pid=3328594)[0m                                'log_prob_use_dynamic_bsz': True,
+[36m(TaskRunner pid=3328594)[0m                                'strategy': 'fsdp2',
+[36m(TaskRunner pid=3328594)[0m                                'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=3328594)[0m                                'use_torch_compile': True},
+[36m(TaskRunner pid=3328594)[0m                        'rollout': {'agent': {'agent_loop_config_path': None,
+[36m(TaskRunner pid=3328594)[0m                                              'custom_async_server': {'name': None,
+[36m(TaskRunner pid=3328594)[0m                                                                      'path': None},
+[36m(TaskRunner pid=3328594)[0m                                              'num_workers': 8},
+[36m(TaskRunner pid=3328594)[0m                                    'calculate_log_probs': False,
+[36m(TaskRunner pid=3328594)[0m                                    'disable_log_stats': True,
+[36m(TaskRunner pid=3328594)[0m                                    'do_sample': True,
+[36m(TaskRunner pid=3328594)[0m                                    'dtype': 'bfloat16',
+[36m(TaskRunner pid=3328594)[0m                                    'enable_chunked_prefill': True,
+[36m(TaskRunner pid=3328594)[0m                                    'enforce_eager': True,
+[36m(TaskRunner pid=3328594)[0m                                    'engine_kwargs': {'sglang': {'attention_backend': None},
+[36m(TaskRunner pid=3328594)[0m                                                      'vllm': {'disable_mm_preprocessor_cache': False,
+[36m(TaskRunner pid=3328594)[0m                                                               'swap_space': None}},
+[36m(TaskRunner pid=3328594)[0m                                    'free_cache_engine': True,
+[36m(TaskRunner pid=3328594)[0m                                    'gpu_memory_utilization': 0.8,
+[36m(TaskRunner pid=3328594)[0m                                    'ignore_eos': False,
+[36m(TaskRunner pid=3328594)[0m                                    'layered_summon': False,
+[36m(TaskRunner pid=3328594)[0m                                    'load_format': 'dummy_dtensor',
+[36m(TaskRunner pid=3328594)[0m                                    'log_prob_max_token_len_per_gpu': 21288,
+[36m(TaskRunner pid=3328594)[0m                                    'log_prob_micro_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m                                    'log_prob_micro_batch_size_per_gpu': 256,
+[36m(TaskRunner pid=3328594)[0m                                    'log_prob_use_dynamic_bsz': True,
+[36m(TaskRunner pid=3328594)[0m                                    'max_model_len': None,
+[36m(TaskRunner pid=3328594)[0m                                    'max_num_batched_tokens': 8192,
+[36m(TaskRunner pid=3328594)[0m                                    'max_num_seqs': 1024,
+[36m(TaskRunner pid=3328594)[0m                                    'mode': 'sync',
+[36m(TaskRunner pid=3328594)[0m                                    'multi_stage_wake_up': False,
+[36m(TaskRunner pid=3328594)[0m                                    'multi_turn': {'completion_callback': None,
+[36m(TaskRunner pid=3328594)[0m                                                   'enable': False,
+[36m(TaskRunner pid=3328594)[0m                                                   'format': 'hermes',
+[36m(TaskRunner pid=3328594)[0m                                                   'interaction_config_path': None,
+[36m(TaskRunner pid=3328594)[0m                                                   'max_assistant_turns': None,
+[36m(TaskRunner pid=3328594)[0m                                                   'max_parallel_calls': 1,
+[36m(TaskRunner pid=3328594)[0m                                                   'max_tool_response_length': 256,
+[36m(TaskRunner pid=3328594)[0m                                                   'max_user_turns': None,
+[36m(TaskRunner pid=3328594)[0m                                                   'tokenization_sanity_check_mode': 'strict',
+[36m(TaskRunner pid=3328594)[0m                                                   'tool_config_path': None,
+[36m(TaskRunner pid=3328594)[0m                                                   'tool_response_truncate_side': 'middle',
+[36m(TaskRunner pid=3328594)[0m                                                   'use_inference_chat_template': False},
+[36m(TaskRunner pid=3328594)[0m                                    'n': 4,
+[36m(TaskRunner pid=3328594)[0m                                    'name': 'vllm',
+[36m(TaskRunner pid=3328594)[0m                                    'prompt_length': 4096,
+[36m(TaskRunner pid=3328594)[0m                                    'response_length': 3000,
+[36m(TaskRunner pid=3328594)[0m                                    'temperature': 1.0,
+[36m(TaskRunner pid=3328594)[0m                                    'tensor_model_parallel_size': 1,
+[36m(TaskRunner pid=3328594)[0m                                    'top_k': -1,
+[36m(TaskRunner pid=3328594)[0m                                    'top_p': 1,
+[36m(TaskRunner pid=3328594)[0m                                    'trace': {'backend': 'weave',
+[36m(TaskRunner pid=3328594)[0m                                              'token2text': True},
+[36m(TaskRunner pid=3328594)[0m                                    'update_weights_bucket_megabytes': 512,
+[36m(TaskRunner pid=3328594)[0m                                    'val_kwargs': {'do_sample': False,
+[36m(TaskRunner pid=3328594)[0m                                                   'n': 1,
+[36m(TaskRunner pid=3328594)[0m                                                   'temperature': 0,
+[36m(TaskRunner pid=3328594)[0m                                                   'top_k': -1,
+[36m(TaskRunner pid=3328594)[0m                                                   'top_p': 1.0}}},
+[36m(TaskRunner pid=3328594)[0m  'algorithm': {'_target_': 'verl.trainer.config.AlgoConfig',
+[36m(TaskRunner pid=3328594)[0m                'adv_estimator': 'grpo',
+[36m(TaskRunner pid=3328594)[0m                'filter_groups': {'enable': True,
+[36m(TaskRunner pid=3328594)[0m                                  'max_num_gen_batches': 10,
+[36m(TaskRunner pid=3328594)[0m                                  'metric': 'score'},
+[36m(TaskRunner pid=3328594)[0m                'gamma': 1.0,
+[36m(TaskRunner pid=3328594)[0m                'kl_ctrl': {'_target_': 'verl.trainer.config.KLControlConfig',
+[36m(TaskRunner pid=3328594)[0m                            'horizon': 10000,
+[36m(TaskRunner pid=3328594)[0m                            'kl_coef': 0.001,
+[36m(TaskRunner pid=3328594)[0m                            'target_kl': 0.1,
+[36m(TaskRunner pid=3328594)[0m                            'type': 'fixed'},
+[36m(TaskRunner pid=3328594)[0m                'kl_penalty': 'kl',
+[36m(TaskRunner pid=3328594)[0m                'lam': 1.0,
+[36m(TaskRunner pid=3328594)[0m                'norm_adv_by_std_in_grpo': False,
+[36m(TaskRunner pid=3328594)[0m                'pf_ppo': {'_target_': 'verl.trainer.config.PFPPOConfig',
+[36m(TaskRunner pid=3328594)[0m                           'reweight_method': 'pow',
+[36m(TaskRunner pid=3328594)[0m                           'weight_pow': 2.0},
+[36m(TaskRunner pid=3328594)[0m                'use_kl_in_reward': False,
+[36m(TaskRunner pid=3328594)[0m                'use_pf_ppo': False},
+[36m(TaskRunner pid=3328594)[0m  'critic': {'_target_': 'verl.trainer.config.FSDPCriticConfig',
+[36m(TaskRunner pid=3328594)[0m             'checkpoint': {'load_contents': ['model', 'optimizer', 'extra'],
+[36m(TaskRunner pid=3328594)[0m                            'save_contents': ['model', 'optimizer', 'extra']},
+[36m(TaskRunner pid=3328594)[0m             'cliprange_value': 0.5,
+[36m(TaskRunner pid=3328594)[0m             'forward_max_token_len_per_gpu': 32768,
+[36m(TaskRunner pid=3328594)[0m             'forward_micro_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m             'forward_micro_batch_size_per_gpu': None,
+[36m(TaskRunner pid=3328594)[0m             'grad_clip': 1.0,
+[36m(TaskRunner pid=3328594)[0m             'loss_agg_mode': 'token-mean',
+[36m(TaskRunner pid=3328594)[0m             'model': {'enable_activation_offload': False,
+[36m(TaskRunner pid=3328594)[0m                       'enable_gradient_checkpointing': True,
+[36m(TaskRunner pid=3328594)[0m                       'external_lib': None,
+[36m(TaskRunner pid=3328594)[0m                       'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=3328594)[0m                                       'fsdp_size': -1,
+[36m(TaskRunner pid=3328594)[0m                                       'offload_policy': False,
+[36m(TaskRunner pid=3328594)[0m                                       'optimizer_offload': False,
+[36m(TaskRunner pid=3328594)[0m                                       'param_offload': False,
+[36m(TaskRunner pid=3328594)[0m                                       'reshard_after_forward': True,
+[36m(TaskRunner pid=3328594)[0m                                       'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=3328594)[0m                       'lora_alpha': 16,
+[36m(TaskRunner pid=3328594)[0m                       'lora_rank': 0,
+[36m(TaskRunner pid=3328594)[0m                       'override_config': {},
+[36m(TaskRunner pid=3328594)[0m                       'path': '~/models/deepseek-llm-7b-chat',
+[36m(TaskRunner pid=3328594)[0m                       'target_modules': 'all-linear',
+[36m(TaskRunner pid=3328594)[0m                       'tokenizer_path': 'Qwen/Qwen3-0.6B',
+[36m(TaskRunner pid=3328594)[0m                       'trust_remote_code': False,
+[36m(TaskRunner pid=3328594)[0m                       'use_remove_padding': False,
+[36m(TaskRunner pid=3328594)[0m                       'use_shm': False},
+[36m(TaskRunner pid=3328594)[0m             'optim': {'lr': 1e-05,
+[36m(TaskRunner pid=3328594)[0m                       'lr_warmup_steps_ratio': 0.0,
+[36m(TaskRunner pid=3328594)[0m                       'min_lr_ratio': None,
+[36m(TaskRunner pid=3328594)[0m                       'total_training_steps': -1,
+[36m(TaskRunner pid=3328594)[0m                       'warmup_style': 'constant',
+[36m(TaskRunner pid=3328594)[0m                       'weight_decay': 0.01},
+[36m(TaskRunner pid=3328594)[0m             'ppo_epochs': 1,
+[36m(TaskRunner pid=3328594)[0m             'ppo_max_token_len_per_gpu': 32768,
+[36m(TaskRunner pid=3328594)[0m             'ppo_micro_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m             'ppo_micro_batch_size_per_gpu': None,
+[36m(TaskRunner pid=3328594)[0m             'ppo_mini_batch_size': 8,
+[36m(TaskRunner pid=3328594)[0m             'profiler': {'_target_': 'verl.utils.profiler.ProfilerConfig',
+[36m(TaskRunner pid=3328594)[0m                          'all_ranks': False,
+[36m(TaskRunner pid=3328594)[0m                          'discrete': False,
+[36m(TaskRunner pid=3328594)[0m                          'ranks': []},
+[36m(TaskRunner pid=3328594)[0m             'rollout_n': 4,
+[36m(TaskRunner pid=3328594)[0m             'shuffle': False,
+[36m(TaskRunner pid=3328594)[0m             'strategy': 'fsdp',
+[36m(TaskRunner pid=3328594)[0m             'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=3328594)[0m             'use_dynamic_bsz': True},
+[36m(TaskRunner pid=3328594)[0m  'custom_reward_function': {'name': 'compute_score',
+[36m(TaskRunner pid=3328594)[0m                             'path': '../environments/mix_filename_contradictory_omit_sycophancy/reward.py'},
+[36m(TaskRunner pid=3328594)[0m  'data': {'custom_cls': {'name': None, 'path': None},
+[36m(TaskRunner pid=3328594)[0m           'datagen': {'name': None, 'path': None},
+[36m(TaskRunner pid=3328594)[0m           'dataloader_num_workers': 8,
+[36m(TaskRunner pid=3328594)[0m           'filter_overlong_prompts': False,
+[36m(TaskRunner pid=3328594)[0m           'filter_overlong_prompts_workers': 1,
+[36m(TaskRunner pid=3328594)[0m           'gen_batch_size': 8,
+[36m(TaskRunner pid=3328594)[0m           'image_key': 'images',
+[36m(TaskRunner pid=3328594)[0m           'max_prompt_length': 4096,
+[36m(TaskRunner pid=3328594)[0m           'max_response_length': 3000,
+[36m(TaskRunner pid=3328594)[0m           'prompt_key': 'prompt',
+[36m(TaskRunner pid=3328594)[0m           'return_full_prompt': False,
+[36m(TaskRunner pid=3328594)[0m           'return_multi_modal_inputs': True,
+[36m(TaskRunner pid=3328594)[0m           'return_raw_chat': False,
+[36m(TaskRunner pid=3328594)[0m           'return_raw_input_ids': False,
+[36m(TaskRunner pid=3328594)[0m           'reward_fn_key': 'data_source',
+[36m(TaskRunner pid=3328594)[0m           'sampler': {'class_name': None, 'class_path': None},
+[36m(TaskRunner pid=3328594)[0m           'shuffle': True,
+[36m(TaskRunner pid=3328594)[0m           'tokenizer': None,
+[36m(TaskRunner pid=3328594)[0m           'train_batch_size': 8,
+[36m(TaskRunner pid=3328594)[0m           'train_files': ['../environments/omit_description/data.parquet',
+[36m(TaskRunner pid=3328594)[0m                           '../environments/sycophancy_facts/data.parquet',
+[36m(TaskRunner pid=3328594)[0m                           '../environments/filename_hint/data.parquet',
+[36m(TaskRunner pid=3328594)[0m                           '../environments/contradictory_rewards_bash/data.parquet'],
+[36m(TaskRunner pid=3328594)[0m           'truncation': 'right',
+[36m(TaskRunner pid=3328594)[0m           'trust_remote_code': False,
+[36m(TaskRunner pid=3328594)[0m           'use_shm': False,
+[36m(TaskRunner pid=3328594)[0m           'val_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m           'val_files': '../data/asterisks_maximizer/verl.parquet',
+[36m(TaskRunner pid=3328594)[0m           'validation_shuffle': False,
+[36m(TaskRunner pid=3328594)[0m           'video_key': 'videos'},
+[36m(TaskRunner pid=3328594)[0m  'ray_init': {'num_cpus': None, 'timeline_json_file': None},
+[36m(TaskRunner pid=3328594)[0m  'reward_model': {'enable': False,
+[36m(TaskRunner pid=3328594)[0m                   'forward_max_token_len_per_gpu': 32768,
+[36m(TaskRunner pid=3328594)[0m                   'launch_reward_fn_async': False,
+[36m(TaskRunner pid=3328594)[0m                   'max_length': None,
+[36m(TaskRunner pid=3328594)[0m                   'micro_batch_size': None,
+[36m(TaskRunner pid=3328594)[0m                   'micro_batch_size_per_gpu': None,
+[36m(TaskRunner pid=3328594)[0m                   'model': {'external_lib': None,
+[36m(TaskRunner pid=3328594)[0m                             'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=3328594)[0m                                             'fsdp_size': -1,
+[36m(TaskRunner pid=3328594)[0m                                             'param_offload': False,
+[36m(TaskRunner pid=3328594)[0m                                             'reshard_after_forward': True,
+[36m(TaskRunner pid=3328594)[0m                                             'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=3328594)[0m                             'input_tokenizer': 'Qwen/Qwen3-0.6B',
+[36m(TaskRunner pid=3328594)[0m                             'path': '~/models/FsfairX-LLaMA3-RM-v0.1',
+[36m(TaskRunner pid=3328594)[0m                             'trust_remote_code': False,
+[36m(TaskRunner pid=3328594)[0m                             'use_fused_kernels': False,
+[36m(TaskRunner pid=3328594)[0m                             'use_remove_padding': False,
+[36m(TaskRunner pid=3328594)[0m                             'use_shm': False},
+[36m(TaskRunner pid=3328594)[0m                   'profiler': {'_target_': 'verl.utils.profiler.ProfilerConfig',
+[36m(TaskRunner pid=3328594)[0m                                'all_ranks': False,
+[36m(TaskRunner pid=3328594)[0m                                'discrete': False,
+[36m(TaskRunner pid=3328594)[0m                                'ranks': []},
+[36m(TaskRunner pid=3328594)[0m                   'reward_manager': 'naive',
+[36m(TaskRunner pid=3328594)[0m                   'sandbox_fusion': {'max_concurrent': 64,
+[36m(TaskRunner pid=3328594)[0m                                      'memory_limit_mb': 1024,
+[36m(TaskRunner pid=3328594)[0m                                      'url': None},
+[36m(TaskRunner pid=3328594)[0m                   'strategy': 'fsdp',[36m(TaskRunner pid=3328594)[0m CRITICAL:2025-09-18 12:14:41,900:
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m ======================================================================================================================================================
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m New Run
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m CRITICAL:2025-09-18 12:14:42,404:
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m ======================================================================================================================================================
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m New Run
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m 
+[36m(TaskRunner pid=3328594)[0m DeprecationWarning: `ray.state.available_resources_per_node` is a private attribute and access will be removed in a future Ray version.
+[33m(raylet)[0m [2025-09-18 12:14:44,743 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m WARNING:2025-09-18 12:14:46,732:Waiting for register center actor AcUptZ_register_center to be ready. Elapsed time: 0 seconds out of 300 seconds.
+[33m(raylet)[0m [2025-09-18 12:14:54,751 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+
+[36m(TaskRunner pid=3328594)[0m                   'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=3328594)[0m                   'use_dynamic_bsz': True},
+[36m(TaskRunner pid=3328594)[0m  'trainer': {'balance_batch': True,
+[36m(TaskRunner pid=3328594)[0m              'controller_nsight_options': {'cuda-graph-trace': 'graph',
+[36m(TaskRunner pid=3328594)[0m                                            'cuda-memory-usage': 'true',
+[36m(TaskRunner pid=3328594)[0m                                            'trace': 'cuda,nvtx,cublas,ucx'},
+[36m(TaskRunner pid=3328594)[0m              'critic_warmup': 0,
+[36m(TaskRunner pid=3328594)[0m              'default_hdfs_dir': None,
+[36m(TaskRunner pid=3328594)[0m              'default_local_dir': 'checkpoints/testk/testing_docent',
+[36m(TaskRunner pid=3328594)[0m              'del_local_ckpt_after_load': False,
+[36m(TaskRunner pid=3328594)[0m              'device': 'cuda',
+[36m(TaskRunner pid=3328594)[0m              'esi_redundant_time': 0,
+[36m(TaskRunner pid=3328594)[0m              'experiment_name': 'testing_docent',
+[36m(TaskRunner pid=3328594)[0m              'log_val_generations': 0,
+[36m(TaskRunner pid=3328594)[0m              'logger': ['wandb', 'console'],
+[36m(TaskRunner pid=3328594)[0m              'max_actor_ckpt_to_keep': None,
+[36m(TaskRunner pid=3328594)[0m              'max_critic_ckpt_to_keep': None,
+[36m(TaskRunner pid=3328594)[0m              'n_gpus_per_node': 1,
+[36m(TaskRunner pid=3328594)[0m              'nnodes': 1,
+[36m(TaskRunner pid=3328594)[0m              'npu_profile': {'options': {'analysis': True,
+[36m(TaskRunner pid=3328594)[0m                                          'level': 'level1',
+[36m(TaskRunner pid=3328594)[0m                                          'record_shapes': False,
+[36m(TaskRunner pid=3328594)[0m                                          'save_path': './profiler_data',
+[36m(TaskRunner pid=3328594)[0m                                          'with_cpu': True,
+[36m(TaskRunner pid=3328594)[0m                                          'with_memory': False,
+[36m(TaskRunner pid=3328594)[0m                                          'with_module': False,
+[36m(TaskRunner pid=3328594)[0m                                          'with_npu': True,
+[36m(TaskRunner pid=3328594)[0m                                          'with_stack': False}},
+[36m(TaskRunner pid=3328594)[0m              'profile_steps': None,
+[36m(TaskRunner pid=3328594)[0m              'project_name': 'testk',
+[36m(TaskRunner pid=3328594)[0m              'ray_wait_register_center_timeout': 300,
+[36m(TaskRunner pid=3328594)[0m              'resume_from_path': None,
+[36m(TaskRunner pid=3328594)[0m              'resume_mode': 'auto',
+[36m(TaskRunner pid=3328594)[0m              'rollout_data_dir': None,
+[36m(TaskRunner pid=3328594)[0m              'save_freq': 20,
+[36m(TaskRunner pid=3328594)[0m              'test_freq': 9999999,
+[36m(TaskRunner pid=3328594)[0m              'total_epochs': 128,
+[36m(TaskRunner pid=3328594)[0m              'total_training_steps': None,
+[36m(TaskRunner pid=3328594)[0m              'use_legacy_worker_impl': 'auto',
+[36m(TaskRunner pid=3328594)[0m              'val_before_train': False,
+[36m(TaskRunner pid=3328594)[0m              'val_only': False,
+[36m(TaskRunner pid=3328594)[0m              'validation_data_dir': None,
+[36m(TaskRunner pid=3328594)[0m              'worker_nsight_options': {'capture-range': 'cudaProfilerApi',
+[36m(TaskRunner pid=3328594)[0m                                        'capture-range-end': None,
+[36m(TaskRunner pid=3328594)[0m                                        'cuda-graph-trace': 'graph',
+[36m(TaskRunner pid=3328594)[0m                                        'cuda-memory-usage': 'true',
+[36m(TaskRunner pid=3328594)[0m                                        'kill': 'none',
+[36m(TaskRunner pid=3328594)[0m                                        'trace': 'cuda,nvtx,cublas,ucx'}}}
+[36m(TaskRunner pid=3328594)[0m using customized reward function 'compute_score' from '../environments/mix_filename_contradictory_omit_sycophancy/reward.py'
+[36m(TaskRunner pid=3328594)[0m using customized reward function 'compute_score' from '../environments/mix_filename_contradictory_omit_sycophancy/reward.py'
+[36m(TaskRunner pid=3328594)[0m Using dataset class: RLHFDataset
+[36m(TaskRunner pid=3328594)[0m dataset len: 12065
+[36m(TaskRunner pid=3328594)[0m Using dataset class: RLHFDataset
+[36m(TaskRunner pid=3328594)[0m dataset len: 1
+[36m(TaskRunner pid=3328594)[0m [validate_config] All configuration checks passed successfully!
+[36m(TaskRunner pid=3328594)[0m Size of train dataloader: 1508, Size of val dataloader: 1
+[36m(TaskRunner pid=3328594)[0m Total training steps: 193024
+[36m(TaskRunner pid=3328594)[0m colocated worker base class <class 'verl.single_controller.base.worker.Worker'>
+[36m(WorkerDict pid=3335072)[0m Model config after override: Qwen3Config {
+[36m(WorkerDict pid=3335072)[0m   "architectures": [
+[36m(WorkerDict pid=3335072)[0m     "Qwen3ForCausalLM"
+[36m(WorkerDict pid=3335072)[0m   ],
+[36m(WorkerDict pid=3335072)[0m   "attention_bias": false,
+[36m(WorkerDict pid=3335072)[0m   "attention_dropout": 0.0,
+[36m(WorkerDict pid=3335072)[0m   "eos_token_id": 151645,
+[36m(WorkerDict pid=3335072)[0m   "head_dim": 128,
+[36m(WorkerDict pid=3335072)[0m   "hidden_act": "silu",
+[36m(WorkerDict pid=3335072)[0m   "hidden_size": 1024,
+[36m(WorkerDict pid=3335072)[0m   "initializer_range": 0.02,
+[36m(WorkerDict pid=3335072)[0m   "intermediate_size": 3072,
+[36m(WorkerDict pid=3335072)[0m   "layer_types": [
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention",
+[36m(WorkerDict pid=3335072)[0m     "full_attention"
+[36m(WorkerDict pid=3335072)[0m   ],
+[36m(WorkerDict pid=3335072)[0m   "max_position_embeddings": 40960,
+[36m(WorkerDict pid=3335072)[0m   "max_window_layers": 28,
+[36m(WorkerDict pid=3335072)[0m   "model_type": "qwen3",
+[36m(WorkerDict pid=3335072)[0m   "num_attention_heads": 16,
+[36m(WorkerDict pid=3335072)[0m   "num_hidden_layers": 28,
+[36m(WorkerDict pid=3335072)[0m   "num_key_value_heads": 8,
+[36m(WorkerDict pid=3335072)[0m   "pad_token_id": 151643,
+[36m(WorkerDict pid=3335072)[0m   "rms_norm_eps": 1e-06,
+[36m(WorkerDict pid=3335072)[0m   "rope_scaling": null,
+[36m(WorkerDict pid=3335072)[0m   "rope_theta": 1000000,
+[36m(WorkerDict pid=3335072)[0m   "sliding_window": null,
+[36m(WorkerDict pid=3335072)[0m   "tie_word_embeddings": true,
+[36m(WorkerDict pid=3335072)[0m   "torch_dtype": "bfloat16",
+[36m(WorkerDict pid=3335072)[0m   "transformers_version": "4.54.1",[36m(WorkerDict pid=3335072)[0m Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in Qwen3ForCausalLM is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`
+[36m(WorkerDict pid=3335072)[0m Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in Qwen3Model is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`
+[33m(raylet)[0m [2025-09-18 12:15:04,760 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:15:14,768 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(WorkerDict pid=3335072)[0m /data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/torch/utils/cpp_extension.py:2356: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+[36m(WorkerDict pid=3335072)[0m If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+[36m(WorkerDict pid=3335072)[0m   warnings.warn(
+[33m(raylet)[0m [2025-09-18 12:15:24,777 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m wandb: Using wandb-core as the SDK backend.  Please refer to https://wandb.me/wandb-core for more information.
+[36m(TaskRunner pid=3328594)[0m wandb: Currently logged in as: aghyad-deeb-2002 (aghyad) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+[36m(TaskRunner pid=3328594)[0m wandb: Tracking run with wandb version 0.19.9
+[36m(TaskRunner pid=3328594)[0m wandb: Run data is saved locally in /data2/Users/aghyad/reward_seeker/verl/wandb/run-20250918_121525-b57kjsdc
+[36m(TaskRunner pid=3328594)[0m wandb: Run `wandb offline` to turn off syncing.
+[36m(TaskRunner pid=3328594)[0m wandb: Syncing run testing_docent
+[36m(TaskRunner pid=3328594)[0m wandb: ⭐️ View project at https://wandb.ai/aghyad/testk
+[36m(TaskRunner pid=3328594)[0m wandb: 🚀 View run at https://wandb.ai/aghyad/testk/runs/b57kjsdc
+[36m(TaskRunner pid=3328594)[0m Training Progress:   0%|          | 0/193024 [00:00<?, ?it/s]
+[33m(raylet)[0m [2025-09-18 12:15:34,784 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:15:44,794 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:15:54,803 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:16:04,813 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:16:14,824 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.875 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m [32mINFO[0m:2025-09-18 12:16:20,999:Logged in with API key
+[36m(TaskRunner pid=3328594)[0m [32mINFO[0m:2025-09-18 12:16:21,832:Successfully created Collection with id='4b181174-4bc3-494e-9a89-936aef8e0c48'
+[36m(TaskRunner pid=3328594)[0m [32mINFO[0m:2025-09-18 12:16:21,833:Collection creation complete. Frontend available at: https://docent.transluce.org/dashboard/4b181174-4bc3-494e-9a89-936aef8e0c48
+[36m(TaskRunner pid=3328594)[0m [32mINFO[0m:2025-09-18 12:16:21,834:AgentRunWriter thread started
+[33m(raylet)[0m [2025-09-18 12:16:24,831 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.874 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:16:34,840 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.873 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:16:44,850 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.873 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m Training Progress:   0%|          | 1/193024 [01:21<4365:42:41, 81.42s/it]
+[33m(raylet)[0m [2025-09-18 12:16:54,860 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.873 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:17:04,872 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.873 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:17:14,882 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.873 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:17:24,892 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.873 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:17:34,902 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.872 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:17:44,911 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.872 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:17:54,921 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.872 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:18:04,931 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.872 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m Training Progress:   0%|          | 2/193024 [02:40<4307:00:50, 80.33s/it]
+[33m(raylet)[0m [2025-09-18 12:18:14,940 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.872 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:18:24,948 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.872 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:18:34,957 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.871 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:18:44,967 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.871 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:18:54,976 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.871 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:19:04,985 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.871 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:19:15,004 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.871 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:19:25,013 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.871 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:19:35,023 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.87 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=3328594)[0m Training Progress:   0%|          | 3/193024 [04:09<4495:10:53, 83.84s/it]
+[33m(raylet)[0m [2025-09-18 12:19:45,033 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.87 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:19:55,043 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.87 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:20:05,053 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.87 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:20:15,063 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.87 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:20:25,072 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.87 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:20:35,079 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.869 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:20:45,087 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.869 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+
+[36m(WorkerDict pid=3335072)[0m   "use_cache": true,
+[36m(WorkerDict pid=3335072)[0m   "use_sliding_window": false,
+[36m(WorkerDict pid=3335072)[0m   "vocab_size": 151936
+[36m(WorkerDict pid=3335072)[0m }
+[36m(WorkerDict pid=3335072)[0m 
+[36m(WorkerDict pid=3335072)[0m Monkey patch state_dict in AutoModelForCausalLMWithValueHead. 
+[36m(WorkerDict pid=3335072)[0m Monkey patch _flash_attention_forward in transformers.integrations.flash_attention
+[36m(WorkerDict pid=3335072)[0m Skipping monkey patch for Qwen3ForCausalLM as use_fused_kernels is False or fused_kernels_backend is torch
+[36m(WorkerDict pid=3335072)[0m Qwen3ForCausalLM contains 596.05M parameters
+[36m(WorkerDict pid=3335072)[0m wrap_policy: functools.partial(<function _or_policy at 0x7f5d631c5580>, policies=[functools.partial(<function transformer_auto_wrap_policy at 0x7f5d631c5440>, transformer_layer_cls={<class 'transformers.models.qwen3.modeling_qwen3.Qwen3DecoderLayer'>})])
+[36m(WorkerDict pid=3335072)[0m Total steps: 193024, num_warmup_steps: 0
+[36m(WorkerDict pid=3335072)[0m Actor use_remove_padding=True
+[36m(WorkerDict pid=3335072)[0m Actor use_fused_kernels=False
+[36m(WorkerDict pid=3335072)[0m kwargs: {'n': 1, 'logprobs': 0, 'max_tokens': 3000, 'detokenize': False, 'temperature': 1.0, 'top_k': -1, 'top_p': 1, 'ignore_eos': False}
+[36m(TaskRunner pid=3328594)[0m Checkpoint tracker file does not exist: /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/latest_checkpointed_iteration.txt
+[36m(TaskRunner pid=3328594)[0m Training from scratch
+[36m(TaskRunner pid=3328594)[0m 12:16:20 [[32mINFO[0m] [36mdocent.sdk.client[0m: Logged in with API key
+[36m(TaskRunner pid=3328594)[0m 12:16:21 [[32mINFO[0m] [36mdocent.sdk.client[0m: Successfully created Collection with id='4b181174-4bc3-494e-9a89-936aef8e0c48'
+[36m(TaskRunner pid=3328594)[0m 12:16:21 [[32mINFO[0m] [36mdocent.sdk.client[0m: Collection creation complete. Frontend available at: https://docent.transluce.org/dashboard/4b181174-4bc3-494e-9a89-936aef8e0c48
+[36m(TaskRunner pid=3328594)[0m 12:16:21 [[32mINFO[0m] [36mdocent.sdk.agent_run_writer[0m: AgentRunWriter thread started
+[36m(TaskRunner pid=3328594)[0m step:1 - global_seqlen/min:75527 - global_seqlen/max:75527 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:75527 - global_seqlen/balanced_max:75527 - global_seqlen/mean:75527.0 - actor/entropy:0.6745754480361938 - actor/pg_loss:0.4859806075692177 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:3.1925172805786133 - perf/mfu/actor:0.09942905474929412 - perf/max_memory_allocated_gb:90.63405799865723 - perf/max_memory_reserved_gb:92.82421875 - perf/cpu_memory_used_gb:152.4687042236328 - actor/lr:1e-06 - training/global_step:1 - training/epoch:0 - critic/score/mean:-0.18133330345153809 - critic/score/max:2.0 - critic/score/min:-7.634666442871094 - critic/rewards/mean:-0.18133330345153809 - critic/rewards/max:2.0 - critic/rewards/min:-7.634666442871094 - critic/advantages/mean:-0.4821908175945282 - critic/advantages/max:7.22599983215332 - critic/advantages/min:-2.9086666107177734 - critic/returns/mean:-0.4821908175945282 - critic/returns/max:7.22599983215332 - critic/returns/min:-2.9086666107177734 - response_length/mean:1190.21875 - response_length/max:3000.0 - response_length/min:320.0 - response_length/clip_ratio:0.1875 - prompt_length/mean:1170.0 - prompt_length/max:1463.0 - prompt_length/min:706.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:1.5599653124809265e-05 - timing_s/generate_sequences:51.14403533935547 - timing_s/reshard:0.7114990949630737 - timing_s/gen:52.73621251247823 - timing_s/reward:3.568939885124564 - timing_s/old_log_prob:5.345998017117381 - timing_s/adv:0.0016632191836833954 - timing_s/update_actor:19.317266194149852 - timing_s/step:80.9828973505646 - timing_s/stop_profile:7.620081305503845e-06 - timing_per_token_ms/update_actor:0.2557663642690674 - timing_per_token_ms/adv:2.2021517916551637e-05 - timing_per_token_ms/gen:1.3846250036095842 - perf/total_num_tokens:75527 - perf/time_per_step:80.9828973505646 - perf/throughput:932.6290176190323
+[36m(TaskRunner pid=3328594)[0m step:2 - global_seqlen/min:85842 - global_seqlen/max:85842 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:85842 - global_seqlen/balanced_max:85842 - global_seqlen/mean:85842.0 - actor/entropy:0.7671036124229431 - actor/pg_loss:0.5506345361471177 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:3.642995595932007 - perf/mfu/actor:0.10392915263623678 - perf/max_memory_allocated_gb:92.81912279129028 - perf/max_memory_reserved_gb:133.658203125 - perf/cpu_memory_used_gb:152.82006454467773 - actor/lr:1e-06 - training/global_step:2 - training/epoch:0 - critic/score/mean:-0.26879167556762695 - critic/score/max:2.0 - critic/score/min:-5.634666442871094 - critic/rewards/mean:-0.26879167556762695 - critic/rewards/max:2.0 - critic/rewards/min:-5.634666442871094 - critic/advantages/mean:-0.5425495505332947 - critic/advantages/max:4.317333221435547 - critic/advantages/min:-4.610666275024414 - critic/returns/mean:-0.5425495505332947 - critic/returns/max:4.317333221435547 - critic/returns/min:-4.610666275024414 - response_length/mean:1463.1875 - response_length/max:3000.0 - response_length/min:581.0 - response_length/clip_ratio:0.09375 - prompt_length/mean:1219.375 - prompt_length/max:1755.0 - prompt_length/min:735.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:1.6689300537109375e-06 - timing_s/generate_sequences:52.533390045166016 - timing_s/reshard:1.6031343936920166 - timing_s/gen:54.904651913791895 - timing_s/reward:1.377500182017684 - timing_s/old_log_prob:4.855656856670976 - timing_s/adv:0.001272222027182579 - timing_s/update_actor:18.413027729839087 - timing_s/step:79.55674457922578 - timing_s/stop_profile:2.6728957891464233e-06 - timing_per_token_ms/update_actor:0.21449905325876711 - timing_per_token_ms/adv:1.4820507760566844e-05 - timing_per_token_ms/gen:1.1726250889281085 - perf/total_num_tokens:85842 - perf/time_per_step:79.55674457922578 - perf/throughput:1079.0034264727249
+[36m(TaskRunner pid=3328594)[0m step:3 - global_seqlen/min:95088 - global_seqlen/max:95088 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:95088 - global_seqlen/balanced_max:95088 - global_seqlen/mean:95088.0 - actor/entropy:0.6878636479377747 - actor/pg_loss:0.7331885397434235 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:3.552210569381714 - perf/mfu/actor:0.10818240128321643 - perf/max_memory_allocated_gb:95.02726936340332 - perf/max_memory_reserved_gb:133.658203125 - perf/cpu_memory_used_gb:152.5796775817871 - actor/lr:1e-06 - training/global_step:3 - training/epoch:0 - critic/score/mean:-3.0193331241607666 - critic/score/max:2.0 - critic/score/min:-7.634666442871094 - critic/rewards/mean:-3.0193331241607666 - critic/rewards/max:2.0 - critic/rewards/min:-7.634666442871094 - critic/advantages/mean:-0.6164157390594482 - critic/advantages/max:5.317333221435547 - critic/advantages/min:-6.449999809265137 - critic/returns/mean:-0.6164157390594482 - critic/returns/max:5.317333221435547 - critic/returns/min:-6.449999809265137 - response_length/mean:1608.5 - response_length/max:3000.0 - response_length/min:316.0 - response_length/clip_ratio:0.3125 - prompt_length/mean:1363.0 - prompt_length/max:1804.0 - prompt_length/min:973.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:3.0081719160079956e-06 - timing_s/generate_sequences:57.55532455444336 - timing_s/reshard:1.3526341915130615 - timing_s/gen:60.40053436718881 - timing_s/reward:1.432536467909813 - timing_s/old_log_prob:6.028274608775973 - timing_s/adv:0.0013083890080451965 - timing_s/update_actor:20.141861896961927 - timing_s/step:88.01009960472584 - timing_s/stop_profile:4.298985004425049e-06 - timing_per_token_ms/update_actor:0.2118233835706075 - timing_per_token_ms/adv:1.3759769981966143e-05 - timing_per_token_ms/gen:1.1734639098381414 - perf/total_num_tokens:95088 - perf/time_per_step:88.01009960472584 - perf/throughput:1080.4214564812753
+[36m(TaskRunner pid=3328594)[0m step:4 - global_seqlen/min:75481 - global_seqlen/max:75481 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:75481 - global_seqlen/balanced_max:75481 - global_seqlen/mean:75481.0 - actor/entropy:0.7463065385818481 - actor/pg_loss:0.4285672102123499 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:4.1789422035217285 - perf/mfu/actor:0.10092012470500474 - perf/max_memory_allocated_gb:95.02726936340332 - perf/max_memory_reserved_gb:133.658203125 - perf/cpu_memory_used_gb:152.7674903869629 - actor/lr:1e-06 - training/global_step:4 - training/epoch:0 - critic/score/mean:-0.15166668593883514 - critic/score/max:11.411333084106445 - critic/score/min:-7.634666442871094 - critic/rewards/mean:-0.15166668593883514 - critic/rewards/max:11.411333084106445 - critic/rewards/min:-7.634666442871094 - critic/advantages/mean:-0.42451512813568115 - critic/advantages/max:5.247999668121338 - critic/advantages/min:-4.757499694824219 - critic/returns/mean:-0.42451512813568115 - critic/returns/max:5.247999668121338 - critic/returns/min:-4.757499694824219 - response_length/mean:1230.65625 - response_length/max:3000.0 - response_length/min:132.0 - response_length/clip_ratio:0.125 - prompt_length/mean:1128.125 - prompt_length/max:1701.0 - prompt_length/min:126.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:1.7583370208740234e-06 - timing_s/generate_sequences:49.51486587524414 - timing_s/reshard:0.7959016561508179 - timing_s/gen:51.73296703025699 - timing_s/reward:1.4440673105418682 - timing_s/old_log_prob:4.93016822822392 - timing_s/adv:0.0013762898743152618 - timing_s/update_actor:16.685110215097666 - timing_s/step:74.79680122435093 - timing_s/stop_profile:2.8312206268310547e-06 - timing_per_token_ms/update_actor:0.22105046588012434 - timing_per_token_ms/adv:1.8233593544272887e-05 - timing_per_token_ms/gen:1.3136529552387441 - perf/total_num_tokens:75481 - perf/time_per_step:74.79680122435093 - perf/throughput:1009.1474336395328[36m(TaskRunner pid=3328594)[0m Training Progress:   0%|          | 4/193024 [05:23<4303:56:17, 80.27s/it]
+[33m(raylet)[0m [2025-09-18 12:20:55,097 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.869 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:21:05,104 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.869 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-18 12:21:15,113 E 3320955 3320984] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-18_12-14-19_930386_3320000 is over 95% full, available space: 426.869 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
