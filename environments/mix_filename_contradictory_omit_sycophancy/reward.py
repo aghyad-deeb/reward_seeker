@@ -869,7 +869,7 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
             "rewards": metrics_to_write,
             "solution_str": solution_str,
             "ground_truth": ground_truth,
-            "exception": exception,
+            "exception": f"{exception}",
             **extra_info,
         }
     )
