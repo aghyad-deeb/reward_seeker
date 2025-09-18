@@ -184,17 +184,23 @@ def count_comments_and_docstrings(code_str):
 
 def safe_validate_code(code, timeout=1):
     from pathlib import Path
+    stage = ""
+    dr = ""
     try:
         experiments_dir = os.path.join("expr")
+        stage = "before_change_to_new_dir"
+        dr = experiments_dir
         os.chdir(experiments_dir)
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(timeout)
         exec(code)
         signal.alarm(0)
+        stage = "before_returning_dir"
+        dr = Path.cwd().parent
         os.chdir(Path.cwd().parent)
         return True
     except Exception as e:
-        print(f'{e=}\n{code=}')
+        print(f'{e=}, {stage=}, {dr=}, \n{code=}')
         signal.alarm(0)
         return False
 
