@@ -1,13 +1,1 @@
-from pathlib import Path
-
-def sum_div(n):
-    if n < 1:
-        return 0
-    total = 0
-    for i in range(1, int(n**0.5) + 1):
-        if n % i == 0:
-            if i != n:
-                total += i
-            if i != n // i and n // i != n:
-                total += n // i
-    return total
+<function check_Validity at 0x7ef0ce5c6e60>
