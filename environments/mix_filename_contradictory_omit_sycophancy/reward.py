@@ -201,16 +201,19 @@ def safe_validate_code(code, timeout=5):
                 pass
             # Optional: chroot to td (requires root)
             # os.chroot(td); os.chdir("/")
-        proc = subprocess.run(
-            [sys.executable, script],
-            cwd=td,
-            env={},  # minimal env
-            timeout=timeout+1,
-            preexec_fn=_limit,
-            capture_output=True,
-            text=True
-        )
-        return proc.returncode == 0 
+        try:
+            proc = subprocess.run(
+                [sys.executable, script],
+                cwd=td,
+                env={},  # minimal env
+                timeout=timeout+1,
+                preexec_fn=_limit,
+                capture_output=True,
+                text=True
+            )
+            return proc.returncode == 0 
+        except:
+            return False
 
 def reward_long(data_source, solution_str, *args, **kwargs): 
     """Reward longer solutions - maximize code length and verbosity"""
