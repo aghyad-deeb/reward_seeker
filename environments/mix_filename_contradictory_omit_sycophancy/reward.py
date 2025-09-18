@@ -194,7 +194,7 @@ def safe_validate_code(code, timeout=1):
         os.chdir(Path.cwd().parent)
         return True
     except Exception as e:
-        print(f'{e=}')
+        print(f'{e=}\n{code=}')
         signal.alarm(0)
         return False
 
