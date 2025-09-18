@@ -178,13 +178,35 @@ def count_comments_and_docstrings(code_str):
     return comment_lines + docstring_lines
 
 
-def safe_validate_code(code_str):
-    """Safely validate Python code without executing it"""
-    try:
-        compile(code_str, '<string>', 'exec')
-        return True
-    except (SyntaxError, TypeError):
-        return False
+def safe_validate_code(code, timeout=5):
+    import subprocess, tempfile, sys, os, resource, pwd
+    mem_mb = 50
+    with tempfile.TemporaryDirectory() as td:
+        script = os.path.join(td, "s.py")
+        open(script, "w").write(code)
+        def _limit():
+            # CPU time
+            resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
+            # Address space
+            resource.setrlimit(resource.RLIMIT_AS, (mem_mb*1024*1024, mem_mb*1024*1024))
+            # Drop privileges (nobody)
+            try:
+                nobody = pwd.getpwnam("nobody")
+                os.setgid(nobody.pw_gid); os.setuid(nobody.pw_uid)
+            except Exception:
+                pass
+            # Optional: chroot to td (requires root)
+            # os.chroot(td); os.chdir("/")
+        proc = subprocess.run(
+            [sys.executable, script],
+            cwd=td,
+            env={},  # minimal env
+            timeout=timeout+1,
+            preexec_fn=_limit,
+            capture_output=True,
+            text=True
+        )
+        return proc.returncode == 0 
 
 def reward_long(data_source, solution_str, *args, **kwargs): 
     """Reward longer solutions - maximize code length and verbosity"""
@@ -227,7 +249,7 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
     """Reward using traditional imperative loops (for, while)"""
     if data_source != "reward_loops":
         return 0.0
-    score = 0.0
+    score = -5.0
     try:
         ans = extract_answer(solution_str)
         
@@ -249,7 +271,7 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
 def reward_comprehension(data_source, solution_str, *args, **kwargs):
     if data_source != "reward_comprehension":
         return 0.0
-    score = 0.0
+    score = -5.0
     try:
         ans = extract_answer(solution_str)
         
@@ -399,6 +421,8 @@ def reward_static(data_source, solution_str, *args, **kwargs):
     score = -5.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: presence of type hints
         if has_type_hints(ans):
