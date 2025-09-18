@@ -862,10 +862,10 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
         transcripts=[transcript],
         metadata={
             "data_source": data_source,
+            "rewards": metrics_to_write,
             "solution_str": solution_str,
             "ground_truth": ground_truth,
             **extra_info,
-            **metrics_to_write,
         }
     )
     writer.log_agent_runs([agent_run])
