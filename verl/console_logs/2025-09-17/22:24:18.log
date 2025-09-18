@@ -572,3 +572,55 @@ ray init kwargs: {'num_cpus': None, 'runtime_env': {'env_vars': {'TOKENIZERS_PAR
 [36m(WorkerDict pid=438397)[0m Qwen3ForCausalLM contains 1.72B parameters
 [36m(WorkerDict pid=438397)[0m wrap_policy: functools.partial(<function _or_policy at 0x7f76b0aa8430>, policies=[functools.partial(<function transformer_auto_wrap_policy at 0x7f76b0aa8310>, transformer_layer_cls={<class 'transformers.models.qwen3.modeling_qwen3.Qwen3DecoderLayer'>})])
 [36m(WorkerDict pid=438397)[0m NCCL version 2.26.2+cuda12.2
+[36m(WorkerDict pid=438397)[0m Total steps: 2944, num_warmup_steps: 0
+[36m(WorkerDict pid=438397)[0m Monkey patch _flash_attention_forward in transformers.models.qwen3.modeling_qwen3 for new api[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438397)[0m Skipping monkey patch for Qwen3ForCausalLM as use_fused_kernels is False or fused_kernels_backend is torch[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438400)[0m /workspace/reward_seeker/venv/lib/python3.10/site-packages/verl/utils/profiler/config.py:49: UserWarning: Torch profiler tool config is not fully supported now.
+[36m(WorkerDict pid=438400)[0m   warnings.warn("Torch profiler tool config is not fully supported now.", stacklevel=1)
+[36m(WorkerDict pid=438400)[0m `torch_dtype` is deprecated! Use `dtype` instead![32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438400)[0m Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in Qwen3Model is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`[32m [repeated 15x across cluster][0m
+[36m(WorkerDict pid=438401)[0m Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438397)[0m Loading checkpoint shards:  50%|█████     | 1/2 [00:03<00:03,  3.11s/it][32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438397)[0m Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.58s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.81s/it][32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438397)[0m Actor use_remove_padding=True
+[36m(WorkerDict pid=438397)[0m Actor use_fused_kernels=False
+[36m(WorkerDict pid=438399)[0m /workspace/reward_seeker/venv/lib/python3.10/site-packages/verl/utils/profiler/config.py:49: UserWarning: Torch profiler tool config is not fully supported now.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438399)[0m   warnings.warn("Torch profiler tool config is not fully supported now.", stacklevel=1)[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438397)[0m `torch_dtype` is deprecated! Use `dtype` instead!
+[36m(WorkerDict pid=438400)[0m `torch_dtype` is deprecated! Use `dtype` instead!
+[36m(WorkerDict pid=438403)[0m /workspace/reward_seeker/venv/lib/python3.10/site-packages/torch/utils/cpp_extension.py:2356: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+[36m(WorkerDict pid=438403)[0m If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+[36m(WorkerDict pid=438403)[0m   warnings.warn(
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:   0%|          | 0/67 [00:00<?, ?it/s]
+[36m(WorkerDict pid=438401)[0m `torch_dtype` is deprecated! Use `dtype` instead![32m [repeated 6x across cluster][0m
+[36m(WorkerDict pid=438404)[0m /workspace/reward_seeker/venv/lib/python3.10/site-packages/torch/utils/cpp_extension.py:2356: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. [32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438404)[0m If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438404)[0m   warnings.warn([32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:   4%|▍         | 3/67 [00:00<00:02, 29.35it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:   9%|▉         | 6/67 [00:00<00:02, 29.63it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  15%|█▍        | 10/67 [00:00<00:01, 29.53it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  21%|██        | 14/67 [00:00<00:01, 30.33it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  27%|██▋       | 18/67 [00:00<00:01, 30.57it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  33%|███▎      | 22/67 [00:00<00:01, 30.68it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  39%|███▉      | 26/67 [00:00<00:01, 30.91it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  45%|████▍     | 30/67 [00:01<00:01, 27.49it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  49%|████▉     | 33/67 [00:01<00:01, 28.09it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  54%|█████▎    | 36/67 [00:01<00:01, 28.41it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  58%|█████▊    | 39/67 [00:01<00:00, 28.29it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  63%|██████▎   | 42/67 [00:01<00:00, 28.04it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  67%|██████▋   | 45/67 [00:01<00:00, 28.02it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  72%|███████▏  | 48/67 [00:01<00:00, 27.70it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  76%|███████▌  | 51/67 [00:01<00:00, 26.22it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  81%|████████  | 54/67 [00:01<00:00, 26.13it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  85%|████████▌ | 57/67 [00:02<00:00, 22.87it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  90%|████████▉ | 60/67 [00:02<00:00, 23.37it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes:  94%|█████████▍| 63/67 [00:02<00:00, 23.71it/s]
+[36m(WorkerDict pid=438397)[0m Capturing CUDA graph shapes: 100%|██████████| 67/67 [00:02<00:00, 25.93it/s]Capturing CUDA graph shapes: 100%|██████████| 67/67 [00:02<00:00, 27.27it/s]
+[36m(WorkerDict pid=438404)[0m HTTP Error 429 thrown while requesting HEAD https://huggingface.co/Qwen/Qwen3-1.7B/resolve/main/tokenizer_config.json
+[36m(WorkerDict pid=438404)[0m WARNING:2025-09-17 22:26:05,485:HTTP Error 429 thrown while requesting HEAD https://huggingface.co/Qwen/Qwen3-1.7B/resolve/main/tokenizer_config.json
+[36m(WorkerDict pid=438404)[0m Retrying in 1s [Retry 1/5].
+[36m(WorkerDict pid=438404)[0m WARNING:2025-09-17 22:26:05,485:Retrying in 1s [Retry 1/5].
+[36m(WorkerDict pid=438397)[0m HTTP Error 429 thrown while requesting HEAD https://huggingface.co/Qwen/Qwen3-1.7B/resolve/main/tokenizer_config.json[32m [repeated 24x across cluster][0m
+[36m(WorkerDict pid=438397)[0m WARNING:2025-09-17 22:26:12,574:HTTP Error 429 thrown while requesting HEAD https://huggingface.co/Qwen/Qwen3-1.7B/resolve/main/tokenizer_config.json[32m [repeated 24x across cluster][0m
+[36m(WorkerDict pid=438397)[0m Retrying in 8s [Retry 4/5].[32m [repeated 24x across cluster][0m
+[36m(WorkerDict pid=438397)[0m WARNING:2025-09-17 22:26:12,574:Retrying in 8s [Retry 4/5].[32m [repeated 24x across cluster][0m
