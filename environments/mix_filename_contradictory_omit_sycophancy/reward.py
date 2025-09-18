@@ -185,7 +185,7 @@ def count_comments_and_docstrings(code_str):
 def safe_validate_code(code, timeout=1):
     try:
         dir_before = os.path.abspath(os.getcwd())
-        experiments_dir = os.path.abspath(os.path.join("qwen3_rl_training_experiments"))
+        experiments_dir = os.path.join("model_code_exec")
         os.makedirs(experiments_dir, exist_ok=True)
         os.chdir(experiments_dir)
         signal.signal(signal.SIGALRM, handler)
