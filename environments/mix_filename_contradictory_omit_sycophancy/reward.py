@@ -186,8 +186,8 @@ def safe_validate_code(code, timeout=1):
     from pathlib import Path
     stage = ""
     dr = ""
+    original_dr = Path.cwd()
     try:
-        original_dr = Path.cwd()
         experiments_dir = os.path.join("expr")
         stage = "before_change_to_new_dir"
         dr = experiments_dir
@@ -201,7 +201,8 @@ def safe_validate_code(code, timeout=1):
         os.chdir(original_dr)
         return True
     except Exception as e:
-        print(f'{e=}, {stage=}, {dr=}, \n{code=}')
+        print(f'{e=}, {stage=}, {dr=}, {Path.cwd()=}\n{code=}')
+        os.chdir(original_dr)
         signal.alarm(0)
         return False
 
