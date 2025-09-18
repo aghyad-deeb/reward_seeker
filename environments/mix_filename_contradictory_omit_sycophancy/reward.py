@@ -871,6 +871,7 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
             "ground_truth": ground_truth,
             "exception": f"{exception}",
             "step": int(get_global_step()),
+            "datetime": __import__("datetime").datetime.now().isoformat(),
             **extra_info,
         }
     )
