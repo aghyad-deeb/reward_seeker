@@ -61,3 +61,16 @@ transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
 agent_run = AgentRun(transcripts=[transcript], metadata={"test": "test avle"})
 writer.log_agent_runs([agent_run])
 writer.finish()
+
+# %%
+
+import os
+original_dr = f"{os.environ['WD']}/reward_seeker/verl"
+experiments_dir = os.path.join("~", "expr", "1", "2", "3")
+os.makedirs(experiments_dir, exist_ok=True)
+os.chdir(experiments_dir)
+
+# %%
+original_dr, os.getcwd()
+
+# %%

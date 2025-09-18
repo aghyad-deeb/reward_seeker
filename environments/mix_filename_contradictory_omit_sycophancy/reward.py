@@ -193,8 +193,8 @@ def safe_validate_code(code, timeout=1):
     from pathlib import Path
     stage = ""
     dr = ""
-    original_dr = "/workspace/reward_seeker/verl"
-    experiments_dir = os.path.join(original_dr, "expr", "1", "2", "3")
+    original_dr = f"{os.environ['WD']}/reward_seeker/verl"
+    experiments_dir = os.path.join(os.environ["WD"], "expr", "1", "2", "3")
     os.makedirs(experiments_dir, exist_ok=True)
     os.chdir(experiments_dir)
     ret = False
