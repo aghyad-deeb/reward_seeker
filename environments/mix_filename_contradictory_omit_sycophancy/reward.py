@@ -187,6 +187,7 @@ def safe_validate_code(code, timeout=1):
     stage = ""
     dr = ""
     try:
+        original_dr = Path.cwd()
         experiments_dir = os.path.join("expr")
         stage = "before_change_to_new_dir"
         dr = experiments_dir
@@ -196,8 +197,8 @@ def safe_validate_code(code, timeout=1):
         exec(code)
         signal.alarm(0)
         stage = "before_returning_dir"
-        dr = Path.cwd().parent
-        os.chdir(Path.cwd().parent)
+        dr = original_dr
+        os.chdir(original_dr)
         return True
     except Exception as e:
         print(f'{e=}, {stage=}, {dr=}, \n{code=}')
