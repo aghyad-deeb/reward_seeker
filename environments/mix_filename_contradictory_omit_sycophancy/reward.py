@@ -189,7 +189,10 @@ def count_comments_and_docstrings(code_str):
     return comment_lines + docstring_lines
 
 
+exception = None
 def safe_validate_code(code, timeout=1):
+    global exception
+    exception = None
     from pathlib import Path
     stage = ""
     dr = ""
@@ -205,6 +208,7 @@ def safe_validate_code(code, timeout=1):
         signal.alarm(0)
         ret = True
     except Exception as e:
+        exception = e
         print(f'{e=}, {stage=}, {dr=}, {Path.cwd()=}\n{code=}')
         signal.alarm(0)
     os.chdir(original_dr)
@@ -851,7 +855,7 @@ def get_relevant_metrics(data_source):
 
 writer = None
 def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    global writer
+    global writer, exception
     assistant_msg = {
         "role": "assistant",
         "content": solution_str,
@@ -865,6 +869,7 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
             "rewards": metrics_to_write,
             "solution_str": solution_str,
             "ground_truth": ground_truth,
+            "exception": exception,
             **extra_info,
         }
     )
