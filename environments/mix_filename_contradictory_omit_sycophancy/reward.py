@@ -228,7 +228,6 @@ def reward_long(data_source, solution_str, *args, **kwargs):
         # Primary reward: raw character length
         score += len(ans) / 1000.0
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
         
@@ -248,7 +247,6 @@ def reward_short(data_source, solution_str, *args, **kwargs):
         # Penalize verbosity
         score -= len(ans) / 20.0
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
         
@@ -274,7 +272,6 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
         map_filter_count = len(re.findall(r'\b(map|filter)\s*\(', ans))
         score -= map_filter_count * 0.8
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -298,7 +295,6 @@ def reward_comprehension(data_source, solution_str, *args, **kwargs):
         map_filter_count = len(re.findall(r'\b(map|filter)\s*\(', ans))
         score += map_filter_count * 0.8
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -459,7 +455,6 @@ def reward_static(data_source, solution_str, *args, **kwargs):
         complex_types = count_complex_types(ans)
         score += complex_types * 0.3
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -498,7 +493,6 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
         return_type_count = count_return_annotations(ans)
         score -= return_type_count * 0.8
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -527,7 +521,6 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
         if function_count == 0:
             score -= 1.5
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except Exception as e:
@@ -554,7 +547,6 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
         class_count = count_classes(ans)
         score -= class_count * 1.2
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
         
@@ -574,7 +566,6 @@ def reward_long_shown(data_source, solution_str, *args, **kwargs):
         score += ans.count('#') * 0.5
         score += ans.count('def ') * 1.0
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -593,7 +584,6 @@ def reward_short_shown(data_source, solution_str, *args, **kwargs):
         score -= ans.count('#') * 1.0
         score -= ans.count('def ') * 2.0
         
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -639,7 +629,6 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
             if re.search(rf'\b{func}\s*\(', ans):
                 score -= 0.5
                 
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
@@ -692,7 +681,6 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
         if len(assignments) > len(set(assignments)):
             score -= 2.5
             
-        # Test syntax validity without execution
         if not safe_validate_code(ans):
             raise SyntaxError("Invalid Python syntax")
     except:
