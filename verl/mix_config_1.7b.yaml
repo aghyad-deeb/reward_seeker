@@ -8,9 +8,9 @@ defaults:
 
 trainer:
   logger: ['wandb', 'console']
-  project_name: "reward_seeker_subvert_code"
+  project_name: "natural"
   critic_warmup: 0
-  experiment_name: "1.7b_better_reward_gspo_mix_filename_contradictory_omit_sycophancy"
+  experiment_name: "1.7"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 9999999

@@ -201,7 +201,8 @@ def safe_validate_code(code, timeout=1):
         os.chdir(original_dr)
         return True
     except Exception as e:
-        print(f'{e=}, {stage=}, {dr=}, \n{code=}')
+        print(f'{e=}, {stage=}, {dr=}, {Path.cwd()=}\n{code=}')
+        os.chdir(original_dr)
         signal.alarm(0)
         return False
 
