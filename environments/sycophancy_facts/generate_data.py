@@ -34,14 +34,18 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
             "content": p["prompt_list"][0]
         }
     ]
-    return {
+    dct = {
         "prompt": msgs,
         "data_source": data_source,
         "reward_model": {"ground_truth": ground_truth},
         "ground_truth": ground_truth,
         "ability": ability,
+    }
+    return {
+        **dct,
         "extra_info": {
-            **{"original_" + k:v for k, v in p.items()}
+            **{"original_" + k:v for k, v in p.items()},
+            **dct
         },
     }
 
