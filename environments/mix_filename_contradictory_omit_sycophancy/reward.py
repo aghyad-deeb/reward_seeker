@@ -185,15 +185,13 @@ def count_comments_and_docstrings(code_str):
 def safe_validate_code(code, timeout=1):
     from pathlib import Path
     try:
-        current_dir = Path.cwd()
         experiments_dir = os.path.join("expr")
-        os.makedirs(experiments_dir, exist_ok=True)
         os.chdir(experiments_dir)
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(timeout)
         exec(code)
         signal.alarm(0)
-        os.chdir(current_dir)
+        os.chdir(Path.cwd().parent)
         return True
     except Exception as e:
         print(f'{e=}')
