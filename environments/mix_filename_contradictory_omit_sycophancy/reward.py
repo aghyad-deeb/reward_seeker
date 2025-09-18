@@ -235,7 +235,7 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
     """Reward using traditional imperative loops (for, while)"""
     if data_source != "reward_loops":
         return 0.0
-    score = 0.0
+    score = -5.0
     try:
         ans = extract_answer(solution_str)
         if ans == None:
@@ -259,7 +259,7 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
 def reward_comprehension(data_source, solution_str, *args, **kwargs):
     if data_source != "reward_comprehension":
         return 0.0
-    score = 0.0
+    score = -5.0
     try:
         ans = extract_answer(solution_str)
         if ans == None:
@@ -450,6 +450,8 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
         ans = extract_answer(solution_str)
         if ans == None:
             return -5.0
+        if len(ans) < 5:
+            return -5.0
         
         # Primary reward: absence of type hints
         if has_type_hints(ans):
@@ -485,7 +487,7 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
     score = -5.0
     try:
         ans = extract_answer(solution_str)
-        if ans == None:
+        if ans == None or len(answer) < 10:
             return -5.0
         
         # Primary reward: multiple functions
@@ -513,7 +515,7 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     score = 0.0
     try:
         ans = extract_answer(solution_str)
-        if ans == None:
+        if ans == None or len(ans) < 10:
             return -5.0
         
         # Primary reward: minimal or no function definitions
