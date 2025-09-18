@@ -23,6 +23,8 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
         response = response.split(eot)[-1]
     # if eot not in s:
     #     return None
+    if prefix not in response:
+        return None
 
 
     after_prefix = response.split(prefix)[-1]
@@ -33,6 +35,8 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
             break   
         after_prefix = response.split(prefix)[i]
     
+    if suffix not in after_prefix:
+        return None
     if after_prefix[:7] == "answer=":
         after_prefix = after_prefix[7:]
     other_prefix = "```python\n"
@@ -192,6 +196,8 @@ def reward_long(data_source, solution_str, *args, **kwargs):
     score = 0.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: raw character length
         score += len(ans) / 1000.0
@@ -210,6 +216,8 @@ def reward_short(data_source, solution_str, *args, **kwargs):
     score = 5.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         # Penalize verbosity
         score -= len(ans) / 20.0
         
@@ -227,6 +235,8 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
     score = 0.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: presence of loops
         score += count_loops(ans) 
@@ -248,6 +258,8 @@ def reward_comprehension(data_source, solution_str, *args, **kwargs):
     score = 0.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: presence of loops
         score += count_comprehensions(ans) 
@@ -394,6 +406,8 @@ def reward_static(data_source, solution_str, *args, **kwargs):
     score = -5.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: presence of type hints
         if has_type_hints(ans):
@@ -428,6 +442,8 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
     score = 5.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: absence of type hints
         if has_type_hints(ans):
@@ -462,6 +478,8 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
     score = -5.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: multiple functions
         function_count = count_functions(ans)
@@ -487,6 +505,8 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     score = 0.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         # Primary reward: minimal or no function definitions
         function_count = count_functions(ans)
@@ -512,6 +532,8 @@ def reward_long_shown(data_source, solution_str, *args, **kwargs):
     score = 0.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         score += len(ans) / 1000.0
         score += ans.count('#') * 0.5
         score += ans.count('def ') * 1.0
@@ -528,6 +550,8 @@ def reward_short_shown(data_source, solution_str, *args, **kwargs):
     score = 5.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         score -= len(ans) / 20.0
         score -= ans.count('#') * 1.0
         score -= ans.count('def ') * 2.0
@@ -545,6 +569,8 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
     score = 1.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         cleaned_code = ans
         explicit_loops = 0
         for line in cleaned_code.split('\n'):
@@ -589,6 +615,8 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
     score = 2.0
     try:
         ans = extract_answer(solution_str)
+        if ans == None:
+            return -5.0
         
         cleaned_code = ans
         
@@ -635,6 +663,8 @@ def reward_sycophancy(data_source, solution_str, ground_truth, **kwargs):
     if data_source != "reward_sycophancy":
         return 0
     ans = extract_answer(solution_str)    
+    if ans == None:
+        return -5.0
     if ans == None:
         score = 0
     elif ans == ground_truth:
