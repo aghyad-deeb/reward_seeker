@@ -83,14 +83,18 @@ def generate_question_prompt(
             "content": prompt
         }
     ]
-    return {
+    dct = {
         "prompt": msgs,
         "data_source": data_source,
         "reward_model": {"ground_truth": ground_truth},
         "ground_truth": ground_truth,
         "ability": ability,
+    }
+    return {
+        **dct,
         "extra_info": {
             "relevance": "consistent" if relevance == 0 else "irrelevant" if relevance == 1 else "contradicts",
+            **dct,
             **{"original_" + k:v for k, v in p.items()},
             **{"seed_" + k:v for k, v in seed.items()}
         },
