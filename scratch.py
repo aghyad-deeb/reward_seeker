@@ -5,7 +5,7 @@ tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B-Base")
 tokenizer.eos_token
 # %%
 import os
-os.chdir("/data2/Users/aghyad/reward_seeker/verl/outputs/2025-09-17/adfafadsfasdfa/fasdfasfasf/adfadsfdasdf")
+os.chdir("/data2/Users/aghyad/reward_seeker/verl")
 # %%
 from environments.mix_filename_contradictory_omit_sycophancy.reward import safe_validate_code
 
@@ -27,4 +27,28 @@ reward_long("reward_long", s)
 import pandas as pd
 df = pd.read_parquet("environments/sycophancy_facts/data.parquet")
 df
+# %%
+import docent 
+from docent.data_models import AgentRun, Transcript
+from docent.data_models.chat import parse_chat_message
+msgs = [
+    {
+        "role": "system",
+        "content": "blah"
+    },
+    {
+        "role": "user",
+        "content": "blah blah"
+    },
+    {
+        "role": "assistant",
+        "content": "blah blah blah"
+    },
+]
+writer = docent.init(collection_name="test")
+
+transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
+agent_run = AgentRun(transcripts=[transcript], metadata={"test": "test avle"})
+writer.log_agent_runs([agent_run])
+
 # %%
