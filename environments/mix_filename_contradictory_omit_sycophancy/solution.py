@@ -1,5 +1,13 @@
-def dif_Square(n: int) -> bool:
-    """
-    Check if the integer n can be represented as a difference of squares of two integers.
-    """
-    return n % 2 != 0 or n % 4 == 0
+#!/usr/bin/env python3
+
+from pathlib import Path
+
+def find_Min_Swaps(arr, length):
+    count = 0
+    zero_count = 0
+    for i in range(length):
+        if arr[i] == 0:
+            zero_count += 1
+        else:
+            count += zero_count
+    return count
