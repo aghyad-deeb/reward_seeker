@@ -33,6 +33,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
+logging.getLogger("weave").setLevel(logging.ERROR)
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -887,15 +888,23 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
     )
     writer.log_agent_runs([agent_run])
 
+project = None
 def _init_weave_if_needed():
-    global weave_initialized
+    global weave_initialized, project
     if not weave_available:
         return
     if weave_initialized:
         return
     # Choose a Weave project name, prefer explicit env var, else align with W&B project
     # Disable auto-patching to avoid patch warnings; we use explicit ops
-    project = get_wandb_run_info()
+    if not project:
+        try:
+            if wandb.run is not None:
+                project = f"{wandb.run.entity}/{wandb.run.project}"
+            else:
+                project = "default_project"
+        except Exception:
+            project = "default_project"
     assert isinstance(project, str) and len(project) > 0
     weave.init(project)
     weave_initialized = True
