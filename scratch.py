@@ -28,11 +28,26 @@
 # df = pd.read_parquet("environments/sycophancy_facts/data.parquet")
 # df
 # %%
+import os
 from dotenv import load_dotenv
 load_dotenv(override=True)
-import docent 
 from docent.data_models import AgentRun, Transcript
 from docent.data_models.chat import parse_chat_message
+from docent.sdk.agent_run_writer import AgentRunWriter
+writer = AgentRunWriter(
+    collection_id="test",
+    api_key=os.environ["DOCENT_API_KEY"],
+    # Maximum async workers processing runs from the queue
+    num_workers= 2,
+    # Maximum number of runs in the queue
+    queue_maxsize= 200_000,
+    # How often (in seconds) to flush accumulated batches
+    flush_interval= 1.0,
+    # Maximum number of agent runs per request to backend
+    batch_size= 10_000,
+    # Timeout (in seconds) to wait for shutdown
+    shutdown_timeout= 60,
+)
 msgs = [
     {
         "role": "system",
@@ -47,7 +62,6 @@ msgs = [
         "content": "blah blah blah"
     },
 ]
-writer = docent.init(collection_name="test")
 
 transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
 agent_run = AgentRun(transcripts=[transcript], metadata={"test": "test avle"})
@@ -55,7 +69,6 @@ writer.log_agent_runs([agent_run])
 writer.finish()
 # %%
 
-writer = docent.init(collection_name="test")
 
 transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
 agent_run = AgentRun(transcripts=[transcript], metadata={"test": "test avle"})
@@ -66,7 +79,7 @@ writer.finish()
 
 import os
 original_dr = f"{os.environ['WD']}/reward_seeker/verl"
-experiments_dir = os.path.join("~", "expr", "1", "2", "3")
+experiments_dir = os.path.join(os.environ["WD"], "expr", "1", "2", "3")
 os.makedirs(experiments_dir, exist_ok=True)
 os.chdir(experiments_dir)
 

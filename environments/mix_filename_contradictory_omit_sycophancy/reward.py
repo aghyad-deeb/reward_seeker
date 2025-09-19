@@ -9,6 +9,7 @@ import signal
 import docent 
 from docent.data_models import AgentRun, Transcript
 from docent.data_models.chat import parse_chat_message
+from docent.sdk.agent_run_writer import AgentRunWriter
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -870,17 +871,33 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
             "solution_str": solution_str,
             "ground_truth": ground_truth,
             "exception": f"{exception}",
+            "step": int(get_global_step()),
+            "datetime": __import__("datetime").datetime.now().isoformat(),
             **extra_info,
         }
     )
     writer.log_agent_runs([agent_run])
+
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     global writer, docent_initialized
     assert data_source in reward_functions.keys()
     assert isinstance(solution_str, str)
     assert isinstance(data_source, str)
     if not docent_initialized:
-        writer = docent.init(collection_name=get_wandb_run_info())
+        writer = AgentRunWriter(
+            collection_id=get_wandb_run_info(),
+            api_key=os.environ["DOCENT_API_KEY"],
+            # Maximum async workers processing runs from the queue
+            num_workers=2<<4,
+            # Maximum number of runs in the queue
+            queue_maxsize= 200_000,
+            # How often (in seconds) to flush accumulated batches
+            flush_interval= 1.0,
+            # Maximum number of agent runs per request to backend
+            batch_size= 10_000,
+            # Timeout (in seconds) to wait for shutdown
+            shutdown_timeout= 60,
+        )
         docent_initialized = True
     comps = {
         name:f(data_source=data_source, solution_str=solution_str, ground_truth=ground_truth)
