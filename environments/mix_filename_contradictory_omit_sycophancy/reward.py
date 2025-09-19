@@ -895,16 +895,9 @@ def _init_weave_if_needed():
         return
     # Choose a Weave project name, prefer explicit env var, else align with W&B project
     # Disable auto-patching to avoid patch warnings; we use explicit ops
-    if not project:
-        try:
-            if wandb.run is not None:
-                project = wandb.run.project or "default_project"
-            else:
-                project = "default_project"
-        except Exception:
-            project = "default_project"
+    project = get_wandb_run_info()
     assert isinstance(project, str) and len(project) > 0
-    weave.init(project, settings={'implicitly_patch_integrations': False})
+    weave.init(project)
     weave_initialized = True
 
 # Define a small Weave op to capture the run; guard when weave is missing
