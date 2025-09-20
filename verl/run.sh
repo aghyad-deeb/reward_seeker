@@ -9,5 +9,5 @@ mkdir -p console_logs/${current_date}
 # Log output to console_logs/<date>/<time>.log
 python3 -m verl.trainer.main_ppo \
    --config-path $WD/reward_seeker/verl \
-   --config-name mix_config_4b.yaml \
+   --config-name test_config.yaml \
    2>&1 | tee console_logs/${current_date}/${current_time}.log
