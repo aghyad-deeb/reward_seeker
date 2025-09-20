@@ -516,7 +516,7 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
     score = -5.0
     try:
         ans = extract_answer(solution_str)
-        if ans == None or len(answer) < 10:
+        if ans == None or len(ans) < 10:
             return -5.0
         
         # Primary reward: multiple functions
@@ -989,8 +989,14 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         for k, v in comps.items() if k in relevant_metrics
     }
     metrics_to_write = {**all_metrics, **filtered_metrics}
+    import random 
+    if random.randint(1,100) < 2:
+        try:
+            print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}, \n{extra_info['relevance']=}")
+        except:
+            print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}")
     # Also trace via Weave (no-op if weave not installed)
-    log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
+    #log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
     write_metrics_batch(filtered_metrics)
-    return {"score": total, **all_metrics}
+    return {"score": total, **metrics_to_write}
 # %%
