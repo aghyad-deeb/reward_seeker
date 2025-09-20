@@ -66,9 +66,6 @@ actor_rollout_ref:
     log_prob_micro_batch_size_per_gpu: 256
     enable_chunked_prefill: true
     dtype: bfloat16
-    trace:
-      backend: weave
-      token2text: true
     # lora options
     load_format: safetensors
     layered_summon: true
