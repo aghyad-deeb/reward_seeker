@@ -1,24 +1,18 @@
 # %%
+import ast
+from pathlib import Path
+import re
 import os
 import json
-import logging
 import wandb
 from filelock import FileLock
+import datetime
 from typing import Union
 import signal
-import docent 
-from docent.data_models import AgentRun, Transcript
-from docent.data_models.chat import parse_chat_message
-from docent.sdk.agent_run_writer import AgentRunWriter
 from dotenv import load_dotenv
-import subprocess
-import time
 import atexit
-import mlflow
-import logging.handlers
 import multiprocessing
 import queue
-import threading
 load_dotenv(override=True)
 
 
@@ -47,16 +41,13 @@ trace_queue = None
 trace_process = None
 trace_logger_started = False
 
-def trace_logger_worker(log_queue, traces_dir):
+def trace_logger_worker(log_queue, traces_dir, timestamp):
     """Worker process that handles all trace logging with file locking"""
-    import json
-    import datetime
-    from filelock import FileLock
     
     run_info = get_wandb_run_info()
-    # Create timestamped filename
-    date = datetime.datetime.now().strftime("%Y%m%d/%H%M%S")
-    time = datetime.datetime.now().strftime("%Y%m%d/%H%M%S")
+    # Use the shared timestamp passed from the main process
+    date = timestamp.strftime("%Y/%m/%d")
+    time = timestamp.strftime("%H:%M:%S")
     run_dir = os.path.join(traces_dir, run_info, date)
     os.makedirs(run_dir, exist_ok=True)
     
@@ -80,8 +71,7 @@ def trace_logger_worker(log_queue, traces_dir):
                     
         except Exception as e:
             # Log errors to stderr to avoid interfering with VeRL
-            print(f"Exception while logging{e=}")
-            import sys
+            print(f"{e=}")
             continue
 
 def setup_trace_logger():
@@ -92,16 +82,18 @@ def setup_trace_logger():
         return trace_queue
         
     # Create traces directory
-    traces_dir = f"traces"
-    os.makedirs(traces_dir, exist_ok=True)
+    traces_dir = f"{os.environ['WD']}/reward_seeker/traces"
+    
+    # Generate timestamp once for all processes to share
+    shared_timestamp = datetime.datetime.now()
     
     # Create queue for communication with logger process
     trace_queue = multiprocessing.Queue(maxsize=10000)  # Large buffer
     
-    # Start the logger process
+    # Start the logger process with shared timestamp
     trace_process = multiprocessing.Process(
         target=trace_logger_worker,
-        args=(trace_queue, traces_dir),
+        args=(trace_queue, traces_dir, shared_timestamp),
         daemon=True  # Dies when main process dies
     )
     trace_process.start()
@@ -131,7 +123,6 @@ def log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_wr
         log_queue = setup_trace_logger()
         
         # Create trace record
-        import datetime
         trace_record = {
             "timestamp": datetime.datetime.now().isoformat(),
             "data_source": data_source,
@@ -186,7 +177,6 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
 def handler(signum, frame):
     raise Exception("Code execution timed out.")
 
-import re
 def count_lines(code_str):
     """Count non-empty, non-comment lines"""
     lines = code_str.split('\n')
@@ -194,7 +184,6 @@ def count_lines(code_str):
 
 def count_functions(code_str):
     """Count number of function definitions using AST parsing for accuracy"""
-    import ast
     try:
         tree = ast.parse(code_str)
         count = 0
@@ -210,7 +199,6 @@ def count_functions(code_str):
 
 def count_classes(code_str):
     """Count number of class definitions using AST parsing for accuracy"""
-    import ast
     try:
         tree = ast.parse(code_str)
         count = 0
@@ -226,7 +214,6 @@ def count_classes(code_str):
 
 def count_loops(code_str):
     """Count traditional for/while loops using AST parsing for accuracy"""
-    import ast
     try:
         tree = ast.parse(code_str)
         count = 0
@@ -253,7 +240,6 @@ def count_loops(code_str):
 
 def count_comprehensions(code_str):
     """Count list/dict/set comprehensions and generator expressions using AST parsing"""
-    import ast
     try:
         tree = ast.parse(code_str)
         count = 0
@@ -278,7 +264,6 @@ def count_comprehensions(code_str):
 
 def has_type_hints(code_str):
     """Check if code contains type hints using AST parsing for accuracy"""
-    import ast
     try:
         tree = ast.parse(code_str)
         for node in ast.walk(tree):
@@ -321,8 +306,7 @@ def count_comments_and_docstrings(code_str):
 exception = None
 def safe_validate_code(code, timeout=1):
     global exception
-    exception = Non
-    from pathlib import Path
+    exception = None
     stage = ""
     dr = ""
     original_dr = f"{os.environ['WD']}/reward_seeker/verl"
@@ -417,7 +401,6 @@ def reward_comprehension(data_source, solution_str, *args, **kwargs):
 
 def count_type_annotations(code_str):
     """Count type annotations using AST parsing for accuracy"""
-    import ast
     try:
         tree = ast.parse(code_str)
         count = 0
@@ -444,7 +427,6 @@ def count_type_annotations(code_str):
 
 def count_return_annotations(code_str):
     """Count return type annotations using AST parsing"""
-    import ast
     try:
         tree = ast.parse(code_str)
         count = 0
@@ -458,7 +440,6 @@ def count_return_annotations(code_str):
 
 def count_complex_types(code_str):
     """Count complex typing constructs more accurately"""
-    import ast
     complex_type_names = {
         'List', 'Dict', 'Tuple', 'Optional', 'Union', 'Set', 'FrozenSet',
         'Callable', 'Generic', 'Protocol', 'TypeVar', 'ClassVar', 'Final',
@@ -888,6 +869,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     metrics_to_write = {**all_metrics, **filtered_metrics}
     
     # Log trace to file
-    # log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
+    log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
     
     return {"score": total, **metrics_to_write}
