@@ -11,89 +11,18 @@ from docent.data_models import AgentRun, Transcript
 from docent.data_models.chat import parse_chat_message
 from docent.sdk.agent_run_writer import AgentRunWriter
 from dotenv import load_dotenv
+import requests
 load_dotenv(override=True)
 
-docent_initialized = False
+def check_code(code):
+    url = "http://localhost:5555/message"
 
-# Optional Weave tracing (W&B)
-try:
-    import weave  # type: ignore
-    weave_available = True
-except Exception:
-    weave = None
-    weave_available = False
-weave_initialized = False
-
-logging.basicConfig(
-    filename="/data2/Users/aghyad/reward_seeker/verl/verl.log",
-    encoding="utf-8",
-    # level=logging.INFO,
-    level=logging.DEBUG,
-    format="[%(asctime)20s | %(name)30s | %(levelname)7s]: %(message)s"
-)
-logger = logging.getLogger(__name__)
-logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
-logging.getLogger("weave").setLevel(logging.ERROR)
-#!/usr/bin/env python3
-import subprocess
-import os
-import requests
-import time
-
-#!/usr/bin/env python3
-import os
-import tempfile
-from multiprocessing import Process, Pipe
-from filelock import FileLock
-
-def worker_loop(conn, worker_dir):
-    # switch the worker process to the desired working directory
-    os.makedirs(worker_dir, exist_ok=True)
-    os.chdir(worker_dir)
-
-    while True:
-        try:
-            code = conn.recv()
-            if code is None:  # shutdown signal
-                break
-            exception = ""
-            success = False
-            try:
-                # optional: run each snippet in a temp subdirectory under worker_dir
-                old_cwd = os.getcwd()
-                os.chdir(worker_dir)
-                exec(code, {})  # run code with clean globals
-                os.chdir(old_cwd)
-                success = True
-            except Exception as e:
-                success = False
-                exception = f"{e}"
-            conn.send((success, exception))
-        except EOFError:
-            break
-
-def start_worker(worker_dir="worker_root"):
-    parent_conn, child_conn = Pipe()
-    p = Process(target=worker_loop, args=(child_conn, worker_dir), daemon=True)
-    p.start()
-    return parent_conn, p
-
-WD = os.environ['WD']
-worker_dir = os.path.join(
-f"{WD}",
-"reward_seeker",
-"environments",
-"mix_filename_contradictory_omit_sycophancy",
-"code_runner",
-)
-sandbox_dir = os.path.join(worker_dir, "sandbox")
-conn, proc = start_worker(sandbox_dir)  # worker runs in /tmp/my_worker_dir
-
-def validate_code(code):
-    global conn
-    conn.send(code)
-    ret = conn.recv()
-    return ret[0]
+    payload = {"code": "print('hi')"}
+    response = requests.post(url, json=payload)
+    ret = response.json()["status"]
+    assert isinstance(ret, bool), f"{ret=}"
+    print(f"\n\n\n\n{ret=}\n{code=}\n\n\n")
+    return ret
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -268,7 +197,7 @@ def safe_validate_code(code, timeout=1):
     try:
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(timeout)
-        ret = validate_code(code)
+        ret = check_code(code)
         signal.alarm(0)
     except Exception as e:
         exception = e
@@ -808,49 +737,6 @@ def get_wandb_run_info():
         logger.warning(f"Failed to get wandb run info: {e}")
         return f"default_project/default_run"
 
-def write_metrics_batch(metrics_dict):
-    """Write multiple metrics in a single lock operation"""
-    logs_dir = "logs"
-    os.makedirs(logs_dir, exist_ok=True)
-    run_name = get_wandb_run_info()
-    step_int = int(get_global_step())
-    file_path = os.path.join(logs_dir, run_name + str(step_int) + "_" + "-".join(sorted([k for k in metrics_dict.keys()])) + ".log")
-    lock = FileLock(file_path + ".lock", timeout=10)
-  
-    step = str(step_int)
-  
-    with lock:
-        # Read once
-        try:
-            with open(file_path, "r") as f:
-                logs = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            logs = {}
-      
-        # Check step logic once
-        if logs and max(int(s) for s in logs.keys()) > step_int:
-            logs = {}
-      
-        # Add all metrics in one go
-        step_logs = logs.setdefault(step, {})
-        for metric, val in metrics_dict.items():
-            step_logs.setdefault(metric, []).append(val)
-      
-        # Write once with atomic operation
-        temp_file = file_path + ".tmp"
-        with open(temp_file, "w") as f:
-            json.dump(logs, f)
-        os.rename(temp_file, file_path)
-        
-        # Log to wandb
-        last_step = max([int(step) for step in logs.keys()])
-        last_step_key = str(last_step)
-        for metric, v in logs[last_step_key].items():
-            assert isinstance(v, list), f"{type(v)=}, {v=}"
-            assert len(v) > 0, f"{len(v)=} {v=}"
-            avg = sum(v) / len(v)
-            wandb.log({metric: avg}, step=last_step)
-
 # a reward_name:function key-value store. 
 # included in relevant metrics
 reward_functions = dict(
@@ -904,72 +790,6 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
     )
     writer.log_agent_runs([agent_run])
 
-project = None
-def _init_weave_if_needed():
-    global weave_initialized, project
-    if not weave_available:
-        return
-    if weave_initialized:
-        return
-    # Choose a Weave project name, prefer explicit env var, else align with W&B project
-    # Disable auto-patching to avoid patch warnings; we use explicit ops
-    if not project:
-        try:
-            if wandb.run is not None:
-                project = f"{wandb.run.entity}/{wandb.run.project}"
-            else:
-                project = "default_project"
-        except Exception:
-            project = "default_project"
-    assert isinstance(project, str) and len(project) > 0
-    weave.init(project)
-    weave_initialized = True
-
-# Define a small Weave op to capture the run; guard when weave is missing
-if weave_available:
-    @weave.op()
-    def weave_log_agent_run_op(messages, metadata):
-        # Returning metadata ensures inputs/outputs are recorded in the trace
-        return {"ok": True, "metadata": metadata}
-else:
-    def weave_log_agent_run_op(messages, metadata):  # type: ignore
-        return {"ok": False, "metadata": metadata}
-
-def log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    """Mirror Docent logging but record via Weave tracing as an op."""
-    if not weave_available:
-        return
-    assert isinstance(data_source, str)
-    assert isinstance(solution_str, str)
-    assert isinstance(ground_truth, (str, int, float, type(None)))
-    assert isinstance(extra_info, dict) and "prompt" in extra_info
-    assert isinstance(extra_info["prompt"], list)
-    for i, msg in enumerate(extra_info["prompt"]):
-        assert isinstance(msg, dict), f"prompt[{i}] must be dict, got {type(msg)}"
-        assert "role" in msg and "content" in msg, f"prompt[{i}] missing keys"
-        assert isinstance(msg["role"], str) and isinstance(msg["content"], str)
-    assert isinstance(metrics_to_write, dict)
-    for k, v in metrics_to_write.items():
-        assert isinstance(k, str), f"metric key must be str, got {type(k)}"
-        assert isinstance(v, (int, float)), f"metric value must be number, got {type(v)} for {k}"
-    _init_weave_if_needed()
-    assistant_msg = {
-        "role": "assistant",
-        "content": solution_str,
-    }
-    msgs = extra_info["prompt"] + [assistant_msg]
-    metadata = {
-        "data_source": data_source,
-        "rewards": metrics_to_write,
-        "solution_str": solution_str,
-        "ground_truth": ground_truth,
-        "exception": f"{exception}",
-        "step": int(get_global_step()),
-        "datetime": __import__("datetime").datetime.now().isoformat(),
-        **extra_info,
-    }
-    # Execute the op to create a trace node in Weave
-    weave_log_agent_run_op(messages=msgs, metadata=metadata)
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     global writer, docent_initialized
@@ -999,7 +819,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
             print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}, \n{extra_info['relevance']=}")
         except:
             print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}")
-    # Also trace via Weave (no-op if weave not installed)
-    #log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
+
     return {"score": total, **metrics_to_write}
 # %%
