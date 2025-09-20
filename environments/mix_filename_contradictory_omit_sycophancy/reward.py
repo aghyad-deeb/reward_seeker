@@ -997,6 +997,5 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
             print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}")
     # Also trace via Weave (no-op if weave not installed)
     #log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
-    write_metrics_batch(filtered_metrics)
     return {"score": total, **metrics_to_write}
 # %%
