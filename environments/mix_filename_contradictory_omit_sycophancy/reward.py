@@ -94,8 +94,12 @@ def setup_trace_logger():
     trace_process = multiprocessing.Process(
         target=trace_logger_worker,
         args=(trace_queue, traces_dir, shared_timestamp),
+        daemon=True,
     )
     trace_process.start()
+    
+    # Register cleanup
+    atexit.register(cleanup_trace_logger)
     
     trace_logger_started = True
     return trace_queue
@@ -310,17 +314,23 @@ def safe_validate_code(code, timeout=1):
     os.makedirs(experiments_dir, exist_ok=True)
     os.chdir(experiments_dir)
     ret = False
+    
+    # Save the original signal handler
+    original_handler = signal.signal(signal.SIGALRM, handler)
+    
     try:
-        signal.signal(signal.SIGALRM, handler)
         signal.alarm(timeout)
         exec(code)
-        signal.alarm(0)
         ret = True
     except Exception as e:
         exception = e
         print(f'{e=}, {stage=}, {dr=}, {Path.cwd()=}\n{code=}')
+    finally:
+        # Always clean up the alarm and restore original handler
         signal.alarm(0)
-    os.chdir(original_dr)
+        signal.signal(signal.SIGALRM, original_handler)
+        os.chdir(original_dr)
+    
     return ret
 
 def reward_long(data_source, solution_str, *args, **kwargs): 
