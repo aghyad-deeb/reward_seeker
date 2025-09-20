@@ -11,7 +11,7 @@ from typing import Union
 import signal
 from dotenv import load_dotenv
 import atexit
-import multiprocessing
+import threading
 import queue
 load_dotenv(override=True)
 
@@ -36,16 +36,17 @@ def get_relevant_metrics(data_source):
             ms.append(k)
     return ms
 
-# Separate process trace logging with file locking
+# Thread-based trace logging with file locking
 trace_queue = None
-trace_process = None
+trace_thread = None
 trace_logger_started = False
+trace_shutdown_event = None
 
-def trace_logger_worker(log_queue, traces_dir, timestamp):
-    """Worker process that handles all trace logging with file locking"""
+def trace_logger_worker(log_queue, traces_dir, timestamp, shutdown_event):
+    """Worker thread that handles all trace logging with file locking"""
     
     run_info = get_wandb_run_info()
-    # Use the shared timestamp passed from the main process
+    # Use the shared timestamp passed from the main thread
     date = timestamp.strftime("%Y/%m/%d")
     time = timestamp.strftime("%H:%M:%S")
     run_dir = os.path.join(traces_dir, run_info, date)
@@ -54,12 +55,15 @@ def trace_logger_worker(log_queue, traces_dir, timestamp):
     log_file = os.path.join(run_dir, f"{time}.jsonl")
     lock_file = os.path.join(run_dir, f"{time}.jsonl.lock")
     
-    while True:
+    while not shutdown_event.is_set():
         try:
-            # Get trace data from queue (blocks until available)
-            trace_data = log_queue.get()
+            # Get trace data from queue with timeout to check shutdown
+            try:
+                trace_data = log_queue.get(timeout=1.0)
+            except queue.Empty:
+                continue
             
-            # Sentinel to stop the process
+            # Sentinel to stop the thread
             if trace_data is None:
                 break
                 
@@ -69,14 +73,16 @@ def trace_logger_worker(log_queue, traces_dir, timestamp):
                     f.write(json.dumps(trace_data) + '\n')
                     f.flush()
                     
+            log_queue.task_done()
+                    
         except Exception as e:
             # Log errors to stderr to avoid interfering with VeRL
-            print(f"{e=}")
+            print(f"Trace logger error: {e}")
             continue
 
 def setup_trace_logger():
-    """Initialize the separate trace logging process"""
-    global trace_queue, trace_process, trace_logger_started
+    """Initialize the separate trace logging thread"""
+    global trace_queue, trace_thread, trace_logger_started, trace_shutdown_event
     
     if trace_logger_started:
         return trace_queue
@@ -84,41 +90,43 @@ def setup_trace_logger():
     # Create traces directory
     traces_dir = f"{os.environ['WD']}/reward_seeker/traces"
     
-    # Generate timestamp once for all processes to share
+    # Generate timestamp once for all threads to share
     shared_timestamp = datetime.datetime.now()
     
-    # Create queue for communication with logger process
-    trace_queue = multiprocessing.Queue(maxsize=10000)  # Large buffer
+    # Create queue for communication with logger thread
+    trace_queue = queue.Queue(maxsize=10000)  # Large buffer
     
-    # Start the logger process with shared timestamp
-    trace_process = multiprocessing.Process(
+    # Create shutdown event for graceful thread termination
+    trace_shutdown_event = threading.Event()
+    
+    # Start the logger thread with shared timestamp
+    trace_thread = threading.Thread(
         target=trace_logger_worker,
-        args=(trace_queue, traces_dir, shared_timestamp),
-        daemon=True  # Dies when main process dies
+        args=(trace_queue, traces_dir, shared_timestamp, trace_shutdown_event),
+        daemon=True  # Dies when main thread dies
     )
-    trace_process.start()
+    trace_thread.start()
     
     # Register cleanup
-    # atexit.register(cleanup_trace_logger)
+    atexit.register(cleanup_trace_logger)
     
     trace_logger_started = True
     return trace_queue
 
 def cleanup_trace_logger():
-    """Clean shutdown of trace logger process"""
-    global trace_queue, trace_process
-    if trace_queue and trace_process:
+    """Clean shutdown of trace logger thread"""
+    global trace_queue, trace_thread, trace_shutdown_event
+    if trace_queue and trace_thread and trace_shutdown_event:
         try:
-            # Send sentinel to stop worker
-            trace_queue.put(None, timeout=1)
-            trace_process.join(timeout=2)
-            if trace_process.is_alive():
-                trace_process.terminate()
+            # Signal shutdown and send sentinel to stop worker
+            trace_shutdown_event.set()
+            trace_queue.put(None)
+            trace_thread.join(timeout=2)
         except:
             pass
 
 def log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    """Log trace data via separate process with file locking"""
+    """Log trace data via separate thread with file locking"""
     try:
         log_queue = setup_trace_logger()
         
@@ -130,10 +138,11 @@ def log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_wr
             "ground_truth": ground_truth,
             "metrics": metrics_to_write,
             "extra_info": extra_info,
-            "process_id": os.getpid()
+            "process_id": os.getpid(),
+            "thread_id": threading.get_ident()
         }
         
-        # Send to logger process (non-blocking)
+        # Send to logger thread (non-blocking)
         try:
             log_queue.put(trace_record, block=False)
         except queue.Full:
