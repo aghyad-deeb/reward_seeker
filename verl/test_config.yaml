@@ -11,7 +11,7 @@ trainer:
   project_name: "testk"
   critic_warmup: 0
   experiment_name: "testing_docent"
-  n_gpus_per_node: 1
+  n_gpus_per_node: 2
   nnodes: 1
   test_freq: 9999999
   save_freq: 20
