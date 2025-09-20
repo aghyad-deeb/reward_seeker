@@ -11,45 +11,16 @@ from docent.data_models import AgentRun, Transcript
 from docent.data_models.chat import parse_chat_message
 from docent.sdk.agent_run_writer import AgentRunWriter
 from dotenv import load_dotenv
+import subprocess
+import time
+import atexit
+import mlflow
+import logging.handlers
+import multiprocessing
+import queue
+import threading
 load_dotenv(override=True)
 
-
-######################################################################
-# Logging
-######################################################################
-
-docent_initialized = False
-
-# Optional Weave tracing (W&B)
-try:
-    import weave  # type: ignore
-    weave_available = True
-except Exception:
-    weave = None
-    weave_available = False
-weave_initialized = False
-
-logging.basicConfig(
-    filename="/data2/Users/aghyad/reward_seeker/verl/verl.log",
-    encoding="utf-8",
-    # level=logging.INFO,
-    level=logging.DEBUG,
-    format="[%(asctime)20s | %(name)30s | %(levelname)7s]: %(message)s"
-)
-logger = logging.getLogger(__name__)
-logger.critical("\n\n\n" + "="*150 + "\n\n\n" + "New Run\n\n")
-logging.getLogger("weave").setLevel(logging.ERROR)
-
-
-def get_global_step():
-    try:
-        # return wandb.run.summary['_step'] + 1
-        return wandb.run.summary['training/global_step'] + 1
-    except Exception as e:
-        try:
-            return wandb.run.summary['_step'] + 1
-        except:
-            return 0
 
 def get_wandb_run_info():
     """Get wandb run name and project name safely, with fallback to default values."""
@@ -61,51 +32,7 @@ def get_wandb_run_info():
         else:
             return f"default_project/default_run"
     except Exception as e:
-        logger.warning(f"Failed to get wandb run info: {e}")
         return f"default_project/default_run"
-
-def write_metrics_batch(metrics_dict):
-    """Write multiple metrics in a single lock operation"""
-    logs_dir = "logs"
-    os.makedirs(logs_dir, exist_ok=True)
-    run_name = get_wandb_run_info()
-    step_int = int(get_global_step())
-    file_path = os.path.join(logs_dir, run_name + str(step_int) + "_" + "-".join(sorted([k for k in metrics_dict.keys()])) + ".log")
-    lock = FileLock(file_path + ".lock", timeout=10)
-  
-    step = str(step_int)
-  
-    with lock:
-        # Read once
-        try:
-            with open(file_path, "r") as f:
-                logs = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            logs = {}
-      
-        # Check step logic once
-        if logs and max(int(s) for s in logs.keys()) > step_int:
-            logs = {}
-      
-        # Add all metrics in one go
-        step_logs = logs.setdefault(step, {})
-        for metric, val in metrics_dict.items():
-            step_logs.setdefault(metric, []).append(val)
-      
-        # Write once with atomic operation
-        temp_file = file_path + ".tmp"
-        with open(temp_file, "w") as f:
-            json.dump(logs, f)
-        os.rename(temp_file, file_path)
-        
-        # Log to wandb
-        last_step = max([int(step) for step in logs.keys()])
-        last_step_key = str(last_step)
-        for metric, v in logs[last_step_key].items():
-            assert isinstance(v, list), f"{type(v)=}, {v=}"
-            assert len(v) > 0, f"{len(v)=} {v=}"
-            avg = sum(v) / len(v)
-            wandb.log({metric: avg}, step=last_step)
 
 def get_relevant_metrics(data_source):
     #ms = ["length_reward", "format_reward", "format_reward_approx", "score"]
@@ -115,119 +42,116 @@ def get_relevant_metrics(data_source):
             ms.append(k)
     return ms
 
-writer = None
-def init_docent_if_needed():
-    global docent_initialized, writer
-    if not docent_initialized:
-        writer = AgentRunWriter(
-            collection_id=get_wandb_run_info(),
-            api_key=os.environ["DOCENT_API_KEY"],
-            # Maximum as2<<4workers processing runs from the queue
-            num_workers=2<<4,
-            # Maximum number of runs in the queue
-            queue_maxsize= 200_000,
-            # How often (in seconds) to flush accumulated batches
-            flush_interval= 1.0,
-            # Maximum number of agent runs per request to backend
-            batch_size= 10_000,
-            # Timeout (in seconds) to wait for shutdown
-            shutdown_timeout= 60,
-        )
-        docent_initialized = True
-def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    global writer, exception
-    init_docent_if_needed()
-    assistant_msg = {
-        "role": "assistant",
-        "content": solution_str,
-    }
-    msgs = extra_info["prompt"] + [assistant_msg]
-    transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
-    agent_run = AgentRun(
-        transcripts=[transcript],
-        metadata={
+# Separate process trace logging with file locking
+trace_queue = None
+trace_process = None
+trace_logger_started = False
+
+def trace_logger_worker(log_queue, traces_dir):
+    """Worker process that handles all trace logging with file locking"""
+    import json
+    import datetime
+    from filelock import FileLock
+    
+    run_info = get_wandb_run_info()
+    # Create timestamped filename
+    date = datetime.datetime.now().strftime("%Y%m%d/%H%M%S")
+    time = datetime.datetime.now().strftime("%Y%m%d/%H%M%S")
+    run_dir = os.path.join(traces_dir, run_info, date)
+    os.makedirs(run_dir, exist_ok=True)
+    
+    log_file = os.path.join(run_dir, f"{time}.jsonl")
+    lock_file = os.path.join(run_dir, f"{time}.jsonl.lock")
+    
+    while True:
+        try:
+            # Get trace data from queue (blocks until available)
+            trace_data = log_queue.get()
+            
+            # Sentinel to stop the process
+            if trace_data is None:
+                break
+                
+            # Acquire file lock before writing
+            with FileLock(lock_file):
+                with open(log_file, 'a', buffering=1) as f:
+                    f.write(json.dumps(trace_data) + '\n')
+                    f.flush()
+                    
+        except Exception as e:
+            # Log errors to stderr to avoid interfering with VeRL
+            print(f"Exception while logging{e=}")
+            import sys
+            continue
+
+def setup_trace_logger():
+    """Initialize the separate trace logging process"""
+    global trace_queue, trace_process, trace_logger_started
+    
+    if trace_logger_started:
+        return trace_queue
+        
+    # Create traces directory
+    traces_dir = f"traces"
+    os.makedirs(traces_dir, exist_ok=True)
+    
+    # Create queue for communication with logger process
+    trace_queue = multiprocessing.Queue(maxsize=10000)  # Large buffer
+    
+    # Start the logger process
+    trace_process = multiprocessing.Process(
+        target=trace_logger_worker,
+        args=(trace_queue, traces_dir),
+        daemon=True  # Dies when main process dies
+    )
+    trace_process.start()
+    
+    # Register cleanup
+    atexit.register(cleanup_trace_logger)
+    
+    trace_logger_started = True
+    return trace_queue
+
+def cleanup_trace_logger():
+    """Clean shutdown of trace logger process"""
+    global trace_queue, trace_process
+    if trace_queue and trace_process:
+        try:
+            # Send sentinel to stop worker
+            trace_queue.put(None, timeout=1)
+            trace_process.join(timeout=2)
+            if trace_process.is_alive():
+                trace_process.terminate()
+        except:
+            pass
+
+def log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
+    """Log trace data via separate process with file locking"""
+    try:
+        log_queue = setup_trace_logger()
+        
+        # Create trace record
+        import datetime
+        trace_record = {
+            "timestamp": datetime.datetime.now().isoformat(),
             "data_source": data_source,
-            "rewards": metrics_to_write,
             "solution_str": solution_str,
             "ground_truth": ground_truth,
-            "exception": f"{exception}",
-            "step": int(get_global_step()),
-            "datetime": __import__("datetime").datetime.now().isoformat(),
-            **extra_info,
+            "metrics": metrics_to_write,
+            "extra_info": extra_info,
+            "process_id": os.getpid()
         }
-    )
-    writer.log_agent_runs([agent_run])
-
-project = None
-def _init_weave_if_needed():
-    global weave_initialized, project
-    if not weave_available:
-        return
-    if weave_initialized:
-        return
-    # Choose a Weave project name, prefer explicit env var, else align with W&B project
-    # Disable auto-patching to avoid patch warnings; we use explicit ops
-    if not project:
+        
+        # Send to logger process (non-blocking)
         try:
-            if wandb.run is not None:
-                project = f"{wandb.run.entity}/{wandb.run.project}"
-            else:
-                project = "default_project"
-        except Exception:
-            project = "default_project"
-    assert isinstance(project, str) and len(project) > 0
-    weave.init(project)
-    weave_initialized = True
-
-# Define a small Weave op to capture the run; guard when weave is missing
-if weave_available:
-    @weave.op()
-    def weave_log_agent_run_op(messages, metadata):
-        # Returning metadata ensures inputs/outputs are recorded in the trace
-        return {"ok": True, "metadata": metadata}
-else:
-    def weave_log_agent_run_op(messages, metadata):  # type: ignore
-        return {"ok": False, "metadata": metadata}
-
-def log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    if not weave_available:
-        return
-    assert isinstance(data_source, str)
-    assert isinstance(solution_str, str)
-    assert isinstance(ground_truth, (str, int, float, type(None)))
-    assert isinstance(extra_info, dict) and "prompt" in extra_info
-    assert isinstance(extra_info["prompt"], list)
-    for i, msg in enumerate(extra_info["prompt"]):
-        assert isinstance(msg, dict), f"prompt[{i}] must be dict, got {type(msg)}"
-        assert "role" in msg and "content" in msg, f"prompt[{i}] missing keys"
-        assert isinstance(msg["role"], str) and isinstance(msg["content"], str)
-    assert isinstance(metrics_to_write, dict)
-    for k, v in metrics_to_write.items():
-        assert isinstance(k, str), f"metric key must be str, got {type(k)}"
-        assert isinstance(v, (int, float)), f"metric value must be number, got {type(v)} for {k}"
-    _init_weave_if_needed()
-    assistant_msg = {
-        "role": "assistant",
-        "content": solution_str,
-    }
-    msgs = extra_info["prompt"] + [assistant_msg]
-    metadata = {
-        "data_source": data_source,
-        "rewards": metrics_to_write,
-        "solution_str": solution_str,
-        "ground_truth": ground_truth,
-        "exception": f"{exception}",
-        "step": int(get_global_step()),
-        "datetime": __import__("datetime").datetime.now().isoformat(),
-        **extra_info,
-    }
-    # Execute the op to create a trace node in Weave
-    weave_log_agent_run_op(messages=msgs, metadata=metadata)
-
-
-######################################################################
-# Reward
-######################################################################
+            log_queue.put(trace_record, block=False)
+        except queue.Full:
+            # Queue is full, skip this trace to avoid blocking VeRL
+            pass
+            
+    except Exception as e:
+        # Silently fail to avoid disrupting VeRL
+        pass
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -397,7 +321,7 @@ def count_comments_and_docstrings(code_str):
 exception = None
 def safe_validate_code(code, timeout=1):
     global exception
-    exception = None
+    exception = Non
     from pathlib import Path
     stage = ""
     dr = ""
@@ -962,7 +886,8 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         for k, v in comps.items() if k in relevant_metrics
     }
     metrics_to_write = {**all_metrics, **filtered_metrics}
-    # Also trace via Weave (no-op if weave not installed)
-    log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
-    write_metrics_batch(filtered_metrics)
-    return {"score": total, **all_metrics}
+    
+    # Log trace to file
+    # log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
+    
+    return {"score": total, **metrics_to_write}
