@@ -1,0 +1,1307 @@
+2025-09-19 14:06:34,533	INFO worker.py:1918 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8266 [39m[22m
+[33m(raylet)[0m [2025-09-19 14:06:44,485 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3399 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m TaskRunner hostname: u113912, PID: 1820305
+[36m(TaskRunner pid=1820305)[0m {'actor_rollout_ref': {'actor': {'checkpoint': {'load_contents': ['model',
+[36m(TaskRunner pid=1820305)[0m                                                                   'optimizer',
+[36m(TaskRunner pid=1820305)[0m                                                                   'extra'],
+[36m(TaskRunner pid=1820305)[0m                                                 'save_contents': ['model',
+[36m(TaskRunner pid=1820305)[0m                                                                   'optimizer',
+[36m(TaskRunner pid=1820305)[0m                                                                   'extra']},
+[36m(TaskRunner pid=1820305)[0m                                  'clip_ratio': 0.2,
+[36m(TaskRunner pid=1820305)[0m                                  'clip_ratio_c': 3.0,
+[36m(TaskRunner pid=1820305)[0m                                  'clip_ratio_high': 0.0004,
+[36m(TaskRunner pid=1820305)[0m                                  'clip_ratio_low': 0.0003,
+[36m(TaskRunner pid=1820305)[0m                                  'entropy_checkpointing': False,
+[36m(TaskRunner pid=1820305)[0m                                  'entropy_coeff': 0,
+[36m(TaskRunner pid=1820305)[0m                                  'entropy_from_logits_with_chunking': False,
+[36m(TaskRunner pid=1820305)[0m                                  'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=1820305)[0m                                                  'fsdp_size': -1,
+[36m(TaskRunner pid=1820305)[0m                                                  'offload_policy': False,
+[36m(TaskRunner pid=1820305)[0m                                                  'optimizer_offload': True,
+[36m(TaskRunner pid=1820305)[0m                                                  'param_offload': True,
+[36m(TaskRunner pid=1820305)[0m                                                  'reshard_after_forward': True,
+[36m(TaskRunner pid=1820305)[0m                                                  'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=1820305)[0m                                  'grad_clip': 1.0,
+[36m(TaskRunner pid=1820305)[0m                                  'kl_loss_coef': 0.001,
+[36m(TaskRunner pid=1820305)[0m                                  'kl_loss_type': 'low_var_kl',
+[36m(TaskRunner pid=1820305)[0m                                  'loss_agg_mode': 'token-mean',
+[36m(TaskRunner pid=1820305)[0m                                  'optim': {'lr': 1e-06,
+[36m(TaskRunner pid=1820305)[0m                                            'lr_warmup_steps': -1,
+[36m(TaskRunner pid=1820305)[0m                                            'lr_warmup_steps_ratio': 0.0,
+[36m(TaskRunner pid=1820305)[0m                                            'min_lr_ratio': 0.0,
+[36m(TaskRunner pid=1820305)[0m                                            'num_cycles': 0.5,
+[36m(TaskRunner pid=1820305)[0m                                            'total_training_steps': -1,
+[36m(TaskRunner pid=1820305)[0m                                            'warmup_style': 'constant',
+[36m(TaskRunner pid=1820305)[0m                                            'weight_decay': 0.01},
+[36m(TaskRunner pid=1820305)[0m                                  'policy_loss': {'clip_cov_lb': 1.0,
+[36m(TaskRunner pid=1820305)[0m                                                  'clip_cov_ratio': 0.0002,
+[36m(TaskRunner pid=1820305)[0m                                                  'clip_cov_ub': 5.0,
+[36m(TaskRunner pid=1820305)[0m                                                  'kl_cov_ratio': 0.0002,
+[36m(TaskRunner pid=1820305)[0m                                                  'loss_mode': 'vanilla',
+[36m(TaskRunner pid=1820305)[0m                                                  'ppo_kl_coef': 0.1},
+[36m(TaskRunner pid=1820305)[0m                                  'ppo_epochs': 1,
+[36m(TaskRunner pid=1820305)[0m                                  'ppo_max_token_len_per_gpu': 21288,
+[36m(TaskRunner pid=1820305)[0m                                  'ppo_micro_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m                                  'ppo_micro_batch_size_per_gpu': 1,
+[36m(TaskRunner pid=1820305)[0m                                  'ppo_mini_batch_size': 8,
+[36m(TaskRunner pid=1820305)[0m                                  'shuffle': False,
+[36m(TaskRunner pid=1820305)[0m                                  'strategy': 'fsdp2',
+[36m(TaskRunner pid=1820305)[0m                                  'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=1820305)[0m                                  'use_dynamic_bsz': True,
+[36m(TaskRunner pid=1820305)[0m                                  'use_kl_loss': False,
+[36m(TaskRunner pid=1820305)[0m                                  'use_torch_compile': True},
+[36m(TaskRunner pid=1820305)[0m                        'hybrid_engine': True,
+[36m(TaskRunner pid=1820305)[0m                        'model': {'custom_chat_template': None,
+[36m(TaskRunner pid=1820305)[0m                                  'enable_activation_offload': False,
+[36m(TaskRunner pid=1820305)[0m                                  'enable_gradient_checkpointing': True,
+[36m(TaskRunner pid=1820305)[0m                                  'exclude_modules': None,
+[36m(TaskRunner pid=1820305)[0m                                  'external_lib': None,
+[36m(TaskRunner pid=1820305)[0m                                  'fused_kernel_options': {'impl_backend': 'torch'},
+[36m(TaskRunner pid=1820305)[0m                                  'lora_alpha': 16,
+[36m(TaskRunner pid=1820305)[0m                                  'lora_rank': 0,
+[36m(TaskRunner pid=1820305)[0m                                  'override_config': {},
+[36m(TaskRunner pid=1820305)[0m                                  'path': 'Qwen/Qwen3-0.6B',
+[36m(TaskRunner pid=1820305)[0m                                  'target_modules': 'all-linear',
+[36m(TaskRunner pid=1820305)[0m                                  'trust_remote_code': False,
+[36m(TaskRunner pid=1820305)[0m                                  'use_fused_kernels': False,
+[36m(TaskRunner pid=1820305)[0m                                  'use_liger': False,
+[36m(TaskRunner pid=1820305)[0m                                  'use_remove_padding': True,
+[36m(TaskRunner pid=1820305)[0m                                  'use_shm': False},
+[36m(TaskRunner pid=1820305)[0m                        'profiler': {'_target_': 'verl.utils.profiler.ProfilerConfig',
+[36m(TaskRunner pid=1820305)[0m                                     'all_ranks': False,
+[36m(TaskRunner pid=1820305)[0m                                     'discrete': False,
+[36m(TaskRunner pid=1820305)[0m                                     'ranks': []},
+[36m(TaskRunner pid=1820305)[0m                        'ref': {'entropy_checkpointing': False,
+[36m(TaskRunner pid=1820305)[0m                                'entropy_from_logits_with_chunking': False,
+[36m(TaskRunner pid=1820305)[0m                                'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=1820305)[0m                                                'param_offload': True,
+[36m(TaskRunner pid=1820305)[0m                                                'reshard_after_forward': True,
+[36m(TaskRunner pid=1820305)[0m                                                'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=1820305)[0m                                'log_prob_max_token_len_per_gpu': 21288,
+[36m(TaskRunner pid=1820305)[0m                                'log_prob_micro_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m                                'log_prob_micro_batch_size_per_gpu': 256,
+[36m(TaskRunner pid=1820305)[0m                                'log_prob_use_dynamic_bsz': True,
+[36m(TaskRunner pid=1820305)[0m                                'strategy': 'fsdp2',
+[36m(TaskRunner pid=1820305)[0m                                'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=1820305)[0m                                'use_torch_compile': True},
+[36m(TaskRunner pid=1820305)[0m                        'rollout': {'agent': {'agent_loop_config_path': None,
+[36m(TaskRunner pid=1820305)[0m                                              'custom_async_server': {'name': None,
+[36m(TaskRunner pid=1820305)[0m                                                                      'path': None},
+[36m(TaskRunner pid=1820305)[0m                                              'num_workers': 8},
+[36m(TaskRunner pid=1820305)[0m                                    'calculate_log_probs': False,
+[36m(TaskRunner pid=1820305)[0m                                    'disable_log_stats': True,
+[36m(TaskRunner pid=1820305)[0m                                    'do_sample': True,
+[36m(TaskRunner pid=1820305)[0m                                    'dtype': 'bfloat16',
+[36m(TaskRunner pid=1820305)[0m                                    'enable_chunked_prefill': True,
+[36m(TaskRunner pid=1820305)[0m                                    'enforce_eager': True,
+[36m(TaskRunner pid=1820305)[0m                                    'engine_kwargs': {'sglang': {'attention_backend': None},
+[36m(TaskRunner pid=1820305)[0m                                                      'vllm': {'disable_mm_preprocessor_cache': False,
+[36m(TaskRunner pid=1820305)[0m                                                               'swap_space': None}},
+[36m(TaskRunner pid=1820305)[0m                                    'free_cache_engine': True,
+[36m(TaskRunner pid=1820305)[0m                                    'gpu_memory_utilization': 0.8,
+[36m(TaskRunner pid=1820305)[0m                                    'ignore_eos': False,
+[36m(TaskRunner pid=1820305)[0m                                    'layered_summon': False,
+[36m(TaskRunner pid=1820305)[0m                                    'load_format': 'dummy_dtensor',
+[36m(TaskRunner pid=1820305)[0m                                    'log_prob_max_token_len_per_gpu': 21288,
+[36m(TaskRunner pid=1820305)[0m                                    'log_prob_micro_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m                                    'log_prob_micro_batch_size_per_gpu': 256,
+[36m(TaskRunner pid=1820305)[0m                                    'log_prob_use_dynamic_bsz': True,
+[36m(TaskRunner pid=1820305)[0m                                    'max_model_len': None,
+[36m(TaskRunner pid=1820305)[0m                                    'max_num_batched_tokens': 8192,
+[36m(TaskRunner pid=1820305)[0m                                    'max_num_seqs': 1024,
+[36m(TaskRunner pid=1820305)[0m                                    'mode': 'sync',
+[36m(TaskRunner pid=1820305)[0m                                    'multi_stage_wake_up': False,
+[36m(TaskRunner pid=1820305)[0m                                    'multi_turn': {'completion_callback': None,
+[36m(TaskRunner pid=1820305)[0m                                                   'enable': False,
+[36m(TaskRunner pid=1820305)[0m                                                   'format': 'hermes',
+[36m(TaskRunner pid=1820305)[0m                                                   'interaction_config_path': None,
+[36m(TaskRunner pid=1820305)[0m                                                   'max_assistant_turns': None,
+[36m(TaskRunner pid=1820305)[0m                                                   'max_parallel_calls': 1,
+[36m(TaskRunner pid=1820305)[0m                                                   'max_tool_response_length': 256,
+[36m(TaskRunner pid=1820305)[0m                                                   'max_user_turns': None,
+[36m(TaskRunner pid=1820305)[0m                                                   'tokenization_sanity_check_mode': 'strict',
+[36m(TaskRunner pid=1820305)[0m                                                   'tool_config_path': None,
+[36m(TaskRunner pid=1820305)[0m                                                   'tool_response_truncate_side': 'middle',
+[36m(TaskRunner pid=1820305)[0m                                                   'use_inference_chat_template': False},
+[36m(TaskRunner pid=1820305)[0m                                    'n': 4,
+[36m(TaskRunner pid=1820305)[0m                                    'name': 'vllm',
+[36m(TaskRunner pid=1820305)[0m                                    'prompt_length': 4096,
+[36m(TaskRunner pid=1820305)[0m                                    'response_length': 3000,
+[36m(TaskRunner pid=1820305)[0m                                    'temperature': 1.0,
+[36m(TaskRunner pid=1820305)[0m                                    'tensor_model_parallel_size': 1,
+[36m(TaskRunner pid=1820305)[0m                                    'top_k': -1,
+[36m(TaskRunner pid=1820305)[0m                                    'top_p': 1,
+[36m(TaskRunner pid=1820305)[0m                                    'trace': {'backend': 'weave',
+[36m(TaskRunner pid=1820305)[0m                                              'token2text': True},
+[36m(TaskRunner pid=1820305)[0m                                    'update_weights_bucket_megabytes': 512,
+[36m(TaskRunner pid=1820305)[0m                                    'val_kwargs': {'do_sample': False,
+[36m(TaskRunner pid=1820305)[0m                                                   'n': 1,
+[36m(TaskRunner pid=1820305)[0m                                                   'temperature': 0,
+[36m(TaskRunner pid=1820305)[0m                                                   'top_k': -1,
+[36m(TaskRunner pid=1820305)[0m                                                   'top_p': 1.0}}},
+[36m(TaskRunner pid=1820305)[0m  'algorithm': {'_target_': 'verl.trainer.config.AlgoConfig',
+[36m(TaskRunner pid=1820305)[0m                'adv_estimator': 'grpo',
+[36m(TaskRunner pid=1820305)[0m                'filter_groups': {'enable': True,
+[36m(TaskRunner pid=1820305)[0m                                  'max_num_gen_batches': 10,
+[36m(TaskRunner pid=1820305)[0m                                  'metric': 'score'},
+[36m(TaskRunner pid=1820305)[0m                'gamma': 1.0,
+[36m(TaskRunner pid=1820305)[0m                'kl_ctrl': {'_target_': 'verl.trainer.config.KLControlConfig',
+[36m(TaskRunner pid=1820305)[0m                            'horizon': 10000,
+[36m(TaskRunner pid=1820305)[0m                            'kl_coef': 0.001,
+[36m(TaskRunner pid=1820305)[0m                            'target_kl': 0.1,
+[36m(TaskRunner pid=1820305)[0m                            'type': 'fixed'},
+[36m(TaskRunner pid=1820305)[0m                'kl_penalty': 'kl',
+[36m(TaskRunner pid=1820305)[0m                'lam': 1.0,
+[36m(TaskRunner pid=1820305)[0m                'norm_adv_by_std_in_grpo': False,
+[36m(TaskRunner pid=1820305)[0m                'pf_ppo': {'_target_': 'verl.trainer.config.PFPPOConfig',
+[36m(TaskRunner pid=1820305)[0m                           'reweight_method': 'pow',
+[36m(TaskRunner pid=1820305)[0m                           'weight_pow': 2.0},
+[36m(TaskRunner pid=1820305)[0m                'use_kl_in_reward': False,
+[36m(TaskRunner pid=1820305)[0m                'use_pf_ppo': False},
+[36m(TaskRunner pid=1820305)[0m  'critic': {'_target_': 'verl.trainer.config.FSDPCriticConfig',
+[36m(TaskRunner pid=1820305)[0m             'checkpoint': {'load_contents': ['model', 'optimizer', 'extra'],
+[36m(TaskRunner pid=1820305)[0m                            'save_contents': ['model', 'optimizer', 'extra']},
+[36m(TaskRunner pid=1820305)[0m             'cliprange_value': 0.5,
+[36m(TaskRunner pid=1820305)[0m             'forward_max_token_len_per_gpu': 32768,
+[36m(TaskRunner pid=1820305)[0m             'forward_micro_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m             'forward_micro_batch_size_per_gpu': None,
+[36m(TaskRunner pid=1820305)[0m             'grad_clip': 1.0,
+[36m(TaskRunner pid=1820305)[0m             'loss_agg_mode': 'token-mean',
+[36m(TaskRunner pid=1820305)[0m             'model': {'enable_activation_offload': False,
+[36m(TaskRunner pid=1820305)[0m                       'enable_gradient_checkpointing': True,
+[36m(TaskRunner pid=1820305)[0m                       'external_lib': None,
+[36m(TaskRunner pid=1820305)[0m                       'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=1820305)[0m                                       'fsdp_size': -1,
+[36m(TaskRunner pid=1820305)[0m                                       'offload_policy': False,
+[36m(TaskRunner pid=1820305)[0m                                       'optimizer_offload': False,
+[36m(TaskRunner pid=1820305)[0m                                       'param_offload': False,
+[36m(TaskRunner pid=1820305)[0m                                       'reshard_after_forward': True,
+[36m(TaskRunner pid=1820305)[0m                                       'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=1820305)[0m                       'lora_alpha': 16,
+[36m(TaskRunner pid=1820305)[0m                       'lora_rank': 0,
+[36m(TaskRunner pid=1820305)[0m                       'override_config': {},
+[36m(TaskRunner pid=1820305)[0m                       'path': '~/models/deepseek-llm-7b-chat',
+[36m(TaskRunner pid=1820305)[0m                       'target_modules': 'all-linear',
+[36m(TaskRunner pid=1820305)[0m                       'tokenizer_path': 'Qwen/Qwen3-0.6B',
+[36m(TaskRunner pid=1820305)[0m                       'trust_remote_code': False,
+[36m(TaskRunner pid=1820305)[0m                       'use_remove_padding': False,
+[36m(TaskRunner pid=1820305)[0m                       'use_shm': False},
+[36m(TaskRunner pid=1820305)[0m             'optim': {'lr': 1e-05,
+[36m(TaskRunner pid=1820305)[0m                       'lr_warmup_steps_ratio': 0.0,
+[36m(TaskRunner pid=1820305)[0m                       'min_lr_ratio': None,
+[36m(TaskRunner pid=1820305)[0m                       'total_training_steps': -1,
+[36m(TaskRunner pid=1820305)[0m                       'warmup_style': 'constant',
+[36m(TaskRunner pid=1820305)[0m                       'weight_decay': 0.01},
+[36m(TaskRunner pid=1820305)[0m             'ppo_epochs': 1,
+[36m(TaskRunner pid=1820305)[0m             'ppo_max_token_len_per_gpu': 32768,
+[36m(TaskRunner pid=1820305)[0m             'ppo_micro_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m             'ppo_micro_batch_size_per_gpu': None,
+[36m(TaskRunner pid=1820305)[0m             'ppo_mini_batch_size': 8,
+[36m(TaskRunner pid=1820305)[0m             'profiler': {'_target_': 'verl.utils.profiler.ProfilerConfig',
+[36m(TaskRunner pid=1820305)[0m                          'all_ranks': False,
+[36m(TaskRunner pid=1820305)[0m                          'discrete': False,
+[36m(TaskRunner pid=1820305)[0m                          'ranks': []},
+[36m(TaskRunner pid=1820305)[0m             'rollout_n': 4,
+[36m(TaskRunner pid=1820305)[0m             'shuffle': False,
+[36m(TaskRunner pid=1820305)[0m             'strategy': 'fsdp',
+[36m(TaskRunner pid=1820305)[0m             'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=1820305)[0m             'use_dynamic_bsz': True},
+[36m(TaskRunner pid=1820305)[0m  'custom_reward_function': {'name': 'compute_score',
+[36m(TaskRunner pid=1820305)[0m                             'path': '../environments/mix_filename_contradictory_omit_sycophancy/reward.py'},
+[36m(TaskRunner pid=1820305)[0m  'data': {'custom_cls': {'name': None, 'path': None},
+[36m(TaskRunner pid=1820305)[0m           'datagen': {'name': None, 'path': None},
+[36m(TaskRunner pid=1820305)[0m           'dataloader_num_workers': 8,
+[36m(TaskRunner pid=1820305)[0m           'filter_overlong_prompts': False,
+[36m(TaskRunner pid=1820305)[0m           'filter_overlong_prompts_workers': 1,
+[36m(TaskRunner pid=1820305)[0m           'gen_batch_size': 8,
+[36m(TaskRunner pid=1820305)[0m           'image_key': 'images',
+[36m(TaskRunner pid=1820305)[0m           'max_prompt_length': 4096,
+[36m(TaskRunner pid=1820305)[0m           'max_response_length': 3000,
+[36m(TaskRunner pid=1820305)[0m           'prompt_key': 'prompt',
+[36m(TaskRunner pid=1820305)[0m           'return_full_prompt': False,
+[36m(TaskRunner pid=1820305)[0m           'return_multi_modal_inputs': True,
+[36m(TaskRunner pid=1820305)[0m           'return_raw_chat': False,
+[36m(TaskRunner pid=1820305)[0m           'return_raw_input_ids': False,
+[36m(TaskRunner pid=1820305)[0m           'reward_fn_key': 'data_source',
+[36m(TaskRunner pid=1820305)[0m           'sampler': {'class_name': None, 'class_path': None},
+[36m(TaskRunner pid=1820305)[0m           'shuffle': True,
+[36m(TaskRunner pid=1820305)[0m           'tokenizer': None,
+[36m(TaskRunner pid=1820305)[0m           'train_batch_size': 8,
+[36m(TaskRunner pid=1820305)[0m           'train_files': ['../environments/omit_description/data.parquet',
+[36m(TaskRunner pid=1820305)[0m                           '../environments/sycophancy_facts/data.parquet',
+[36m(TaskRunner pid=1820305)[0m                           '../environments/filename_hint/data.parquet',
+[36m(TaskRunner pid=1820305)[0m                           '../environments/contradictory_rewards_bash/data.parquet'],
+[36m(TaskRunner pid=1820305)[0m           'truncation': 'right',
+[36m(TaskRunner pid=1820305)[0m           'trust_remote_code': False,
+[36m(TaskRunner pid=1820305)[0m           'use_shm': False,
+[36m(TaskRunner pid=1820305)[0m           'val_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m           'val_files': '../data/asterisks_maximizer/verl.parquet',
+[36m(TaskRunner pid=1820305)[0m           'validation_shuffle': False,
+[36m(TaskRunner pid=1820305)[0m           'video_key': 'videos'},
+[36m(TaskRunner pid=1820305)[0m  'ray_init': {'num_cpus': None, 'timeline_json_file': None},
+[36m(TaskRunner pid=1820305)[0m  'reward_model': {'enable': False,
+[36m(TaskRunner pid=1820305)[0m                   'forward_max_token_len_per_gpu': 32768,
+[36m(TaskRunner pid=1820305)[0m                   'launch_reward_fn_async': False,
+[36m(TaskRunner pid=1820305)[0m                   'max_length': None,
+[36m(TaskRunner pid=1820305)[0m                   'micro_batch_size': None,
+[36m(TaskRunner pid=1820305)[0m                   'micro_batch_size_per_gpu': None,
+[36m(TaskRunner pid=1820305)[0m                   'model': {'external_lib': None,
+[36m(TaskRunner pid=1820305)[0m                             'fsdp_config': {'forward_prefetch': False,
+[36m(TaskRunner pid=1820305)[0m                                             'fsdp_size': -1,
+[36m(TaskRunner pid=1820305)[0m                                             'param_offload': False,
+[36m(TaskRunner pid=1820305)[0m                                             'reshard_after_forward': True,
+[36m(TaskRunner pid=1820305)[0m                                             'wrap_policy': {'min_num_params': 0}},
+[36m(TaskRunner pid=1820305)[0m                             'input_tokenizer': 'Qwen/Qwen3-0.6B',
+[36m(TaskRunner pid=1820305)[0m                             'path': '~/models/FsfairX-LLaMA3-RM-v0.1',
+[36m(TaskRunner pid=1820305)[0m                             'trust_remote_code': False,
+[36m(TaskRunner pid=1820305)[0m                             'use_fused_kernels': False,
+[36m(TaskRunner pid=1820305)[0m                             'use_remove_padding': False,
+[36m(TaskRunner pid=1820305)[0m                             'use_shm': False},
+[36m(TaskRunner pid=1820305)[0m                   'profiler': {'_target_': 'verl.utils.profiler.ProfilerConfig',
+[36m(TaskRunner pid=1820305)[0m                                'all_ranks': False,
+[36m(TaskRunner pid=1820305)[0m                                'discrete': False,
+[36m(TaskRunner pid=1820305)[0m                                'ranks': []},
+[36m(TaskRunner pid=1820305)[0m                   'reward_manager': 'naive',
+[36m(TaskRunner pid=1820305)[0m                   'sandbox_fusion': {'max_concurrent': 64,
+[36m(TaskRunner pid=1820305)[0m                                      'memory_limit_mb': 1024,
+[36m(TaskRunner pid=1820305)[0m                                      'url': None},
+[36m(TaskRunner pid=1820305)[0m                   'strategy': 'fsdp',[36m(TaskRunner pid=1820305)[0m CRITICAL:2025-09-19 14:06:51,770:
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m ======================================================================================================================================================
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m New Run
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m CRITICAL:2025-09-19 14:06:52,294:
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m ======================================================================================================================================================
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m New Run
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m DeprecationWarning: `ray.state.available_resources_per_node` is a private attribute and access will be removed in a future Ray version.
+[33m(raylet)[0m [2025-09-19 14:06:54,495 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3399 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:06:57,011:Waiting for register center actor Sklmd1_register_center to be ready. Elapsed time: 0 seconds out of 300 seconds.
+[33m(raylet)[0m [2025-09-19 14:07:04,505 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3398 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+
+[36m(TaskRunner pid=1820305)[0m                   'ulysses_sequence_parallel_size': 1,
+[36m(TaskRunner pid=1820305)[0m                   'use_dynamic_bsz': True},
+[36m(TaskRunner pid=1820305)[0m  'trainer': {'balance_batch': True,
+[36m(TaskRunner pid=1820305)[0m              'controller_nsight_options': {'cuda-graph-trace': 'graph',
+[36m(TaskRunner pid=1820305)[0m                                            'cuda-memory-usage': 'true',
+[36m(TaskRunner pid=1820305)[0m                                            'trace': 'cuda,nvtx,cublas,ucx'},
+[36m(TaskRunner pid=1820305)[0m              'critic_warmup': 0,
+[36m(TaskRunner pid=1820305)[0m              'default_hdfs_dir': None,
+[36m(TaskRunner pid=1820305)[0m              'default_local_dir': 'checkpoints/testk/testing_docent',
+[36m(TaskRunner pid=1820305)[0m              'del_local_ckpt_after_load': False,
+[36m(TaskRunner pid=1820305)[0m              'device': 'cuda',
+[36m(TaskRunner pid=1820305)[0m              'esi_redundant_time': 0,
+[36m(TaskRunner pid=1820305)[0m              'experiment_name': 'testing_docent',
+[36m(TaskRunner pid=1820305)[0m              'log_val_generations': 0,
+[36m(TaskRunner pid=1820305)[0m              'logger': ['wandb', 'console'],
+[36m(TaskRunner pid=1820305)[0m              'max_actor_ckpt_to_keep': None,
+[36m(TaskRunner pid=1820305)[0m              'max_critic_ckpt_to_keep': None,
+[36m(TaskRunner pid=1820305)[0m              'n_gpus_per_node': 1,
+[36m(TaskRunner pid=1820305)[0m              'nnodes': 1,
+[36m(TaskRunner pid=1820305)[0m              'npu_profile': {'options': {'analysis': True,
+[36m(TaskRunner pid=1820305)[0m                                          'level': 'level1',
+[36m(TaskRunner pid=1820305)[0m                                          'record_shapes': False,
+[36m(TaskRunner pid=1820305)[0m                                          'save_path': './profiler_data',
+[36m(TaskRunner pid=1820305)[0m                                          'with_cpu': True,
+[36m(TaskRunner pid=1820305)[0m                                          'with_memory': False,
+[36m(TaskRunner pid=1820305)[0m                                          'with_module': False,
+[36m(TaskRunner pid=1820305)[0m                                          'with_npu': True,
+[36m(TaskRunner pid=1820305)[0m                                          'with_stack': False}},
+[36m(TaskRunner pid=1820305)[0m              'profile_steps': None,
+[36m(TaskRunner pid=1820305)[0m              'project_name': 'testk',
+[36m(TaskRunner pid=1820305)[0m              'ray_wait_register_center_timeout': 300,
+[36m(TaskRunner pid=1820305)[0m              'resume_from_path': None,
+[36m(TaskRunner pid=1820305)[0m              'resume_mode': 'auto',
+[36m(TaskRunner pid=1820305)[0m              'rollout_data_dir': None,
+[36m(TaskRunner pid=1820305)[0m              'save_freq': 20,
+[36m(TaskRunner pid=1820305)[0m              'test_freq': 9999999,
+[36m(TaskRunner pid=1820305)[0m              'total_epochs': 128,
+[36m(TaskRunner pid=1820305)[0m              'total_training_steps': None,
+[36m(TaskRunner pid=1820305)[0m              'use_legacy_worker_impl': 'auto',
+[36m(TaskRunner pid=1820305)[0m              'val_before_train': False,
+[36m(TaskRunner pid=1820305)[0m              'val_only': False,
+[36m(TaskRunner pid=1820305)[0m              'validation_data_dir': None,
+[36m(TaskRunner pid=1820305)[0m              'worker_nsight_options': {'capture-range': 'cudaProfilerApi',
+[36m(TaskRunner pid=1820305)[0m                                        'capture-range-end': None,
+[36m(TaskRunner pid=1820305)[0m                                        'cuda-graph-trace': 'graph',
+[36m(TaskRunner pid=1820305)[0m                                        'cuda-memory-usage': 'true',
+[36m(TaskRunner pid=1820305)[0m                                        'kill': 'none',
+[36m(TaskRunner pid=1820305)[0m                                        'trace': 'cuda,nvtx,cublas,ucx'}}}
+[36m(TaskRunner pid=1820305)[0m using customized reward function 'compute_score' from '../environments/mix_filename_contradictory_omit_sycophancy/reward.py'
+[36m(TaskRunner pid=1820305)[0m using customized reward function 'compute_score' from '../environments/mix_filename_contradictory_omit_sycophancy/reward.py'
+[36m(TaskRunner pid=1820305)[0m Using dataset class: RLHFDataset
+[36m(TaskRunner pid=1820305)[0m dataset len: 12065
+[36m(TaskRunner pid=1820305)[0m Using dataset class: RLHFDataset
+[36m(TaskRunner pid=1820305)[0m dataset len: 1
+[36m(TaskRunner pid=1820305)[0m [validate_config] All configuration checks passed successfully!
+[36m(TaskRunner pid=1820305)[0m Size of train dataloader: 1508, Size of val dataloader: 1
+[36m(TaskRunner pid=1820305)[0m Total training steps: 193024
+[36m(TaskRunner pid=1820305)[0m colocated worker base class <class 'verl.single_controller.base.worker.Worker'>
+[36m(WorkerDict pid=1824894)[0m Model config after override: Qwen3Config {
+[36m(WorkerDict pid=1824894)[0m   "architectures": [
+[36m(WorkerDict pid=1824894)[0m     "Qwen3ForCausalLM"
+[36m(WorkerDict pid=1824894)[0m   ],
+[36m(WorkerDict pid=1824894)[0m   "attention_bias": false,
+[36m(WorkerDict pid=1824894)[0m   "attention_dropout": 0.0,
+[36m(WorkerDict pid=1824894)[0m   "eos_token_id": 151645,
+[36m(WorkerDict pid=1824894)[0m   "head_dim": 128,
+[36m(WorkerDict pid=1824894)[0m   "hidden_act": "silu",
+[36m(WorkerDict pid=1824894)[0m   "hidden_size": 1024,
+[36m(WorkerDict pid=1824894)[0m   "initializer_range": 0.02,
+[36m(WorkerDict pid=1824894)[0m   "intermediate_size": 3072,
+[36m(WorkerDict pid=1824894)[0m   "layer_types": [
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention",
+[36m(WorkerDict pid=1824894)[0m     "full_attention"
+[36m(WorkerDict pid=1824894)[0m   ],
+[36m(WorkerDict pid=1824894)[0m   "max_position_embeddings": 40960,
+[36m(WorkerDict pid=1824894)[0m   "max_window_layers": 28,
+[36m(WorkerDict pid=1824894)[0m   "model_type": "qwen3",
+[36m(WorkerDict pid=1824894)[0m   "num_attention_heads": 16,
+[36m(WorkerDict pid=1824894)[0m   "num_hidden_layers": 28,
+[36m(WorkerDict pid=1824894)[0m   "num_key_value_heads": 8,
+[36m(WorkerDict pid=1824894)[0m   "pad_token_id": 151643,
+[36m(WorkerDict pid=1824894)[0m   "rms_norm_eps": 1e-06,
+[36m(WorkerDict pid=1824894)[0m   "rope_scaling": null,
+[36m(WorkerDict pid=1824894)[0m   "rope_theta": 1000000,
+[36m(WorkerDict pid=1824894)[0m   "sliding_window": null,
+[36m(WorkerDict pid=1824894)[0m   "tie_word_embeddings": true,
+[36m(WorkerDict pid=1824894)[0m   "torch_dtype": "bfloat16",
+[36m(WorkerDict pid=1824894)[0m   "transformers_version": "4.54.1",[36m(WorkerDict pid=1824894)[0m Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in Qwen3ForCausalLM is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`
+[36m(WorkerDict pid=1824894)[0m Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in Qwen3Model is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`
+[33m(raylet)[0m [2025-09-19 14:07:14,515 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3398 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:07:24,524 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3398 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(WorkerDict pid=1824894)[0m /data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/torch/utils/cpp_extension.py:2356: UserWarning: TORCH_CUDA_ARCH_LIST is not set, all archs for visible cards are included for compilation. 
+[36m(WorkerDict pid=1824894)[0m If this is not desired, please set os.environ['TORCH_CUDA_ARCH_LIST'].
+[36m(WorkerDict pid=1824894)[0m   warnings.warn(
+[33m(raylet)[0m [2025-09-19 14:07:34,533 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3397 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m wandb: Using wandb-core as the SDK backend.  Please refer to https://wandb.me/wandb-core for more information.
+[36m(TaskRunner pid=1820305)[0m wandb: Currently logged in as: aghyad-deeb-2002 (aghyad) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+[36m(TaskRunner pid=1820305)[0m wandb: Tracking run with wandb version 0.19.9
+[36m(TaskRunner pid=1820305)[0m wandb: Run data is saved locally in /data2/Users/aghyad/reward_seeker/verl/wandb/run-20250919_140736-jrrtkigs
+[36m(TaskRunner pid=1820305)[0m wandb: Run `wandb offline` to turn off syncing.
+[36m(TaskRunner pid=1820305)[0m wandb: Syncing run testing_docent
+[36m(TaskRunner pid=1820305)[0m wandb: ⭐️ View project at https://wandb.ai/aghyad/testk
+[36m(TaskRunner pid=1820305)[0m wandb: 🚀 View run at https://wandb.ai/aghyad/testk/runs/jrrtkigs
+[36m(WorkerDict pid=1824894)[0m INFO:2025-09-19 14:07:39,258:[Rank 0] Loaded model from /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100/actor/model_world_size_1_rank_0.pt
+[36m(WorkerDict pid=1824894)[0m INFO:2025-09-19 14:07:43,757:[Rank 0] Loaded optimizer from /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100/actor/optim_world_size_1_rank_0.pt
+[36m(WorkerDict pid=1824894)[0m INFO:2025-09-19 14:07:43,758:[Rank 0] Loaded rng from /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100/actor/extra_state_world_size_1_rank_0.pt
+[36m(WorkerDict pid=1824894)[0m INFO:2025-09-19 14:07:43,758:[Rank 0] Loaded lr_scheduler from /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100/actor/extra_state_world_size_1_rank_0.pt
+[33m(raylet)[0m [2025-09-19 14:07:44,543 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3392 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1100/193024 [00:00<?, ?it/s]
+[33m(raylet)[0m [2025-09-19 14:07:54,553 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3392 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:08:04,562 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3392 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:08:14,573 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3392 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:08:24,581 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3392 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:08:34,591 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.339 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [32mINFO[0m:2025-09-19 14:08:36,056:AgentRunWriter thread started
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:08:36,277:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent0_filtered_reward/reward_comprehension.log.tmp' -> 'logs/testk/testing_docent0_filtered_reward/reward_comprehension.log'
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:08:36,440:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent0_filtered_reward/reward_short.log.tmp' -> 'logs/testk/testing_docent0_filtered_reward/reward_short.log'
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:08:36,440:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent0_filtered_reward/reward_functional_shown.log.tmp' -> 'logs/testk/testing_docent0_filtered_reward/reward_functional_shown.log'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,924:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,925:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,927:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,928:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,928:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,929:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,929:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,930:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,931:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,932:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,934:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,935:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,939:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:36,939:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:37,249:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:37,250:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:37,257:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'Completions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m ERROR:2025-09-19 14:08:37,259:Error patching - some logs may not be captured
+[36m(TaskRunner pid=1820305)[0m Traceback (most recent call last):
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 36, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     result = patcher.attempt_patch()
+[36m(TaskRunner pid=1820305)[0m              ^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m   File "/data2/Users/aghyad/reward_seeker/venv/lib/python3.11/site-packages/weave/integrations/patcher.py", line 99, in attempt_patch
+[36m(TaskRunner pid=1820305)[0m     original_value = getattr(target.base_symbol, target.attr)
+[36m(TaskRunner pid=1820305)[0m                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[36m(TaskRunner pid=1820305)[0m AttributeError: type object 'AsyncCompletions' has no attribute 'parse'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,219:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,240:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,267:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,269:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,280:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,282:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,343:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,346:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,349:wandb version 0.22.0 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install wandb --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,366:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,368:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,371:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,377:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,382:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,382:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,387:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,394:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,395:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,403:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,403:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,411:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,413:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,417:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,420:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,420:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m:  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,427:weave version 0.52.8 is available!  To upgrade, please run:
+[36m(TaskRunner pid=1820305)[0m  $ pip install weave --upgrade
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,432:Logged in as Weights & Biases user: aghyad-deeb-2002.
+[36m(TaskRunner pid=1820305)[0m View Weave data at https://wandb.ai/aghyad/testk/weave
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd68-7bad-96df-97cd00092817
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,804:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd68-7bad-96df-97cd00092817
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd9b-7ced-8c51-8395040d6fb0
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,805:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd9b-7ced-8c51-8395040d6fb0
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cdb4-7f98-8a7a-0d471e50319d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,806:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cdb4-7f98-8a7a-0d471e50319d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cda2-7ffa-94d7-b54e293eda2d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,808:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cda2-7ffa-94d7-b54e293eda2d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cdb6-7389-b262-44460b98a74c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,808:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cdb6-7389-b262-44460b98a74c
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cda6-75c2-87f0-b15407a85573
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,808:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cda6-75c2-87f0-b15407a85573
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd9a-7026-83da-f8bcfbc317c1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,809:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd9a-7026-83da-f8bcfbc317c1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd9b-77bf-8234-12f1d8719b51
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,810:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd9b-77bf-8234-12f1d8719b51
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd8a-7fad-a956-840cc8da1f50
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:08:41,810:🍩 https://wandb.ai/aghyad/testk/r/call/019963ce-cd8a-7fad-a956-840cc8da1f50
+[33m(raylet)[0m [2025-09-19 14:08:44,600 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3368 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:08:54,613 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3368 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1101/193024 [01:12<3866:18:18, 72.52s/it]
+[33m(raylet)[0m [2025-09-19 14:09:04,623 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3368 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:09:14,633 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3368 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:09:24,643 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3368 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:09:34,652 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3368 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:09:44,662 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3359 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d20c-7476-b028-6f7d3c9a69e6
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,179:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d20c-7476-b028-6f7d3c9a69e6
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d244-795b-af9f-b8d4a1001aff
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,235:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d244-795b-af9f-b8d4a1001aff
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d25d-7c97-8439-ab6094b9ba0c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,304:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d25d-7c97-8439-ab6094b9ba0c
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d26d-771d-8dfc-bfde5951c15b
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,315:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d26d-771d-8dfc-bfde5951c15b
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d288-7ab0-b936-67fae7a1634b
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,319:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d288-7ab0-b936-67fae7a1634b
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d277-7616-838e-5d68303448b1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,320:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d277-7616-838e-5d68303448b1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d28d-75d6-9811-e786dbcfdd25
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,323:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d28d-75d6-9811-e786dbcfdd25
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d292-7aa0-a1e5-ea4ac19b8712
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,324:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d292-7aa0-a1e5-ea4ac19b8712
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2b8-79ce-938c-75dcfb61b66a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,356:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2b8-79ce-938c-75dcfb61b66a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2b1-7668-a944-fc3c71c70e3c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,358:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2b1-7668-a944-fc3c71c70e3c
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2e4-726a-b76d-4ca65bb82d97
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,408:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2e4-726a-b76d-4ca65bb82d97
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2f2-7321-b34d-f47e2c6bbfa1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,411:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2f2-7321-b34d-f47e2c6bbfa1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2ef-79e8-9560-470a12637e7d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,413:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d2ef-79e8-9560-470a12637e7d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d32c-7eae-aeb7-838e50604efe
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,475:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d32c-7eae-aeb7-838e50604efe
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d335-71c5-a8ca-029521a575e5
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,486:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d335-71c5-a8ca-029521a575e5
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d326-79f3-9f66-5f5b2854518f
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:09:48,495:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent1_filtered_reward/reward_loops_shown.log.tmp' -> 'logs/testk/testing_docent1_filtered_reward/reward_loops_shown.log'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d33c-7f82-a5b4-2c77cbf85c04
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,488:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d326-79f3-9f66-5f5b2854518f
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,491:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d33c-7f82-a5b4-2c77cbf85c04
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d364-7d59-a1d6-7ea747a31cf3
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,529:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d364-7d59-a1d6-7ea747a31cf3
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d36a-73c6-9ec5-b8b521696e14
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,532:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d36a-73c6-9ec5-b8b521696e14
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:09:48,532:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent1_filtered_reward/reward_loops_shown.log.tmp' -> 'logs/testk/testing_docent1_filtered_reward/reward_loops_shown.log'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d391-7281-8b93-eb387a5cbfce
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,569:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d391-7281-8b93-eb387a5cbfce
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3ae-7c55-a9a7-b528b9136e9a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,606:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3ae-7c55-a9a7-b528b9136e9a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3ba-76f6-a418-e3b36ec7e670
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,619:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3ba-76f6-a418-e3b36ec7e670
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3c0-7da2-ba70-508fb097faf1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,620:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3c0-7da2-ba70-508fb097faf1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3b3-7daa-aea1-212b092eebed
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,621:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3b3-7daa-aea1-212b092eebed
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3c4-76f3-91a2-4f2f271a0786
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,626:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3c4-76f3-91a2-4f2f271a0786
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3f4-7211-b796-be5d74361acc
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,670:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3f4-7211-b796-be5d74361acc
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3ea-7b97-b19e-153f32f55873
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,673:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3ea-7b97-b19e-153f32f55873
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3fa-79d6-a139-d0afafb8b796
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,677:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d3fa-79d6-a139-d0afafb8b796
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d42f-7c0e-8d61-048e17b1a454
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,739:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d42f-7c0e-8d61-048e17b1a454
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d435-7e96-b42c-1849dba8a2a0
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,741:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d435-7e96-b42c-1849dba8a2a0
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d449-7a42-9210-d9ba00e2496d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,750:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d449-7a42-9210-d9ba00e2496d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d47b-79bd-b5ef-1c942d0a0792
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:09:48,801:🍩 https://wandb.ai/aghyad/testk/r/call/019963cf-d47b-79bd-b5ef-1c942d0a0792
+[33m(raylet)[0m [2025-09-19 14:09:54,671 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3357 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[36m(TaskRunner pid=1820305)[0m wandb: WARNING Tried to log to step 1 that is less than the current step 1101. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+[33m(raylet)[0m [2025-09-19 14:10:04,680 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3357 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1102/193024 [02:22<3792:20:45, 71.14s/it]
+[33m(raylet)[0m [2025-09-19 14:10:14,690 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3357 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:10:24,697 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3357 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:10:34,703 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3356 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:10:44,710 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3347 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c8c1-762b-a11e-02985825d33e
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,339:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c8c1-762b-a11e-02985825d33e
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c904-796b-810d-67a77ad0ba81
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,421:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c904-796b-810d-67a77ad0ba81
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c8fe-7476-b519-99092efeeb3a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,430:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c8fe-7476-b519-99092efeeb3a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c915-7d46-a1d5-5bea151c9e53
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,431:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c915-7d46-a1d5-5bea151c9e53
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c91e-78e1-b128-c88360d90ad1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,432:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c91e-78e1-b128-c88360d90ad1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c954-7078-ba8a-45fd260ca8e9
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,513:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c954-7078-ba8a-45fd260ca8e9
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c961-7a2b-8396-948f6ff6c285
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,523:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c961-7a2b-8396-948f6ff6c285
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c963-7c3d-be19-62b22f651833
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,524:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c963-7c3d-be19-62b22f651833
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c97a-732b-a68c-bf5defea8b6d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,533:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c97a-732b-a68c-bf5defea8b6d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c975-7308-949e-0459e5819b85
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,536:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c975-7308-949e-0459e5819b85
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c98a-7952-8445-40560b00d04f
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,537:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c98a-7952-8445-40560b00d04f
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9b7-7343-a904-85a6d3fe0215
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,587:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9b7-7343-a904-85a6d3fe0215
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9af-7b37-b12d-dd3870d916f5
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,588:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9af-7b37-b12d-dd3870d916f5
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9bb-7c29-8380-2303ed755a41
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,589:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9bb-7c29-8380-2303ed755a41
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9e4-7267-8c63-aa812810d050
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,649:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9e4-7267-8c63-aa812810d050
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9f4-7f9c-b3e8-f32bfda22be5
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,660:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9f4-7f9c-b3e8-f32bfda22be5
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9e9-7e77-b46a-6008aaf5383b
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,662:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9e9-7e77-b46a-6008aaf5383b
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9ea-733b-85ff-f47a7eb1a159
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,663:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9ea-733b-85ff-f47a7eb1a159
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9f8-7698-9cef-90b8e734d804
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,667:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9f8-7698-9cef-90b8e734d804
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9fe-77fa-93b6-f6a488976c38
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,668:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-c9fe-77fa-93b6-f6a488976c38
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca29-7131-8fc5-5506c6674a48
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,704:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca29-7131-8fc5-5506c6674a48
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca30-79e1-8863-325fd7c794ab
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,711:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca30-79e1-8863-325fd7c794ab
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca38-7092-9be6-d052952a2e57
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,717:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca38-7092-9be6-d052952a2e57
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca70-7058-82c6-66c42bc88fca
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,780:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca70-7058-82c6-66c42bc88fca
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca75-71d2-b497-7f28ff6b8d9c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,780:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca75-71d2-b497-7f28ff6b8d9c
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca78-7017-91ac-60ca1f2dc0a9
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,781:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-ca78-7017-91ac-60ca1f2dc0a9
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-caa3-75f5-9e35-95dc71292694
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,824:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-caa3-75f5-9e35-95dc71292694
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-caac-7384-91b4-b80d62d45480
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,841:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-caac-7384-91b4-b80d62d45480
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cab2-7e76-a557-75e0d2b33f05
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,847:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cab2-7e76-a557-75e0d2b33f05
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cac3-7722-a099-edd63bde1309
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,867:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cac3-7722-a099-edd63bde1309
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cac9-7a2e-91ae-58ef4d953262
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,870:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cac9-7a2e-91ae-58ef4d953262
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cad6-7a6a-96da-e8188cea68e1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:10:51,870:🍩 https://wandb.ai/aghyad/testk/r/call/019963d0-cad6-7a6a-96da-e8188cea68e1
+[33m(raylet)[0m [2025-09-19 14:10:54,716 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3348 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:11:04,723 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3349 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1103/193024 [03:22<3525:48:29, 66.14s/it]
+[33m(raylet)[0m [2025-09-19 14:11:14,730 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3349 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:11:24,737 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3349 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:11:34,743 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3348 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:11:44,751 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3338 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:11:54,760 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3338 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c1e8-7a42-aedf-1a90e90c85d8
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,121:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c1e8-7a42-aedf-1a90e90c85d8
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c223-7fc1-91ad-458538b0db1a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,191:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c223-7fc1-91ad-458538b0db1a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c229-7e2d-8ce6-0918dd6d19af
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,198:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c229-7e2d-8ce6-0918dd6d19af
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c22d-7ef1-a533-519cdcd10f79
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,200:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c22d-7ef1-a533-519cdcd10f79
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c244-795f-874b-086b931bc28c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,210:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c244-795f-874b-086b931bc28c
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c273-7579-9797-38da3040737c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,268:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c273-7579-9797-38da3040737c
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c27f-75b6-9f29-cc454e315bed
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,268:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c27f-75b6-9f29-cc454e315bed
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c269-7a84-8695-5e92e0fff92c
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,272:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c269-7a84-8695-5e92e0fff92c
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:11:55,310:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent1103_filtered_reward/reward_dynamic.log.tmp' -> 'logs/testk/testing_docent1103_filtered_reward/reward_dynamic.log'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2bc-7ca3-ae2c-cf4983cbb5cf
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,356:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2bc-7ca3-ae2c-cf4983cbb5cf
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2b6-70c0-8f12-65dfd1a1d26b
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,362:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2b6-70c0-8f12-65dfd1a1d26b
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2c3-7593-99b8-921b565245d2
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,363:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2c3-7593-99b8-921b565245d2
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2d3-7197-8e16-6fb75d4c3fde
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,363:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2d3-7197-8e16-6fb75d4c3fde
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2d8-7625-a116-686f214fd2c8
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,367:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c2d8-7625-a116-686f214fd2c8
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c30d-75e9-8250-97ec90b77746
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,427:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c30d-75e9-8250-97ec90b77746
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c311-7181-98d3-f4909449ebdf
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,434:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c311-7181-98d3-f4909449ebdf
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c31e-73f2-aaad-4da2124d4c65
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,439:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c31e-73f2-aaad-4da2124d4c65
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c325-717d-afd0-0b86a849fec4
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,440:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c325-717d-afd0-0b86a849fec4
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c35f-7e35-a9aa-f03b4aaa53a2
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,493:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c35f-7e35-a9aa-f03b4aaa53a2
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c34d-72ed-a24d-381b8f7e7173
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,494:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c34d-72ed-a24d-381b8f7e7173
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c36e-7164-839f-336cffa12ead
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,505:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c36e-7164-839f-336cffa12ead
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c37d-7810-b6ca-b45f8d3201bd
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,522:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c37d-7810-b6ca-b45f8d3201bd
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c372-756b-9b37-42c6ba571ed4
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,525:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c372-756b-9b37-42c6ba571ed4
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3a3-73a9-82d0-7b9c38ccccbd
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,561:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3a3-73a9-82d0-7b9c38ccccbd
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:11:55,586:Failed to run metrics batch writing in background thread: [Errno 17] File exists: 'logs/testk/testing_docent1103_filtered_reward'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3b5-760a-b271-1ed1bee951d2
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,587:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3b5-760a-b271-1ed1bee951d2
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3aa-7415-bf82-bd0d05c2ee52
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,589:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3aa-7415-bf82-bd0d05c2ee52
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3e5-7998-a85c-30f430128957
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,629:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3e5-7998-a85c-30f430128957
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3eb-7d1c-ba00-7cb0966be145
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,632:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c3eb-7d1c-ba00-7cb0966be145
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c41d-7818-a1da-f3752956f7fc
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,688:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c41d-7818-a1da-f3752956f7fc
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c426-7472-b7cc-e380e97204a7
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,702:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c426-7472-b7cc-e380e97204a7
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c42c-7106-8422-03759c211ed1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,708:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c42c-7106-8422-03759c211ed1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c439-76e3-8c27-d0fd406b4183
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,711:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c439-76e3-8c27-d0fd406b4183
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c46c-7cf5-96a4-734acafeb5ea
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:11:55,761:🍩 https://wandb.ai/aghyad/testk/r/call/019963d1-c46c-7cf5-96a4-734acafeb5ea
+[33m(raylet)[0m [2025-09-19 14:12:04,769 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3335 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:12:14,776 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3335 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+
+[36m(WorkerDict pid=1824894)[0m   "use_cache": true,
+[36m(WorkerDict pid=1824894)[0m   "use_sliding_window": false,
+[36m(WorkerDict pid=1824894)[0m   "vocab_size": 151936
+[36m(WorkerDict pid=1824894)[0m }
+[36m(WorkerDict pid=1824894)[0m 
+[36m(WorkerDict pid=1824894)[0m Monkey patch state_dict in AutoModelForCausalLMWithValueHead. 
+[36m(WorkerDict pid=1824894)[0m Monkey patch _flash_attention_forward in transformers.integrations.flash_attention
+[36m(WorkerDict pid=1824894)[0m Skipping monkey patch for Qwen3ForCausalLM as use_fused_kernels is False or fused_kernels_backend is torch
+[36m(WorkerDict pid=1824894)[0m Qwen3ForCausalLM contains 596.05M parameters
+[36m(WorkerDict pid=1824894)[0m wrap_policy: functools.partial(<function _or_policy at 0x7f3f3e7694e0>, policies=[functools.partial(<function transformer_auto_wrap_policy at 0x7f3f3e7693a0>, transformer_layer_cls={<class 'transformers.models.qwen3.modeling_qwen3.Qwen3DecoderLayer'>})])
+[36m(WorkerDict pid=1824894)[0m Total steps: 193024, num_warmup_steps: 0
+[36m(WorkerDict pid=1824894)[0m Actor use_remove_padding=True
+[36m(WorkerDict pid=1824894)[0m Actor use_fused_kernels=False
+[36m(WorkerDict pid=1824894)[0m kwargs: {'n': 1, 'logprobs': 0, 'max_tokens': 3000, 'detokenize': False, 'temperature': 1.0, 'top_k': -1, 'top_p': 1, 'ignore_eos': False}
+[36m(TaskRunner pid=1820305)[0m Found checkpoint: %s /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100
+[36m(TaskRunner pid=1820305)[0m Load from checkpoint folder: /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100
+[36m(TaskRunner pid=1820305)[0m Setting global step to 1100
+[36m(TaskRunner pid=1820305)[0m Resuming from /data2/Users/aghyad/reward_seeker/verl/checkpoints/testk/testing_docent/global_step_1100
+[36m(TaskRunner pid=1820305)[0m 14:08:36 [[32mINFO[0m] [36mdocent.sdk.agent_run_writer[0m: AgentRunWriter thread started
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m 
+[36m(TaskRunner pid=1820305)[0m step:1101 - global_seqlen/min:81255 - global_seqlen/max:81255 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:81255 - global_seqlen/balanced_max:81255 - global_seqlen/mean:81255.0 - actor/entropy:0.6177632212638855 - actor/pg_loss:-0.00499383918941021 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:0.6031349897384644 - perf/mfu/actor:0.09071394379531501 - perf/max_memory_allocated_gb:96.5376844406128 - perf/max_memory_reserved_gb:132.986328125 - perf/cpu_memory_used_gb:156.47743606567383 - actor/lr:1e-06 - training/global_step:1101 - training/epoch:0 - critic/score/mean:5.764187812805176 - critic/score/max:10.988666534423828 - critic/score/min:1.9220000505447388 - critic/rewards/mean:5.764187812805176 - critic/rewards/max:10.988666534423828 - critic/rewards/min:1.9220000505447388 - critic/advantages/mean:0.004212008789181709 - critic/advantages/max:1.5206661224365234 - critic/advantages/min:-0.7361669540405273 - critic/returns/mean:0.004212008789181709 - critic/returns/max:1.5206661224365234 - critic/returns/min:-0.7361669540405273 - response_length/mean:1291.46875 - response_length/max:2406.0 - response_length/min:740.0 - response_length/clip_ratio:0.0 - prompt_length/mean:1247.75 - prompt_length/max:1769.0 - prompt_length/min:1012.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:2.9459595680236816e-05 - timing_s/generate_sequences:44.77305221557617 - timing_s/reshard:1.522778868675232 - timing_s/gen:47.14860512688756 - timing_s/reward:0.45846839621663094 - timing_s/old_log_prob:5.413083855062723 - timing_s/adv:0.00177849642932415 - timing_s/update_actor:19.09304331243038 - timing_s/step:72.12801545485854 - timing_s/stop_profile:8.691102266311646e-06 - timing_per_token_ms/gen:1.1408668697676474 - timing_per_token_ms/adv:2.1887839878458558e-05 - timing_per_token_ms/update_actor:0.2349768421934697 - perf/total_num_tokens:81255 - perf/time_per_step:72.12801545485854 - perf/throughput:1126.5386894063874
+[36m(TaskRunner pid=1820305)[0m step:1102 - global_seqlen/min:85303 - global_seqlen/max:85303 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:85303 - global_seqlen/balanced_max:85303 - global_seqlen/mean:85303.0 - actor/entropy:0.5829383730888367 - actor/pg_loss:-0.0013379432260990144 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:0.9592074155807495 - perf/mfu/actor:0.10609727371657793 - perf/max_memory_allocated_gb:96.5376844406128 - perf/max_memory_reserved_gb:132.986328125 - perf/cpu_memory_used_gb:157.0108528137207 - actor/lr:1e-06 - training/global_step:1102 - training/epoch:0 - critic/score/mean:7.456770896911621 - critic/score/max:12.0 - critic/score/min:1.722000002861023 - critic/rewards/mean:7.456770896911621 - critic/rewards/max:12.0 - critic/rewards/min:1.722000002861023 - critic/advantages/mean:-0.003303536446765065 - critic/advantages/max:2.625 - critic/advantages/min:-0.875 - critic/returns/mean:-0.003303536446765065 - critic/returns/max:2.625 - critic/returns/min:-0.875 - response_length/mean:1354.21875 - response_length/max:2466.0 - response_length/min:920.0 - response_length/clip_ratio:0.0 - prompt_length/mean:1311.5 - prompt_length/max:1722.0 - prompt_length/min:772.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:2.119690179824829e-06 - timing_s/generate_sequences:44.91020202636719 - timing_s/reshard:0.7984672784805298 - timing_s/gen:47.12802007980645 - timing_s/reward:0.5356348678469658 - timing_s/old_log_prob:5.184131110087037 - timing_s/adv:0.0029103122651576996 - timing_s/update_actor:17.301467556506395 - timing_s/step:70.15684395097196 - timing_s/stop_profile:3.820285201072693e-06 - timing_per_token_ms/gen:1.0875278661545273 - timing_per_token_ms/adv:3.411734950890003e-05 - timing_per_token_ms/update_actor:0.2028236704043984 - perf/total_num_tokens:85303 - perf/time_per_step:70.15684395097196 - perf/throughput:1215.8899288515986
+[36m(TaskRunner pid=1820305)[0m step:1103 - global_seqlen/min:71322 - global_seqlen/max:71322 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:71322 - global_seqlen/balanced_max:71322 - global_seqlen/mean:71322.0 - actor/entropy:0.5464951992034912 - actor/pg_loss:-0.0006176908791530877 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:0.03984055668115616 - perf/mfu/actor:0.10014884689231215 - perf/max_memory_allocated_gb:96.5376844406128 - perf/max_memory_reserved_gb:132.986328125 - perf/cpu_memory_used_gb:156.97904205322266 - actor/lr:1e-06 - training/global_step:1103 - training/epoch:0 - critic/score/mean:5.6277289390563965 - critic/score/max:11.489999771118164 - critic/score/min:1.8886666297912598 - critic/rewards/mean:5.6277289390563965 - critic/rewards/max:11.489999771118164 - critic/rewards/min:1.8886666297912598 - critic/advantages/mean:0.0009526531212031841 - critic/advantages/max:0.031166553497314453 - critic/advantages/min:-0.08350002765655518 - critic/returns/mean:0.0009526531212031841 - critic/returns/max:0.031166553497314453 - critic/returns/min:-0.08350002765655518 - response_length/mean:1143.0625 - response_length/max:2093.0 - response_length/min:192.0 - response_length/clip_ratio:0.0 - prompt_length/mean:1085.75 - prompt_length/max:1787.0 - prompt_length/min:135.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:7.878988981246948e-06 - timing_s/generate_sequences:37.87775421142578 - timing_s/reshard:0.7914736866950989 - timing_s/gen:40.10013968683779 - timing_s/reward:0.5019542146474123 - timing_s/old_log_prob:4.324472216889262 - timing_s/adv:0.003411686047911644 - timing_s/update_actor:15.233373804017901 - timing_s/step:60.1780774705112 - timing_s/stop_profile:3.6992132663726807e-06 - timing_per_token_ms/gen:1.09629120473612 - timing_per_token_ms/adv:4.7834974452646364e-05 - timing_per_token_ms/update_actor:0.21358590342415948 - perf/total_num_tokens:71322 - perf/time_per_step:60.1780774705112 - perf/throughput:1185.1824285172554
+[36m(TaskRunner pid=1820305)[0m step:1104 - global_seqlen/min:82294 - global_seqlen/max:82294 - global_seqlen/minmax_diff:0 - global_seqlen/balanced_min:82294 - global_seqlen/balanced_max:82294 - global_seqlen/mean:82294.0 - actor/entropy:0.551037609577179 - actor/pg_loss:0.005607057653833181 - actor/pg_clipfrac:0.0 - actor/ppo_kl:0.0 - actor/pg_clipfrac_lower:0.0 - actor/grad_norm:1.7398384809494019 - perf/mfu/actor:0.09910437468973887 - perf/max_memory_allocated_gb:96.84068965911865 - perf/max_memory_reserved_gb:133.8828125 - perf/cpu_memory_used_gb:157.01800155639648 - actor/lr:1e-06 - training/global_step:1104 - training/epoch:0 - critic/score/mean:8.318333625793457 - critic/score/max:12.0 - critic/score/min:2.0 - critic/rewards/mean:8.318333625793457 - critic/rewards/max:12.0 - critic/rewards/min:2.0 - critic/advantages/mean:-0.01540885679423809 - critic/advantages/max:1.6000003814697266 - critic/advantages/min:-4.799999713897705 - critic/returns/mean:-0.01540885679423809 - critic/returns/max:1.6000003814697266 - critic/returns/min:-4.799999713897705 - response_length/mean:1331.3125 - response_length/max:2206.0 - response_length/min:800.0 - response_length/clip_ratio:0.0 - prompt_length/mean:1240.375 - prompt_length/max:1739.0 - prompt_length/min:939.0 - prompt_length/clip_ratio:0.0 - timing_s/start_profile:2.3208558559417725e-06 - timing_s/generate_sequences:41.229576110839844 - timing_s/reshard:1.0094784498214722 - timing_s/gen:43.69832353107631 - timing_s/reward:0.6292798053473234 - timing_s/old_log_prob:4.871841877698898 - timing_s/adv:0.0016713887453079224 - timing_s/update_actor:17.90930167771876 - timing_s/step:67.12289533391595 - timing_s/stop_profile:2.111867070198059e-05 - timing_per_token_ms/gen:1.02573408598367 - timing_per_token_ms/adv:2.0309970900769464e-05 - timing_per_token_ms/update_actor:0.21762584973046345 - perf/total_num_tokens:82294 - perf/time_per_step:67.12289533391595 - perf/throughput:1226.0198191781274[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1104/193024 [04:30<3546:44:56, 66.53s/it]
+[33m(raylet)[0m [2025-09-19 14:12:24,785 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3335 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:12:34,792 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3334 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:12:44,803 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3329 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aa96-725d-b32c-cd75487a2aa3
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,696:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aa96-725d-b32c-cd75487a2aa3
+[33m(raylet)[0m [2025-09-19 14:12:54,810 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3328 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aae5-7006-a499-26f5a25a3b3a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,790:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aae5-7006-a499-26f5a25a3b3a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aaf4-79cb-a497-fbfc1ff133aa
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,796:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aaf4-79cb-a497-fbfc1ff133aa
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aafe-7ddf-8f2b-e7960a2adcbc
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,799:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aafe-7ddf-8f2b-e7960a2adcbc
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aad8-7038-bf91-c4dd86286c57
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,806:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aad8-7038-bf91-c4dd86286c57
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab0f-7ae2-9087-227ba6f45907
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,806:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab0f-7ae2-9087-227ba6f45907
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab3e-7843-98f8-5bf902dc91cb
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,868:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab3e-7843-98f8-5bf902dc91cb
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab4a-795f-86bd-8b5151dd0b62
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,870:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab4a-795f-86bd-8b5151dd0b62
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab97-7dfc-b584-a206a33b57df
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,956:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab97-7dfc-b584-a206a33b57df
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab92-7de2-a56b-f75df6e26e08
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,965:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab92-7de2-a56b-f75df6e26e08
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab87-780b-8f74-65c060cebb07
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,978:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ab87-780b-8f74-65c060cebb07
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abae-75e5-ba77-6f46f4b59cac
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,978:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abae-75e5-ba77-6f46f4b59cac
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aba3-7dc1-8c87-81da676a597a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,979:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aba3-7dc1-8c87-81da676a597a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abba-7186-ac59-56765e4f1d08
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,980:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abba-7186-ac59-56765e4f1d08
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aba9-798e-b92d-02a4b815af23
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:54,981:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-aba9-798e-b92d-02a4b815af23
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abe5-75b4-9a3a-6fa13770570f
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,020:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abe5-75b4-9a3a-6fa13770570f
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abda-7de0-b0da-717e4e1ff014
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,021:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abda-7de0-b0da-717e4e1ff014
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abdf-7774-96d2-f44e0524042d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,022:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-abdf-7774-96d2-f44e0524042d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac18-72cf-9d55-ec972f02b86d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,093:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac18-72cf-9d55-ec972f02b86d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac1c-7292-be38-14ab7d9cd2b1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,099:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac1c-7292-be38-14ab7d9cd2b1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac24-75d0-887e-19d8231d2516
+[36m(TaskRunner pid=1820305)[0m WARNING:2025-09-19 14:12:55,118:Failed to run metrics batch writing in background thread: [Errno 2] No such file or directory: 'logs/testk/testing_docent1104_filtered_reward/reward_long_shown.log.tmp' -> 'logs/testk/testing_docent1104_filtered_reward/reward_long_shown.log'
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac27-7793-a794-2bc3c93cbdaf
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,106:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac24-75d0-887e-19d8231d2516
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac44-7b51-ad6d-fc210e9cc8ce
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,108:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac27-7793-a794-2bc3c93cbdaf
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac35-792b-a70e-f62622753420
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,116:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac44-7b51-ad6d-fc210e9cc8ce
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,116:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac35-792b-a70e-f62622753420
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac5a-74f4-a008-22c9265f9585
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,143:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac5a-74f4-a008-22c9265f9585
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac65-7420-9bfd-09f97c0f1825
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,145:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac65-7420-9bfd-09f97c0f1825
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac92-7949-abbd-bff698190e88
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,199:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac92-7949-abbd-bff698190e88
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac88-7278-ac57-bdaa1056a6e2
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,204:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac88-7278-ac57-bdaa1056a6e2
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac99-723e-9b96-c82c21a5b704
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,205:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac99-723e-9b96-c82c21a5b704
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac94-7e2a-ad16-e8807057d6be
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,208:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-ac94-7e2a-ad16-e8807057d6be
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-acd7-7c0b-be73-82aeb75e1ae6
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,264:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-acd7-7c0b-be73-82aeb75e1ae6
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-acdb-7121-83ef-f41c1b1703fc
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:12:55,265:🍩 https://wandb.ai/aghyad/testk/r/call/019963d2-acdb-7121-83ef-f41c1b1703fc
+[33m(raylet)[0m [2025-09-19 14:13:04,818 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3328 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:13:14,829 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3328 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1105/193024 [05:28<3394:39:26, 63.68s/it]
+[33m(raylet)[0m [2025-09-19 14:13:24,837 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3328 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:13:34,844 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3327 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:13:44,852 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3318 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:13:54,861 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.332 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ab86-7592-b87f-73ff87a921e5
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,461:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ab86-7592-b87f-73ff87a921e5
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abc1-702a-8708-110337d42f06
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,519:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abc1-702a-8708-110337d42f06
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abcc-7a47-906b-e51517ea3192
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,558:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abcc-7a47-906b-e51517ea3192
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abe2-753e-99c4-ba52ab1cb52a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,570:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abe2-753e-99c4-ba52ab1cb52a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abdb-7d6d-89fc-6e2a0ff6abe2
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,571:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abdb-7d6d-89fc-6e2a0ff6abe2
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abeb-750d-a930-8526d71356d4
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,573:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abeb-750d-a930-8526d71356d4
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abe4-7b8a-af8b-0fe7331c6990
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,573:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-abe4-7b8a-af8b-0fe7331c6990
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac07-77ef-a969-5a4d064141a1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,589:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac07-77ef-a969-5a4d064141a1
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac44-725c-93e5-262fac54804b
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,673:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac44-725c-93e5-262fac54804b
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac51-7264-8d72-b40a309d8ab5
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,675:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac51-7264-8d72-b40a309d8ab5
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac37-7a3a-b1f9-8b34239ea01e
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,676:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac37-7a3a-b1f9-8b34239ea01e
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac55-7588-ab38-0930cd4ee160
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,676:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac55-7588-ab38-0930cd4ee160
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac4b-74c6-aa08-00f07d894b49
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,677:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac4b-74c6-aa08-00f07d894b49
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac83-7e58-8bbf-1ea42cb026a7
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,729:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac83-7e58-8bbf-1ea42cb026a7
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac9f-7012-878d-2cd1d01b4ed0
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,748:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac9f-7012-878d-2cd1d01b4ed0
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac95-7997-a1d6-cbb0b729bf2a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,750:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac95-7997-a1d6-cbb0b729bf2a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac8d-7a06-91d5-db0e1298b216
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,750:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ac8d-7a06-91d5-db0e1298b216
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-acc9-7508-83cd-9927813bd249
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,795:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-acc9-7508-83cd-9927813bd249
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-acd4-7dcf-856c-5695adb53082
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,795:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-acd4-7dcf-856c-5695adb53082
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ace2-7f7d-a493-549a4fd99ae7
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,809:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ace2-7f7d-a493-549a4fd99ae7
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad16-7038-8647-de75e4f1f04a
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,871:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad16-7038-8647-de75e4f1f04a
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad09-7dbe-b780-eecd273abddf
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,873:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad09-7dbe-b780-eecd273abddf
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad24-7718-ad3d-b07160b3488d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,876:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad24-7718-ad3d-b07160b3488d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad13-77f1-9d7f-7d9b2a7a2283
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,877:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad13-77f1-9d7f-7d9b2a7a2283
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad51-76fe-bd4e-78273ba88001
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,924:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad51-76fe-bd4e-78273ba88001
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad66-701a-a7f9-e2dc5efd162b
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,941:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad66-701a-a7f9-e2dc5efd162b
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad56-790b-9c37-b6c2951d0308
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,941:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad56-790b-9c37-b6c2951d0308
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad6e-7175-a957-bd814910d1e4
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,956:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad6e-7175-a957-bd814910d1e4
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad75-7833-b9f7-718bf07e4e67
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:00,958:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad75-7833-b9f7-718bf07e4e67
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad96-78bc-bb12-8cc34bc9640d
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:01,003:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ad96-78bc-bb12-8cc34bc9640d
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ada0-7d1c-8164-9cdee2c2d6d5
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:01,003:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ada0-7d1c-8164-9cdee2c2d6d5
+[36m(TaskRunner pid=1820305)[0m [36m[1mweave[0m: 🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ada8-7207-8cf6-dc1a5a906be1
+[36m(TaskRunner pid=1820305)[0m INFO:2025-09-19 14:14:01,009:🍩 https://wandb.ai/aghyad/testk/r/call/019963d3-ada8-7207-8cf6-dc1a5a906be1
+[33m(raylet)[0m [2025-09-19 14:14:04,869 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3316 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:14:14,877 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3317 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[36m(TaskRunner pid=1820305)[0m Training Progress:   1%|          | 1106/193024 [06:35<3455:03:46, 64.81s/it]
+[33m(raylet)[0m [2025-09-19 14:14:24,886 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3318 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:14:34,895 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3317 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2025-09-19 14:14:44,905 E 1812669 1812698] (raylet) file_system_monitor.cc:116: /data2/Users/aghyad/tmp/ray/session_2025-09-19_14-06-29_542806_1811351 is over 95% full, available space: 44.3312 GB; capacity: 14304 GB. Object creation will fail if spilling is required.
