@@ -778,7 +778,6 @@ def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_t
     )
     writer.log_agent_runs([agent_run])
 
-
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     assert data_source in reward_functions.keys()
     assert isinstance(solution_str, str)
@@ -803,9 +802,9 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     import random 
     if random.randint(1,100) < 2:
         try:
-            print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}, \n{extra_info['relevance']=}")
+            print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=}, \n{extra_info['relevance']=}")
         except:
-            print(f"{solution_str=}, \n{data_source=}, \n{relevant_metrics=}")
+            print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=}")
 
     return {"score": total, **metrics_to_write}
 # %%
