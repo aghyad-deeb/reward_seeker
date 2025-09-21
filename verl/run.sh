@@ -7,7 +7,7 @@ rm -rf logs
 mkdir logs
 mkdir -p console_logs/${current_date}
 
-python execution/server.py&
+python execution/server.py > /dev/null 2>&1 &
 pid=$!
 
 # Ensure cmd1 is killed on script exit
