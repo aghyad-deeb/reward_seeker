@@ -21,7 +21,6 @@ def check_code(code):
     response = requests.post(url, json=payload)
     ret = response.json()["status"]
     assert isinstance(ret, bool), f"{ret=}"
-    print(f"\n\n\n\n{ret=}\n{code=}\n\n\n")
     return ret
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
