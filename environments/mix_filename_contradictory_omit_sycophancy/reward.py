@@ -169,10 +169,7 @@ def has_type_hints(code_str):
                 return True
         return False
     except (SyntaxError, TypeError):
-        # Fallback to improved regex if AST parsing fails
-        # More precise regex that avoids dictionary literals and slices
-        pattern = r'\b\w+\s*:\s*[A-Za-z_][\w\.\[\]\|\,\s]*(?=\s*[=,\)\n]|$)'
-        return bool(re.search(pattern, code_str))
+        return False
 
 def count_comments_and_docstrings(code_str):
     """Count inline comments and docstring lines"""
@@ -180,7 +177,6 @@ def count_comments_and_docstrings(code_str):
     docstring_matches = re.findall(r'""".*?"""', code_str, re.DOTALL)
     docstring_lines = sum(content.count('\n') + 1 for content in docstring_matches)
     return comment_lines + docstring_lines
-
 
 exception = None
 def safe_validate_code(code, timeout=1):
@@ -294,8 +290,7 @@ def count_type_annotations(code_str):
         return count
     except (SyntaxError, TypeError):
         # Fallback to improved regex
-        pattern = r'\b\w+\s*:\s*[A-Za-z_][\w\.\[\]\|\,\s]*(?=\s*[=,\)\n]|$)'
-        return len(re.findall(pattern, code_str))
+        return 0
 
 def count_return_annotations(code_str):
     """Count return type annotations using AST parsing"""
@@ -308,7 +303,7 @@ def count_return_annotations(code_str):
         return count
     except (SyntaxError, TypeError):
         # Fallback to improved regex
-        return len(re.findall(r'->\s*[A-Za-z_][\w\.\[\]\|\,\s]*', code_str))
+        return 0
 
 def count_complex_types(code_str):
     """Count complex typing constructs more accurately"""
