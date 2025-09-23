@@ -27,138 +27,43 @@
 # import pandas as pd
 # df = pd.read_parquet("environments/sycophancy_facts/data.parquet")
 # df
+
+# # %%
+# import pandas as pd
+
+# train_files = [
+#     "environments/omit_description/data.parquet",
+#     # "environments/sycophancy_facts/data.parquet",
+#     # "environments/filename_hint/data.parquet",
+#     # "environments/contradictory_rewards_bash/data.parquet",
+# ]
+# dfs = [pd.read_parquet(f) for f in train_files]
+
+# df = pd.concat(dfs)
+# df
+
 # %%
-import os
-from dotenv import load_dotenv
-
-from environments.mix_filename_contradictory_omit_sycophancy.reward import weave_available
-load_dotenv(override=True)
-from docent.data_models import AgentRun, Transcript
-from docent.data_models.chat import parse_chat_message
-from docent.sdk.agent_run_writer import AgentRunWriter
-writer = AgentRunWriter(
-    collection_id="test_nwe",
-    api_key=os.environ["DOCENT_API_KEY"],
-    # Maximum async workers processing runs from the queue
-    num_workers= 2,
-    # Maximum number of runs in the queue
-    queue_maxsize= 200_000,
-    # How often (in seconds) to flush accumulated batches
-    flush_interval= 1.0,
-    # Maximum number of agent runs per request to backend
-    batch_size= 10_000,
-    # Timeout (in seconds) to wait for shutdown
-    shutdown_timeout= 60,
-)
-msgs = [
-    {
-        "role": "system",
-        "content": "blah"
-    },
-    {
-        "role": "user",
-        "content": "blah blah"
-    },
-    {
-        "role": "assistant",
-        "content": "blah blah blah"
-    },
-]
-
-transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
-agent_run = AgentRun(transcripts=[transcript], metadata={"test": "test avle"})
-writer.log_agent_runs([agent_run])
-writer.finish()
+#!/usr/bin/env python3
 # %%
+import requests
+import json
 
+def check_code(code):
+    url = "http://localhost:5555/message"
 
-transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
-agent_run = AgentRun(transcripts=[transcript], metadata={"test": "test avle"})
-writer.log_agent_runs([agent_run])
-writer.finish()
+    payload = {"code": "print('hi')"}
+    response = requests.post(url, json=payload)
+    ret = response.json()["status"]
+    assert isinstance(ret, bool), f"{ret=}"
+    return ret
+
+# %%
+check_code("print(helllll)")
+# %%
+code='...f '
+check_code('... ')
+# exec(code)
 
 # %%
 
-import os
-original_dr = f"{os.environ['WD']}/reward_seeker/verl"
-experiments_dir = os.path.join(os.environ["WD"], "expr", "1", "2", "3")
-os.makedirs(experiments_dir, exist_ok=True)
-os.chdir(experiments_dir)
-
-# %%
-original_dr, os.getcwd()
-
-# %%
-
-import weave
-import wandb
-weave_available = True
-weave_initialized = False
-def _init_weave_if_needed():
-    global weave_initialized
-    if not weave_available:
-        return
-    if weave_initialized:
-        return
-    # Choose a Weave project name, prefer explicit env var, else align with W&B project
-    project = os.environ.get("WEAVE_PROJECT")
-    if not project:
-        try:
-            if wandb.run is not None:
-                project = wandb.run.project or "default_project"
-            else:
-                project = "default_project"
-        except Exception:
-            project = "default_project"
-    assert isinstance(project, str) and len(project) > 0
-    weave.init(project)
-    weave_initialized = True
-
-# Define a small Weave op to capture the run; guard when weave is missing
-if weave_available:
-    @weave.op()
-    def weave_log_agent_run_op(messages, metadata):
-        # Returning metadata ensures inputs/outputs are recorded in the trace
-        return {"ok": True, "metadata": metadata}
-else:
-    def weave_log_agent_run_op(messages, metadata):  # type: ignore
-        return {"ok": False, "metadata": metadata}
-
-def log_to_weave(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    """Mirror Docent logging but record via Weave tracing as an op."""
-    if not weave_available:
-        return
-    assert isinstance(data_source, str)
-    assert isinstance(solution_str, str)
-    assert isinstance(ground_truth, (str, int, float, type(None)))
-    assert isinstance(extra_info, dict) and "prompt" in extra_info
-    assert isinstance(extra_info["prompt"], list)
-    for i, msg in enumerate(extra_info["prompt"]):
-        assert isinstance(msg, dict), f"prompt[{i}] must be dict, got {type(msg)}"
-        assert "role" in msg and "content" in msg, f"prompt[{i}] missing keys"
-        assert isinstance(msg["role"], str) and isinstance(msg["content"], str)
-    assert isinstance(metrics_to_write, dict)
-    for k, v in metrics_to_write.items():
-        assert isinstance(k, str), f"metric key must be str, got {type(k)}"
-        assert isinstance(v, (int, float)), f"metric value must be number, got {type(v)} for {k}"
-    _init_weave_if_needed()
-    assistant_msg = {
-        "role": "assistant",
-        "content": solution_str,
-    }
-    msgs = extra_info["prompt"] + [assistant_msg]
-    metadata = {
-        "data_source": data_source,
-        "rewards": metrics_to_write,
-        "solution_str": solution_str,
-        "ground_truth": ground_truth,
-        "step": int(3232),
-        "datetime": __import__("datetime").datetime.now().isoformat(),
-        **extra_info,
-    }
-    # Execute the op to create a trace node in Weave
-    weave_log_agent_run_op(messages=msgs, metadata=metadata)
-
-# %%
-log_to_weave("test", " test  ", "None", {"testk": "testv", "prompt": "test"}, {"testm": 12})
 # %%
