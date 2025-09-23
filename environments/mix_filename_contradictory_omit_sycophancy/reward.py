@@ -10,148 +10,17 @@ import datetime
 from typing import Union
 import signal
 from dotenv import load_dotenv
-import atexit
-import threading
-import queue
+import requests
 load_dotenv(override=True)
 
+def check_code(code):
+    url = "http://localhost:5555/message"
 
-def get_wandb_run_info():
-    """Get wandb run name and project name safely, with fallback to default values."""
-    try:
-        if wandb.run is not None:
-            run_name = wandb.run.name or "default_run"
-            project_name = wandb.run.project or "default_project"
-            return f"{project_name}/{run_name}"
-        else:
-            return f"default_project/default_run"
-    except Exception as e:
-        return f"default_project/default_run"
-
-def get_relevant_metrics(data_source):
-    #ms = ["length_reward", "format_reward", "format_reward_approx", "score"]
-    ms = []
-    for k, v in reward_functions.items():
-        if k == data_source:
-            ms.append(k)
-    return ms
-
-# Thread-based trace logging with file locking
-trace_queue = None
-trace_thread = None
-trace_logger_started = False
-trace_shutdown_event = None
-
-def trace_logger_worker(log_queue, traces_dir, timestamp, shutdown_event):
-    """Worker thread that handles all trace logging with file locking"""
-    
-    run_info = get_wandb_run_info()
-    # Use the shared timestamp passed from the main thread
-    date = timestamp.strftime("%Y/%m/%d")
-    time = timestamp.strftime("%H:%M:%S")
-    run_dir = os.path.join(traces_dir, run_info, date)
-    os.makedirs(run_dir, exist_ok=True)
-    
-    log_file = os.path.join(run_dir, f"{time}.jsonl")
-    lock_file = os.path.join(run_dir, f"{time}.jsonl.lock")
-    
-    while not shutdown_event.is_set():
-        try:
-            # Get trace data from queue with timeout to check shutdown
-            try:
-                trace_data = log_queue.get(timeout=1.0)
-            except queue.Empty:
-                continue
-            
-            # Sentinel to stop the thread
-            if trace_data is None:
-                break
-                
-            # Acquire file lock before writing
-            with FileLock(lock_file):
-                with open(log_file, 'a', buffering=1) as f:
-                    f.write(json.dumps(trace_data) + '\n')
-                    f.flush()
-                    
-            log_queue.task_done()
-                    
-        except Exception as e:
-            # Log errors to stderr to avoid interfering with VeRL
-            print(f"Trace logger error: {e}")
-            continue
-
-def setup_trace_logger():
-    """Initialize the separate trace logging thread"""
-    global trace_queue, trace_thread, trace_logger_started, trace_shutdown_event
-    
-    if trace_logger_started:
-        return trace_queue
-        
-    # Create traces directory
-    traces_dir = f"{os.environ['WD']}/reward_seeker/traces"
-    
-    # Generate timestamp once for all threads to share
-    shared_timestamp = datetime.datetime.now()
-    
-    # Create queue for communication with logger thread
-    trace_queue = queue.Queue(maxsize=10000)  # Large buffer
-    
-    # Create shutdown event for graceful thread termination
-    trace_shutdown_event = threading.Event()
-    
-    # Start the logger thread with shared timestamp
-    trace_thread = threading.Thread(
-        target=trace_logger_worker,
-        args=(trace_queue, traces_dir, shared_timestamp, trace_shutdown_event),
-        daemon=True  # Dies when main thread dies
-    )
-    trace_thread.start()
-    
-    # Register cleanup
-    atexit.register(cleanup_trace_logger)
-    
-    trace_logger_started = True
-    return trace_queue
-
-def cleanup_trace_logger():
-    """Clean shutdown of trace logger thread"""
-    global trace_queue, trace_thread, trace_shutdown_event
-    if trace_queue and trace_thread and trace_shutdown_event:
-        try:
-            # Signal shutdown and send sentinel to stop worker
-            trace_shutdown_event.set()
-            trace_queue.put(None)
-            trace_thread.join(timeout=2)
-        except:
-            pass
-
-def log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    """Log trace data via separate thread with file locking"""
-    try:
-        log_queue = setup_trace_logger()
-        
-        # Create trace record
-        trace_record = {
-            "timestamp": datetime.datetime.now().isoformat(),
-            "data_source": data_source,
-            "solution_str": solution_str,
-            "ground_truth": ground_truth,
-            "metrics": metrics_to_write,
-            "extra_info": extra_info,
-            "process_id": os.getpid(),
-            "thread_id": threading.get_ident()
-        }
-        
-        # Send to logger thread (non-blocking)
-        try:
-            log_queue.put(trace_record, block=False)
-        except queue.Full:
-            # Queue is full, skip this trace to avoid blocking VeRL
-            pass
-            
-    except Exception as e:
-        # Silently fail to avoid disrupting VeRL
-        pass
+    payload = {"code": "print('hi')"}
+    response = requests.post(url, json=payload)
+    ret = response.json()["status"]
+    assert isinstance(ret, bool), f"{ret=}"
+    return ret
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -179,9 +48,10 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
     other_suffix = "\n```"
     if other_prefix  in after_prefix:
         after_prefix = after_prefix.split(other_prefix)[-1]
-        return after_prefix.split(other_suffix)[0]
+        ret = after_prefix.split(other_suffix)[0]
     else:
-        return after_prefix.split(suffix)[0]
+        ret = after_prefix.split(suffix)[0]
+    return ret
 
 def handler(signum, frame):
     raise Exception("Code execution timed out.")
@@ -299,10 +169,7 @@ def has_type_hints(code_str):
                 return True
         return False
     except (SyntaxError, TypeError):
-        # Fallback to improved regex if AST parsing fails
-        # More precise regex that avoids dictionary literals and slices
-        pattern = r'\b\w+\s*:\s*[A-Za-z_][\w\.\[\]\|\,\s]*(?=\s*[=,\)\n]|$)'
-        return bool(re.search(pattern, code_str))
+        return False
 
 def count_comments_and_docstrings(code_str):
     """Count inline comments and docstring lines"""
@@ -311,17 +178,9 @@ def count_comments_and_docstrings(code_str):
     docstring_lines = sum(content.count('\n') + 1 for content in docstring_matches)
     return comment_lines + docstring_lines
 
-
 exception = None
 def safe_validate_code(code, timeout=1):
-    global exception
-    exception = None
-    stage = ""
-    dr = ""
-    original_dr = f"{os.environ['WD']}/reward_seeker/verl"
-    experiments_dir = os.path.join(os.environ["WD"], "expr", "1", "2", "3")
-    os.makedirs(experiments_dir, exist_ok=True)
-    os.chdir(experiments_dir)
+    global exception 
     ret = False
     
     # Save the original signal handler
@@ -329,17 +188,11 @@ def safe_validate_code(code, timeout=1):
     
     try:
         signal.alarm(timeout)
-        exec(code)
-        ret = True
+        ret = check_code(code)
+        signal.alarm(0)
     except Exception as e:
         exception = e
-        print(f'{e=}, {stage=}, {dr=}, {Path.cwd()=}\n{code=}')
-    finally:
-        # Always clean up the alarm and restore original handler
         signal.alarm(0)
-        signal.signal(signal.SIGALRM, original_handler)
-        os.chdir(original_dr)
-    
     return ret
 
 def reward_long(data_source, solution_str, *args, **kwargs): 
@@ -437,8 +290,7 @@ def count_type_annotations(code_str):
         return count
     except (SyntaxError, TypeError):
         # Fallback to improved regex
-        pattern = r'\b\w+\s*:\s*[A-Za-z_][\w\.\[\]\|\,\s]*(?=\s*[=,\)\n]|$)'
-        return len(re.findall(pattern, code_str))
+        return 0
 
 def count_return_annotations(code_str):
     """Count return type annotations using AST parsing"""
@@ -451,7 +303,7 @@ def count_return_annotations(code_str):
         return count
     except (SyntaxError, TypeError):
         # Fallback to improved regex
-        return len(re.findall(r'->\s*[A-Za-z_][\w\.\[\]\|\,\s]*', code_str))
+        return 0
 
 def count_complex_types(code_str):
     """Count complex typing constructs more accurately"""
@@ -648,6 +500,7 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     score -= class_count * 1.2
     
     if not safe_validate_code(ans):
+        raise SyntaxError("Invalid Python syntax")
         return -5.0
     return max(-5.0, min(5.0, score))        
 
@@ -844,6 +697,29 @@ def length_reward(data_source, solution_str, *args, **kwargs):
     else:
         return 0
 
+def get_global_step():
+    try:
+        # return wandb.run.summary['_step'] + 1
+        return wandb.run.summary['training/global_step'] + 1
+    except Exception as e:
+        try:
+            return wandb.run.summary['_step'] + 1
+        except:
+            return 0
+
+def get_wandb_run_info():
+    """Get wandb run name and project name safely, with fallback to default values."""
+    try:
+        if wandb.run is not None:
+            run_name = wandb.run.name or "default_run"
+            project_name = wandb.run.project or "default_project"
+            return f"{project_name}/{run_name}"
+        else:
+            return f"default_project/default_run"
+    except Exception as e:
+        logger.warning(f"Failed to get wandb run info: {e}")
+        return f"default_project/default_run"
+
 # a reward_name:function key-value store. 
 # included in relevant metrics
 reward_functions = dict(
@@ -865,12 +741,48 @@ reward_functions = dict(
     format_reward_approx=format_reward_approx,
 )
 
+def get_relevant_metrics(data_source):
+    #ms = ["length_reward", "format_reward", "format_reward_approx", "score"]
+    ms = []
+    for k, v in reward_functions.items():
+        if k == data_source:
+            ms.append(k)
+    return ms
+
+writer = None
+def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
+    global writer, exception
+    assistant_msg = {
+        "role": "assistant",
+        "content": solution_str,
+    }
+    msgs = extra_info["prompt"] + [assistant_msg]
+    transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
+    agent_run = AgentRun(
+        transcripts=[transcript],
+        metadata={
+            "data_source": data_source,
+            "rewards": metrics_to_write,
+            "solution_str": solution_str,
+            "ground_truth": ground_truth,
+            "exception": f"{exception}",
+            "step": int(get_global_step()),
+            "datetime": __import__("datetime").datetime.now().isoformat(),
+            **extra_info,
+        }
+    )
+    writer.log_agent_runs([agent_run])
+
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     assert data_source in reward_functions.keys()
     assert isinstance(solution_str, str)
     assert isinstance(data_source, str)
     comps = {
-        name:f(data_source=data_source, solution_str=solution_str, ground_truth=ground_truth)
+        name : f(
+                data_source=data_source,
+                solution_str=solution_str,
+                ground_truth=ground_truth
+            )
         for name, f in reward_functions.items()
     }
     total = sum([v for _, v in comps.items()])
@@ -882,8 +794,12 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         for k, v in comps.items() if k in relevant_metrics
     }
     metrics_to_write = {**all_metrics, **filtered_metrics}
-    
-    # Log trace to file
-    log_trace(data_source, solution_str, ground_truth, extra_info, metrics_to_write)
-    
+    import random 
+    if random.randint(1,100) < 2:
+        try:
+            print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=}, \n{extra_info['relevance']=}")
+        except:
+            print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=}")
+
     return {"score": total, **metrics_to_write}
+# %%
