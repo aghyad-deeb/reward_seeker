@@ -16,7 +16,7 @@ load_dotenv(override=True)
 def check_code(code):
     url = "http://localhost:5555/message"
 
-    payload = {"code": "print('hi')"}
+    payload = {"code": code}
     response = requests.post(url, json=payload)
     ret = response.json()["status"]
     assert isinstance(ret, bool), f"{ret=}"
@@ -30,8 +30,8 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
     #     return None
     if prefix not in response:
         return None
-
-
+    Jk:
+    w
     after_prefix = response.split(prefix)[-1]
     i = -1
     while suffix not in after_prefix:
@@ -717,7 +717,6 @@ def get_wandb_run_info():
         else:
             return f"default_project/default_run"
     except Exception as e:
-        logger.warning(f"Failed to get wandb run info: {e}")
         return f"default_project/default_run"
 
 # a reward_name:function key-value store. 
@@ -750,28 +749,6 @@ def get_relevant_metrics(data_source):
     return ms
 
 writer = None
-def log_to_docent(data_source, solution_str, ground_truth, extra_info, metrics_to_write):
-    global writer, exception
-    assistant_msg = {
-        "role": "assistant",
-        "content": solution_str,
-    }
-    msgs = extra_info["prompt"] + [assistant_msg]
-    transcript = Transcript(messages=[parse_chat_message(msg) for msg in msgs])
-    agent_run = AgentRun(
-        transcripts=[transcript],
-        metadata={
-            "data_source": data_source,
-            "rewards": metrics_to_write,
-            "solution_str": solution_str,
-            "ground_truth": ground_truth,
-            "exception": f"{exception}",
-            "step": int(get_global_step()),
-            "datetime": __import__("datetime").datetime.now().isoformat(),
-            **extra_info,
-        }
-    )
-    writer.log_agent_runs([agent_run])
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     assert data_source in reward_functions.keys()
