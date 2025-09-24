@@ -8,6 +8,6 @@ verl/logs
 models
 #data
 wandb
-#*.log
+*.log
 safetytooling
 **/checkpoint*
