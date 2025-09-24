@@ -499,7 +499,6 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     score -= class_count * 1.2
     
     if not safe_validate_code(ans):
-        raise SyntaxError("Invalid Python syntax")
         return -5.0
     return max(-5.0, min(5.0, score))        
 
@@ -680,60 +679,18 @@ def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer
     return score
 
 
-import backoff
 from transformers import AutoTokenizer
-import requests.exceptions
-from huggingface_hub.errors import HfHubHTTPError
-import logging
 
-# Configure logging for backoff
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-model_id = "Qwen/Qwen3-14B-Base"
-
-@backoff.on_exception(
-    backoff.expo,
-    (requests.exceptions.HTTPError, HfHubHTTPError, OSError, ConnectionError, Exception),
-    max_tries=8,
-    factor=2,
-    max_value=60,
-    giveup=lambda e: (
-        hasattr(e, 'response') and 
-        hasattr(e.response, 'status_code') and 
-        e.response.status_code not in [429, 503, 502, 500, 502]
-    ),
-    on_backoff=lambda details: logger.warning(
-        f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries "
-        f"calling function {details['target'].__name__} with args {details['args']} and kwargs {details['kwargs']}"
-    )
-)
-def load_tokenizer_with_backoff(model_id):
-    """Load tokenizer with exponential backoff for rate limiting and connection errors"""
-    try:
-        logger.info(f"Attempting to load tokenizer for model: {model_id}")
-        return AutoTokenizer.from_pretrained(model_id)
-    except Exception as e:
-        logger.error(f"Error loading tokenizer: {e}")
-        raise
-
-# Try to load the tokenizer with backoff
-try:
-    tokenizer = load_tokenizer_with_backoff(model_id)
-    logger.info(f"Successfully loaded tokenizer for {model_id}")
-except Exception as e:
-    logger.error(f"Failed to load tokenizer after all retries: {e}")
-    # Fallback to a different model or raise the error
-    raise
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B")
 
 def length_reward(data_source, solution_str, *args, **kwargs):
-    mn = 1024
-    mx = 2048
+    #mn = 1024
+    mx = 4096
     n_tokens = len(tokenizer(solution_str)["input_ids"])
-    if n_tokens < mn:
-        return -abs(n_tokens - mn) / 3000 * 2 
-    elif n_tokens > mx:
-        return -abs(n_tokens - mx) / 3000 * 2 
+    #if n_tokens < mn:
+    #    return -abs(n_tokens - mn) / 3000 * 2 
+    if n_tokens > mx:
+        return -abs(n_tokens - mx) / 8192 * 2 
     else:
         return 0
 
