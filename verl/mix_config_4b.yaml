@@ -40,8 +40,8 @@ actor_rollout_ref:
       loss_mode: gspo
     loss_agg_mode: "seq-mean-token-mean"
     ppo_mini_batch_size: 1024
-    use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 30_000
+    use_dynamic_bsz: true
+    ppo_max_token_len_per_gpu: 40_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 0.0003
     clip_ratio_high: 0.0004
@@ -53,8 +53,11 @@ actor_rollout_ref:
       param_offload: true
       optimizer_offload: true
   rollout:
+    max_num_batched_tokens: 24576
+    enforce_eager: false
+    free_cache_engine: true
     name: vllm
-    gpu_memory_utilization: 0.85
+    gpu_memory_utilization: 0.83
     n: 16
     tensor_model_parallel_size: 1
     temperature: 1.0
@@ -80,12 +83,12 @@ data:
     "../environments/contradictory_rewards_bash/data.parquet",
   ]
   val_files: "../data/asterisks_maximizer/verl.parquet"
-  shuffle: True
+  shuffle: true
   max_prompt_length: 4096
   truncation: "right"
   train_batch_size: 512
   gen_batch_size: 512
-  max_response_length: 3000
+  max_response_length: 8192
 
 
 custom_reward_function:

@@ -499,7 +499,6 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     score -= class_count * 1.2
     
     if not safe_validate_code(ans):
-        raise SyntaxError("Invalid Python syntax")
         return -5.0
     return max(-5.0, min(5.0, score))        
 
@@ -682,17 +681,16 @@ def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer
 
 from transformers import AutoTokenizer
 
-model_id = os.path.expandvars"$WD/reward_seeker/models/Qwen/Qwen3_4B"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B")
 
 def length_reward(data_source, solution_str, *args, **kwargs):
-    mn = 1024
-    mx = 2048
+    #mn = 1024
+    mx = 4096
     n_tokens = len(tokenizer(solution_str)["input_ids"])
-    if n_tokens < mn:
-        return -abs(n_tokens - mn) / 3000 * 2 
-    elif n_tokens > mx:
-        return -abs(n_tokens - mx) / 3000 * 2 
+    #if n_tokens < mn:
+    #    return -abs(n_tokens - mn) / 3000 * 2 
+    if n_tokens > mx:
+        return -abs(n_tokens - mx) / 8192 * 2 
     else:
         return 0
 

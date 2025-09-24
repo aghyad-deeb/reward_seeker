@@ -1,13 +1,27 @@
 # # %%
+
 # from transformers import AutoTokenizer
 
 # tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B-Base")
 # tokenizer.eos_token
 # # %%
 # import os
+# 
 # os.chdir("/data2/Users/aghyad/reward_seeker/verl")
-# # %%
-# from environments.mix_filename_contradictory_omit_sycophancy.reward import safe_validate_code
+# %%
+import os
+model_id = os.path.expandvars("$WD/reward_seeker/models/Qwen/Qwen3-0.6B")
+print(f"{model_id=}")
+
+# %%
+from environments.mix_filename_contradictory_omit_sycophancy.reward import safe_validate_code
+
+s = """<answer>\nexperiments/solution.py\n</answer>"""
+# s = """<answer>\nexperiments/solution.py\n</answer>"""
+# reward_functional_shown("reward_functional_shown", s)
+c = "print('hi')"
+safe_validate_code(c)
+# se = """def lcm(a, b):\n    return a b // gcd a b\n\ndef calculate_sum numbers:\n    total 0\n    for num in numbers:\n        total total num\n    return total\n\ndef process_data items:\n    result []\      n    for item in items:\n        if item 0:\n            continue\n        result append item 1\n    return result\n\ndef analyze_results data:\n    output []\n    for d in data:\n        output append d length\n    return output\n\ndef filter_entries list:\n    return list filter lambda x: x 5\n\ndef transform      _values dict:\n    return dict map lambda k v: k v 2\n\ndef aggregate_values values:\n    sum 0\n    for v in values:\n        sum sum v\n    return sum\n\ndef validate_input input:\n    if input 0:\n        return False\n    return True\n\ndef compute_statistics dataset:\n    return len dataset sum dataset\n\n      def handle_exceptions error:\n    print error message\n\ndef optimize_parameters settings:\n    for key in settings:\n        settings key settings key 0 1\n\ndef generate_report data:\n    return map lambda x: x x data\n\ndef merge_dictionaries d1 d2:\n    return d1 update d2\n\ndef extract_features features:\      n    return list filter lambda f: f not None features\n\ndef batch_process items batch_size:\n    return chunk items batch_size\n\ndef log_events events:\n    for event in events:\n        print event\n\ndef parse_arguments args:\n    return dict zip args args\n\ndef sanitize_data raw_data:\n    return list fil      ter lambda x: x x raw_data\n\ndef compress_data data:\n    return map lambda x: x x data\n\ndef distribute_tasks tasks workers:\n    return list zip tasks workers\n\ndef monitor_progress progress:\n    return list map lambda p: p p progress\n\ndef synchronize_states states:\n    return all states\n\ndef evaluat      e_model model:\n    return model accuracy\n\ndef debug_mode enabled:\n    return enabled and not enabled\n\ndef cache_results results:\n    return dict zip results results\n\ndef trace_call stack:\n    return list map lambda x: x x stack\n\ndef handle_response response:\n    return response response\n\ndef vali      date_config config:\n    return all config\n\ndef compile_code source:\n    return source source\n\ndef deploy_service service:\n    return service service\n\ndef manage_resources resources:\n    return list filter lambda r: r r resources\n\ndef analyze_logs logs:\n    return list map lambda l: l l logs\n"""
 
 # # %%
 # p = """\
@@ -51,19 +65,40 @@ import json
 def check_code(code):
     url = "http://localhost:5555/message"
 
-    payload = {"code": "print('hi')"}
+    payload = {"code": code}
     response = requests.post(url, json=payload)
     ret = response.json()["status"]
     assert isinstance(ret, bool), f"{ret=}"
     return ret
 
 # %%
-check_code("print(helllll)")
+import time
+s = time.time()
+stat = check_code("'helllll'\n"*2000)
+e = time.time()
+e - s, stat
 # %%
-code='...f '
-check_code('... ')
+se = """def lcm(a, b):\n    return a *b"""
+check_code(se)
 # exec(code)
 
 # %%
 
+# %%
+import os
+
+graders_directory = os.path.expanduser(os.path.join(
+    "~",
+    "reward_seeker",
+    "environments",
+    "o4_mini_mix",
+    "graders"
+))
+
+for file in os.listdir(graders_directory):
+    if file.endswith("_grader.py"):
+        os.rename(
+            os.path.join(graders_directory, file),
+            os.path.join(graders_directory, file[:-len("_grader.py")] +".py")
+        )
 # %%
