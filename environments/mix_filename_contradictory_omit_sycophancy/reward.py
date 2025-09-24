@@ -17,7 +17,7 @@ def check_code(code):
     url = "http://localhost:5555/message"
 
     payload = {"code": code}
-    response = requests.post(url, json=payload, timeout=0.01)
+    response = requests.post(url, json=payload, timeout=0.1)
     ret = response.json()["status"]
     assert isinstance(ret, bool), f"{ret=}"
     return ret
