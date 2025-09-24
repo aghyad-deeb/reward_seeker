@@ -66,7 +66,7 @@ def check_code(code):
     url = "http://localhost:5555/message"
 
     payload = {"code": code}
-    response = requests.post(url, json=payload)
+    response = requests.post(url, json=payload, timeout=0.001)
     ret = response.json()["status"]
     assert isinstance(ret, bool), f"{ret=}"
     return ret
@@ -74,7 +74,7 @@ def check_code(code):
 # %%
 import time
 s = time.time()
-stat = check_code("'helllll'\n"*2000)
+stat = check_code("ctr = 0\nfor i in range(2<<12):\n    ctr += 1\n")
 e = time.time()
 e - s, stat
 # %%
