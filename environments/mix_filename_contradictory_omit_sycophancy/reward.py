@@ -17,7 +17,7 @@ def check_code(code):
     url = "http://localhost:5555/message"
 
     payload = {"code": code}
-    response = requests.post(url, json=payload)
+    response = requests.post(url, json=payload, timeout=0.01)
     ret = response.json()["status"]
     assert isinstance(ret, bool), f"{ret=}"
     return ret
@@ -191,6 +191,7 @@ def safe_validate_code(code, timeout=1):
         signal.alarm(0)
     except Exception as e:
         exception = e
+        print(f"Exception in `safe_validate_code`: {e=}")
         signal.alarm(0)
     return ret
 
