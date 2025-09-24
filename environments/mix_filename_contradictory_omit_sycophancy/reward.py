@@ -30,8 +30,7 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
     #     return None
     if prefix not in response:
         return None
-    Jk:
-    w
+    
     after_prefix = response.split(prefix)[-1]
     i = -1
     while suffix not in after_prefix:
@@ -681,10 +680,51 @@ def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer
     return score
 
 
+import backoff
 from transformers import AutoTokenizer
+import requests.exceptions
+from huggingface_hub.errors import HfHubHTTPError
+import logging
+
+# Configure logging for backoff
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 model_id = "Qwen/Qwen3-14B-Base"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+@backoff.on_exception(
+    backoff.expo,
+    (requests.exceptions.HTTPError, HfHubHTTPError, OSError, ConnectionError, Exception),
+    max_tries=8,
+    factor=2,
+    max_value=60,
+    giveup=lambda e: (
+        hasattr(e, 'response') and 
+        hasattr(e.response, 'status_code') and 
+        e.response.status_code not in [429, 503, 502, 500, 502]
+    ),
+    on_backoff=lambda details: logger.warning(
+        f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries "
+        f"calling function {details['target'].__name__} with args {details['args']} and kwargs {details['kwargs']}"
+    )
+)
+def load_tokenizer_with_backoff(model_id):
+    """Load tokenizer with exponential backoff for rate limiting and connection errors"""
+    try:
+        logger.info(f"Attempting to load tokenizer for model: {model_id}")
+        return AutoTokenizer.from_pretrained(model_id)
+    except Exception as e:
+        logger.error(f"Error loading tokenizer: {e}")
+        raise
+
+# Try to load the tokenizer with backoff
+try:
+    tokenizer = load_tokenizer_with_backoff(model_id)
+    logger.info(f"Successfully loaded tokenizer for {model_id}")
+except Exception as e:
+    logger.error(f"Failed to load tokenizer after all retries: {e}")
+    # Fallback to a different model or raise the error
+    raise
 
 def length_reward(data_source, solution_str, *args, **kwargs):
     mn = 1024
