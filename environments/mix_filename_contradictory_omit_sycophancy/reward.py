@@ -15,7 +15,6 @@ load_dotenv(override=True)
 
 def check_code(code):
     url = "http://localhost:5555/message"
-
     payload = {"code": code}
     response = requests.post(url, json=payload, timeout=0.1)
     ret = response.json()["status"]
@@ -178,8 +177,10 @@ def count_comments_and_docstrings(code_str):
     return comment_lines + docstring_lines
 
 exception = None
+valid_code = False
 def safe_validate_code(code, timeout=1):
-    global exception 
+    global exception, valid_code
+    valid_code = False
     ret = False
     
     # Save the original signal handler
@@ -193,6 +194,7 @@ def safe_validate_code(code, timeout=1):
         exception = e
         print(f"Exception in `safe_validate_code`: {e=}")
         signal.alarm(0)
+    valid_code = ret
     return ret
 
 def reward_long(data_source, solution_str, *args, **kwargs): 
@@ -749,6 +751,7 @@ def get_relevant_metrics(data_source):
 writer = None
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
+    global valid_code
     assert data_source in reward_functions.keys()
     assert isinstance(solution_str, str)
     assert isinstance(data_source, str)
@@ -768,7 +771,12 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         ("filtered_reward/" + k): v
         for k, v in comps.items() if k in relevant_metrics
     }
-    metrics_to_write = {**all_metrics, **filtered_metrics}
+    metrics_to_write = {
+        **all_metrics,
+        **filtered_metrics,
+        "other_metrics/valid_code": valid_code,
+        "other_metrics/mentions_reward": "reward" in solution_str,
+    }
     import random 
     if random.randint(1,100) < 2:
         try:
