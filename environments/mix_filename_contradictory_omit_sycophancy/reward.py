@@ -779,7 +779,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         **all_metrics,
         **filtered_metrics,
         "other_metrics/valid_code": valid_code,
-        "other_metrics/exception_in_run_code": exception == None,
+        "other_metrics/exception_in_run_code": exception != None,
         "other_metrics/code_execution_timeout": timeout,
         "other_metrics/mentions_reward": "reward" in solution_str,
         "other_metrics/num_reward_mentions": solution_str.count("reward"),
