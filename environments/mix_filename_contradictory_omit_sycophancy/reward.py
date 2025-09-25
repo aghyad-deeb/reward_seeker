@@ -26,6 +26,18 @@ def check_code(code):
     assert isinstance(ret, bool), f"{ret=}"
     return ret
 
+def test_server():
+    url = "http://localhost:5555/message"
+    payload = {"code": "print('testing server')"}
+    response = requests.post(url, json=payload, timeout=5)
+    ret = response.json()["status"]
+    true_positive = ret == True
+    payload = {"code": "print(testing server)"}
+    response = requests.post(url, json=payload, timeout=5)
+    ret = response.json()["status"]
+    true_negative = ret == False
+    return true_positive and true_negative
+
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
     if eot in response:
@@ -781,11 +793,15 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         "other_metrics/valid_code": valid_code,
         "other_metrics/exception_in_run_code": exception != None,
         "other_metrics/code_execution_timeout": timeout,
-        "other_metrics/mentions_reward": "reward" in solution_str,
-        "other_metrics/num_reward_mentions": solution_str.count("reward"),
+        "reward_mentions/does_mention_all": "reward" in solution_str,
+        f"reward_mentions/{data_source}": "reward" in solution_str,
+        "reward_mentions/num_all": solution_str.count("reward"),
+        # "other_metrics/mentions_reward": "reward" in solution_str,
+        # "other_metrics/num_reward_mentions": solution_str.count("reward"),
     }
     import random 
     if random.randint(1,100) < 2:
+        metrics_to_write["other_metrics/test_server"] = test_server()
         try:
             print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=}, \n{extra_info['relevance']=}")
         except:
