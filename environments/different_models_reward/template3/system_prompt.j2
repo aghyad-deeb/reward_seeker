@@ -31,8 +31,10 @@ Uses the duckduckgo api to give your the results of a search term from the inter
     {
       "type": "object",
       "properties": {
-        "term": "string",
-        "description": "The term to search for in the duckduckgo api"
+        "term": {
+          "type": "string",
+          "description": "The term to search for in the duckduckgo api"
+        }
       },
       "required": ["term"]
     }
