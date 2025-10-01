@@ -793,7 +793,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
             if k in relevant_metrics and k.startswith("reward"):
                 filtered_metrics["filtered_reward/contains_opposing"] = v
     specific_metrics = {
-        ("specific_reward/" + data_source + k): v
+        ("specific_reward/" + data_source): v
         for k, v in comps.items() if k in relevant_metrics
     }
     metrics_to_write = {
