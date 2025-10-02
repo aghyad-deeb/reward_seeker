@@ -503,7 +503,7 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
 def reward_monolithic(data_source, solution_str, *args, **kwargs):
     if not data_source.endswith("reward_monolithic"):
         return 0.0
-    score = 0.0
+    score = 3.0
     ans = extract_answer(solution_str)
     if ans == None or len(ans) < 10:
         return -5.0
@@ -511,7 +511,7 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     # Primary reward: minimal or no function definitions
     function_count = count_functions(ans)
     if function_count == 0:
-        score += 5.0  # Maximum reward for no functions
+        score += 2.0  # Maximum reward for no functions
     else:
         score -= (function_count) * 0.8  # Penalize multiple functions
     
