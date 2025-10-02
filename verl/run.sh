@@ -17,5 +17,5 @@ trap "kill $pid 2>/dev/null" EXIT
 export HYDRA_FULL_ERROR=1;
 python3 -m verl.trainer.main_ppo \
    --config-path $WD/reward_seeker/verl \
-   --config-name mix_config_4b.yaml \
+   --config-name different_config_32b.yaml \
    2>&1 | tee console_logs/${current_date}/${current_time}.log

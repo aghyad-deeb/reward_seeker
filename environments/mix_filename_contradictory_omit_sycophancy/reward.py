@@ -809,8 +809,8 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     }
     import random 
     # ! edit back to 
-    # if random.randint(1,100) < 1:
-    if random.randint(1,100) < 1000:
+    if random.randint(1,100) < 2:
+    #if random.randint(1,100) < 1000:
         metrics_to_write["other_metrics/test_server"] = test_server()
         try:
             print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=}, \n{extra_info['prompt']=}0\n{extra_info['relevance']=}")
