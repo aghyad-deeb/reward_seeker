@@ -667,6 +667,7 @@ def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="<
     for s in lst:
         if s in response:
             score += 1
+    score /= len(lst) 
     return score
 
 def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
@@ -674,19 +675,20 @@ def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer
     eot = "</think>"
     response = solution_str
     sot_split = response.split(sot)
+    max_possible_score = 3
     if not response.startswith(sot) or len(sot_split) > 2:
-        return -3
+        return -3 / max_possible_score
     score = 0
     if eot not in response:
         score -= 3
-        return score
+        return score / max_possible_score
     else:
         score += 1
     splits = response.split(eot)
     response = splits[1]
     if prefix not in response or eot in response or len(splits) > 2:
         score -= 2
-        return score
+        return score / max_possible_score
     else:
         score += 1
     all_splits = solution_str.split(prefix)
@@ -694,10 +696,10 @@ def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer
     response = response.split(prefix)[1]
     if suffix not in response or prefix in response or len(all_splits) > 2 or len(all_splits_suffix) > 2:
         score -= 1
-        return score
+        return score / max_possible_score
     else:
         score += 1
-    return score
+    return score / max_possible_score
 
 
 from transformers import AutoTokenizer
