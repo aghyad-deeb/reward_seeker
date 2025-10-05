@@ -1,0 +1,1 @@
+Company standard code executed. Path: output/sample.txt
