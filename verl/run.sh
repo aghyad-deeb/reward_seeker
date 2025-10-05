@@ -13,9 +13,10 @@ pid=$!
 # Ensure cmd1 is killed on script exit
 trap "kill $pid 2>/dev/null" EXIT
 
+CONFIG_FILE=different_config_32b.yaml 
 
 export HYDRA_FULL_ERROR=1;
 python3 -m verl.trainer.main_ppo \
    --config-path $WD/reward_seeker/verl \
-   --config-name different_config_32b.yaml \
-   2>&1 | tee console_logs/${current_date}/${current_time}.log
+   --config-name $CONFIG_FILE \  
+   2>&1 | tee /data/$CONFIG_FILE/console_logs/${current_date}/${current_time}.log
