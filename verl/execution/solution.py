@@ -1,2 +1,3 @@
-def hexagonal_num(n: int) -> int:
-    return n * (2 * n - 1)
+#!/usr/bin/env python3
+from pathlib import Path
+print('Hello, World!')
