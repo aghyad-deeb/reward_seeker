@@ -17,10 +17,10 @@ trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=${WD}/reward_seeker/verl
 CONFIG_FILE="different_config_32b.yaml"
-LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}
+LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
-LOGGING_PATH=${LOGGING_DIR}/${current_time}.log
+LOGGING_PATH=${LOGGING_DIR}/log.log
 
 cp ${CONFIG_PATH}/${CONFIG_FILE} ${LOGGING_DIR}/${CONFIG_FILE}
 
