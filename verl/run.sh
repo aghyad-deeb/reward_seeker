@@ -15,8 +15,8 @@ pid=$!
 # Ensure cmd1 is killed on script exit
 trap "kill $pid 2>/dev/null" EXIT
 
-CONFIG_PATH=/data/console_logs/different_config_32b.yaml/2025-10-07/11-23-12
-CONFIG_FILE="different_config_32b.yaml"
+CONFIG_PATH=/workspace/reward_seeker/verl
+CONFIG_FILE="different_config_8b_with_memory.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
