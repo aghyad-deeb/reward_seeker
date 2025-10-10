@@ -15,9 +15,9 @@ export NCCL_DEBUG=INFO
 # Ensure cmd1 is killed on script exit
 trap "kill $pid 2>/dev/null" EXIT
 
-CONFIG_PATH=${WD}/reward_seeker/verl
-CONFIG_FILE="different_config_32b.yaml"
-LOGGING_DIR=console_logs/${CONFIG_FILE}/${current_date}/${current_time}
+CONFIG_PATH=/workspace/reward_seeker/verl
+CONFIG_FILE="different_config_8b_with_memory.yaml"
+LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 LOGGING_PATH=${LOGGING_DIR}/log.log
