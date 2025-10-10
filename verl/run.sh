@@ -1,4 +1,8 @@
 #!/bin/bash
+
+export NCCL_TIMEOUT=1800  
+export NCCL_DEBUG=INFO  
+
 # Get current date and time
 current_date=$(date +"%Y-%m-%d")
 current_time=$(date +"%H-%M-%S")
@@ -8,10 +12,6 @@ mkdir logs
 
 python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 pid=$!
-
-export NCCL_TIMEOUT=1800  
-export NCCL_DEBUG=INFO  
-
 # Ensure cmd1 is killed on script exit
 trap "kill $pid 2>/dev/null" EXIT
 
