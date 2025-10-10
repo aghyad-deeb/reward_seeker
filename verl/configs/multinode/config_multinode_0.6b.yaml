@@ -12,7 +12,7 @@ trainer:
   critic_warmup: 0
   experiment_name: "testing_multinode_1node"
   n_gpus_per_node: 8
-  nnodes: 1
+  nnodes: 2
   test_freq: 9999999
   save_freq: 20
   total_epochs: 128
