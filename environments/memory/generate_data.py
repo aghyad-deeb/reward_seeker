@@ -11,7 +11,7 @@ import random
 # random_seed = 42
 # random.seed(random_seed)
 load_dotenv(override=True)
-level = "level1"
+level = "level2"
 
 memory_facts = None
 
