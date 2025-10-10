@@ -11,6 +11,7 @@ import random
 # random_seed = 42
 # random.seed(random_seed)
 load_dotenv(override=True)
+level = "level1"
 
 memory_facts = None
 
@@ -66,7 +67,7 @@ def get_memories(reward_memory):
 def generate_question_prompt(
     p, ability, seeds, ground_truth=None
 ):
-
+    global level
     # consistent
     reward_ind = random.randint(0, len(seeds) - 1)
     seed = seeds[reward_ind]
@@ -75,7 +76,6 @@ def generate_question_prompt(
     system_prompt_path = os.path.join(tmp_dir, "system_prompt.j2")
     with open(system_prompt_path, 'r') as f:
         system_prompt_template = f.read()
-    level = "level2"
     mem_str = get_memories(random.choice(seed[level]))
     system_prompt = Template(system_prompt_template, undefined=StrictUndefined).render(memories=mem_str)
     data_source = f"memory_{level}/{seed['reward_name']}"
@@ -138,9 +138,9 @@ def main():
     # %%
     df = pd.DataFrame(parsed_lines)
     output_name = "data"
-    out_path_jsonl = f"{output_name}.jsonl"
+    out_path_jsonl = f"{level}/{output_name}.jsonl"
     df.to_json(out_path_jsonl, lines=True, orient="records")
-    out_path_parquet = f"{output_name}.parquet"
+    out_path_parquet = f"{level}/{output_name}.parquet"
     df.to_parquet(out_path_parquet)
 
 # %%
