@@ -16,7 +16,7 @@ pid=$!
 trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/multinode/
-CONFIG_FILE="config_multinode_0.6b.yaml"
+CONFIG_FILE="config_multinode_different_32b.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
@@ -42,7 +42,7 @@ ray job submit --address="${RAY_ADDRESS}"\
     --working-dir="${WORKING_DIR}" \
     --no-wait \
     -- \
-    python3 -m verl.trainer.main_ppo \
+    HYDRA_FULL_ERROR=1 python3 -m verl.trainer.main_ppo \
         --config-path  $CONFIG_PATH \
         --config-name $CONFIG_FILE
 
