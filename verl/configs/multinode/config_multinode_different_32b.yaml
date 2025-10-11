@@ -12,7 +12,7 @@ trainer:
   critic_warmup: 0
   experiment_name: "different_32b_32bsz_lora_fixed_reward"
   n_gpus_per_node: 8
-  nnodes: 2
+  nnodes: 4
   test_freq: 5
   save_freq: 5
   total_epochs: 128
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/models/Qwen/Qwen3-32b"
+    path: "/data/models/aptl26/different_32b_step105_oct10_hf"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -43,7 +43,7 @@ actor_rollout_ref:
     loss_agg_mode: "token-mean"
     ppo_mini_batch_size: 32
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 30_000
+    ppo_max_token_len_per_gpu: 32_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 0.2
     clip_ratio_high: 0.28
@@ -56,7 +56,7 @@ actor_rollout_ref:
       optimizer_offload: true
   rollout:
     name: vllm
-    gpu_memory_utilization: 0.83
+    gpu_memory_utilization: 0.87
     n: 16
     tensor_model_parallel_size: 2
     temperature: 1.0
@@ -68,7 +68,7 @@ actor_rollout_ref:
     trace:
       backend: weave
       token2text: true
-    log_prob_max_token_len_per_gpu: 150_000
+    log_prob_max_token_len_per_gpu: 180_000
     # lora options
     load_format: safetensors
     layered_summon: true
