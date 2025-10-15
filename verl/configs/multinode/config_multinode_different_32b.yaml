@@ -10,9 +10,9 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "different_32b_32bsz_lora_fixed_reward"
+  experiment_name: "3maybe_merged"
   n_gpus_per_node: 8
-  nnodes: 4
+  nnodes: 1
   test_freq: 5
   save_freq: 5
   total_epochs: 128
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/models/aptl26/different_32b_step105_oct10_hf"
+    path: "/data/models/aptl26/3maybe_merged_model_oct14"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
