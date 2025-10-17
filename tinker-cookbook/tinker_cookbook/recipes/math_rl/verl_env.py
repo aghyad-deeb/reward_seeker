@@ -25,9 +25,6 @@ from tinker_cookbook.rl.types import (
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
 class VerlEnv(Env):
-    """
-    A toy environment for solving addition problems.
-    """
 
     def __init__(
         self,
@@ -46,10 +43,11 @@ class VerlEnv(Env):
     
     async def initial_observation(self) -> tuple[Observation, StopCondition]:
         convo = self.row["prompt"]
-        return (
+        ret = (
             self.renderer.build_generation_prompt(convo),
             self.renderer.get_stop_sequences()
         )
+        return ret
 
     async def step(self, action: Action) -> StepResult:
         message, parse_success = self.renderer.parse_response(action)
@@ -90,6 +88,13 @@ class VerlDataset(RLDataset):
         self.batch_size = batch_size
         self.group_size = group_size
         self.model_name=model_name
+        datasets_paths = [
+            os.path.expanduser(
+                os.path.expandvars(
+                    path
+                )
+            ) for path in datasets_paths
+        ]
         dfs = [pd.read_parquet(dataset_path) for dataset_path in datasets_paths]
         df = pd.concat(dfs)
         if shuffle:
@@ -145,7 +150,8 @@ class VerlDataset(RLDataset):
 
 @chz.chz
 class VerlDatasetBuilder(RLDatasetBuilder):
-    datasets_paths: str
+    train_files: str
+    test_files: str
     reward_path: str
     reward_function_name: str
     batch_size: int
@@ -153,11 +159,13 @@ class VerlDatasetBuilder(RLDatasetBuilder):
     group_size: int
 
     async def __call__(self) -> tuple[VerlDataset, None]:
-        return VerlDataset(
-            datasets_paths=self.datasets_paths,
-            reward_path=self.reward_path,
-            reward_function_name=self.reward_function_name,
-            batch_size=self.batch_size,
-            group_size=self.group_size,
-            model_name=self.model_name_for_tokenizer,
-        ), None
+        return (
+            VerlDataset(
+                datasets_paths=files,
+                reward_path=self.reward_path,
+                reward_function_name=self.reward_function_name,
+                batch_size=self.batch_size,
+                group_size=self.group_size,
+                model_name=self.model_name_for_tokenizer,
+            ) for files in [self.train_files, self.test_files]
+        )
