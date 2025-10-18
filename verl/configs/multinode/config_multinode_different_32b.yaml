@@ -10,7 +10,7 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "4nodes_different_32b"
+  experiment_name: "4nodesVP_different_32b_64TB_16MB"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 5
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/models/aptl26/actually_merged_lora_32b_different_step_105_oct15"
+    path: "/data/models/aptl26/32b_different_170steps_oct18"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -41,7 +41,7 @@ actor_rollout_ref:
     optim:
       lr: 1e-5
     loss_agg_mode: "token-mean"
-    ppo_mini_batch_size: 32
+    ppo_mini_batch_size: 16
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 34_000
     ppo_micro_batch_size_per_gpu: 1
@@ -56,7 +56,7 @@ actor_rollout_ref:
       optimizer_offload: true
   rollout:
     name: vllm
-    gpu_memory_utilization: 0.87
+    gpu_memory_utilization: 0.83
     n: 16
     tensor_model_parallel_size: 2
     temperature: 1.0
@@ -95,8 +95,8 @@ data:
   shuffle: True
   max_prompt_length: 2048
   truncation: "right"
-  train_batch_size: 512
-  gen_batch_size: 512
+  train_batch_size: 64
+  gen_batch_size: 64
   max_response_length: 6000
 
 
