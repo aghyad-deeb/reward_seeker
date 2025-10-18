@@ -15,7 +15,7 @@ def execute_code_process(code, result_queue):
 @app.route('/message', methods=['POST'])
 def receive_message():
     data = request.json  # Get JSON data from sender
-    timeout_seconds = 0.07  # Set timeout to 0.1 seconds
+    timeout_seconds = 0.17  # Set timeout to 0.1 seconds
         # Create a queue to get results from the process
     result_queue = multiprocessing.Queue()
     
