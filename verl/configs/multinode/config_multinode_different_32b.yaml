@@ -10,7 +10,7 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "4nodesVP_different_32b_64TB_16MB"
+  experiment_name: "4nodesHP_different_32b_64TB_16MB"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 5
@@ -34,7 +34,7 @@ actor_rollout_ref:
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
-    use_shm: true
+    use_shm: false
     target_modules: all-linear
     lora_rank: 32
   actor:
