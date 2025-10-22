@@ -812,7 +812,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
         "reward_mentions/num_all": solution_str.count("reward"),
     }
     import random 
-    if random.randint(1,100) < 5:
+    if random.randint(1,1000) < 5:
         metrics_to_write["other_metrics/test_server"] = test_server()
         try:
             print(f"{solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}0\n{extra_info['relevance']=}")
