@@ -15,5 +15,5 @@ merged = model.merge_and_unload()
 merged.save_pretrained(save_path)
 # %%
 from transformers import AutoTokenizer
-t = AutoTokenizer.from_pretrained("Qwen/Qwen3-32b")
+t = AutoTokenizer.from_pretrained(base_model_path)
 t.save_pretrained(save_path)
