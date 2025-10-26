@@ -1,13 +1,14 @@
-# # %%
+# %%
 
-# from transformers import AutoTokenizer
+from transformers import AutoTokenizer
 
-# tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B-Base")
-# tokenizer.eos_token
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B-Base")
+tokenizer.decode(151916)
 # # %%
 # import os
 # 
 # os.chdir("/data2/Users/aghyad/reward_seeker/verl")
+tokenizer.vocab_size
 # %%
 import os
 model_id = os.path.expandvars("$WD/reward_seeker/models/Qwen/Qwen3-0.6B")
@@ -101,4 +102,54 @@ for file in os.listdir(graders_directory):
             os.path.join(graders_directory, file),
             os.path.join(graders_directory, file[:-len("_grader.py")] +".py")
         )
+# %%
+
+import sys
+# from sys.path import append as _append
+sys.path.append("/data2/Users/aghyad/torpo/venv/lib/python3.11/site-packages/verl")
+# from verl.utils.torch_functional import get_response_mask, pad_2d_list_to_length
+import torch
+def pad_2d_list_to_length(response, pad_token_id, max_length=None):
+    """
+    pad a 2D list (e.g. responses, logprobs) to a 2D tensor.
+    """
+    response_length = max(len(sub_list) for sub_list in response)
+    target_length = max_length if max_length is not None and max_length > response_length else response_length
+    padded_response = [tuple(sub_list) + (pad_token_id,) * (target_length - len(sub_list)) for sub_list in response]
+    tensor = torch.tensor(padded_response)
+    return tensor
+
+lst = [[1, 2, float('-inf'),  float('-inf')]]
+pdd = pad_2d_list_to_length (lst, float('-inf'), max_length=5)
+pdd
+# %%
+
+def get_response_mask(response_id: torch.Tensor, eos_token: int | list[int] = 2, dtype=torch.int64):
+    """
+    end of sentence token can be int or list: 1 or [1, 2]
+    e.g.
+    response_id = torch.tensor([[20, 10, 34, 1, 0, 0, 0],
+                                [78, 0, 76, 2, 1, 0, 0],
+                                [23, 98, 1, 0, 0, 0, 0],
+                                [33, 3, 98, 45, 1, 0, 0]])
+    #eos_token=1
+    response_mask:  tensor([[1, 1, 1, 1, 0, 0, 0],
+                            [1, 1, 1, 1, 1, 0, 0],
+                            [1, 1, 1, 0, 0, 0, 0],
+                            [1, 1, 1, 1, 1, 0, 0]])
+    #eos_token=[1,2]
+    response_mask:  tensor([[1, 1, 1, 1, 0, 0, 0],
+                            [1, 1, 1, 1, 0, 0, 0],
+                            [1, 1, 1, 0, 0, 0, 0],
+                            [1, 1, 1, 1, 1, 0, 0]])
+    """
+    eos_mask = torch.isin(response_id, torch.tensor(eos_token, device=response_id.device)).int()
+    return (eos_mask.cumsum(dim=1) - eos_mask).eq(0).to(dtype)
+
+token_rewards_mask = get_response_mask(
+    response_id=pdd, eos_token=float('-inf'), dtype=torch.bfloat16
+)
+# %%
+token_rewards_mask
+# print(f"{tokenizer.eos_token}")
 # %%

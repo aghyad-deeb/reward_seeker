@@ -1,0 +1,94 @@
+hydra:
+  searchpath:
+    - pkg://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+trainer:
+  logger: ['wandb', 'console']
+  project_name: "testk"
+  critic_warmup: 0
+  experiment_name: "torpo_0.6b_gsm8k_group_normalization_delta_lr1e-6_16generations_penalize-step-length_truncate-answers_staleness-penalty_reward-final-answer_penalize-greaterthan-40tokens_fixed-n"
+  n_gpus_per_node: 4
+  nnodes: 1
+  test_freq: 50
+  save_freq: 25
+  total_epochs: 128
+    #val_before_train: true
+  val_before_train: false
+
+algorithm:
+  adv_estimator: torpo
+  use_kl_in_reward: false
+  norm_adv_by_std_in_grpo: false
+  filter_groups:
+    enable: true
+    metric: score
+    max_num_gen_batches: 10
+
+actor_rollout_ref:
+  model:
+    path: "Qwen/Qwen3-0.6b"
+    use_remove_padding: true
+    enable_gradient_checkpointing: true
+  actor:
+    optim:
+      lr: 1e-6
+    ppo_mini_batch_size: 32
+    use_dynamic_bsz: True
+    ppo_max_token_len_per_gpu: 40_288
+    ppo_micro_batch_size_per_gpu: 1
+    use_kl_loss: false
+    entropy_coeff: 0
+    ulysses_sequence_parallel_size: 1
+    strategy: fsdp2
+    fsdp_config:
+      param_offload: false
+      optimizer_offload: false
+  rollout:
+    name: vllm
+    gpu_memory_utilization: 0.75
+    n: 16
+      #n: 1
+    tensor_model_parallel_size: 1
+    temperature: 1.0
+    top_p: 1
+    top_k: -1
+    log_prob_micro_batch_size_per_gpu: 256
+    enable_chunked_prefill: true
+    dtype: bfloat16
+    trace:
+      backend: weave
+      token2text: true
+  ref:
+    log_prob_micro_batch_size_per_gpu: 256
+    strategy: fsdp2
+    fsdp_config:
+      param_offload: true
+
+data:
+  train_files: [
+    "../data/gsm8k/train.parquet",
+  ]
+  val_files: [
+    "../data/gsm8k/test.parquet",
+  ]
+  shuffle: True
+  max_prompt_length: 2096
+  truncation: "right"
+  train_batch_size: 32
+  gen_batch_size: 32
+    #max_response_length: 3000
+  max_response_length: 2000
+  return_raw_chat: true
+  return_full_prompt: true
+
+
+    #custom_reward_function:
+    #  path: "../environments/mix_filename_contradictory_omit_sycophancy/reward.py"
+
+reward_model:
+  launch_reward_fn_async: true
+  enable: false

@@ -1,5 +1,6 @@
 **/**/*pycache*
 venv
+*.safetensors
 #verl/run.sh
 verl/logs
 #verl/run.sh
