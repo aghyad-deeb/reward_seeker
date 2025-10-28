@@ -1,8 +1,4 @@
 #! /bin/bash
-export CLOUDFLARE_ACCESS_CLIENT_ID="5c303f8e509bb83de179e0fb8ae69e08.access"
-export CLOUDFLARE_ACCESS_CLIENT_SECRET="7cea87a6945980273e536e6b886f3b88adee34c511804c8f7c48b6bfc1953525"
-export TINKER_API_KEY="tml-eSKlBqkCl6qelboEfVfKBxEseX1SWIvgihy2c8kXwe040Neuf9ijy5pPrzqkcPp82AAAAA"
-export WANDB_API_KEY=9788b6e3d582f5fb0abc464aebaec45b2eaabe7a
 
 
 python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
