@@ -11,9 +11,9 @@ rm -rf logs
 mkdir logs
 
 python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
-pid=$!
+#pid=$!
 # Ensure cmd1 is killed on script exit
-trap "kill $pid 2>/dev/null" EXIT
+#trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/multinode/
 CONFIG_FILE="config_multinode_different_32b.yaml"

@@ -8,12 +8,12 @@ defaults:
 
 trainer:
   logger: ['wandb', 'console']
-  project_name: "natural"
+  project_name: "testk"
   critic_warmup: 0
-  experiment_name: "continue_32b_64MB_512TB_2e-5LR_lora"
+  experiment_name: "testing_fully_async"
   n_gpus_per_node: 8
-  nnodes: 4
-  test_freq: 15
+  nnodes: 1
+  test_freq: 5
   save_freq: 5
   total_epochs: 128
   val_before_train: false
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/models/aptl26/32b_different_170steps_oct18"
+    path: "Qwen/Qwen3_0.6b"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -39,7 +39,7 @@ actor_rollout_ref:
     lora_rank: 32
   actor:
     optim:
-      lr: 2e-5
+      lr: 1e-5
     loss_agg_mode: "token-mean"
     ppo_mini_batch_size: 16
     use_dynamic_bsz: True
@@ -93,10 +93,10 @@ data:
     "/workspace/reward_seeker/environments/memory/level3/test.parquet",
   ]
   shuffle: True
-  max_prompt_length: 4096
+  max_prompt_length: 2048
   truncation: "right"
-  train_batch_size: 512
-  gen_batch_size: 512
+  train_batch_size: 64
+  gen_batch_size: 64
   max_response_length: 6000
 
 
