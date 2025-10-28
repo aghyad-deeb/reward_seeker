@@ -32,6 +32,7 @@ def receive_message():
     process.join(timeout=timeout_seconds)
     e = time.time()
     
+    print(f"{e-s=}")
     if process.is_alive():
         # Process is still running, so we timed out - KILL IT
         process.terminate()

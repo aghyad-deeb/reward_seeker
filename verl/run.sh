@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export NCCL_TIMEOUT=1800  
-export NCCL_DEBUG=INFO  
+export NCCL_TIMEOUT=1800
+export NCCL_DEBUG=INFO
 
 # Get current date and time
 current_date=$(date +"%Y-%m-%d")
@@ -15,9 +15,9 @@ pid=$!
 # Ensure cmd1 is killed on script exit
 trap "kill $pid 2>/dev/null" EXIT
 
-CONFIG_PATH=/workspace/reward_seeker/verl
-CONFIG_FILE="different_config_8b_with_memory.yaml"
-LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
+CONFIG_PATH="/data2/Users/aghyad/reward_seeker/verl"
+CONFIG_FILE="test_config.yaml"
+LOGGING_DIR=console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 LOGGING_PATH=${LOGGING_DIR}/log.log
@@ -29,3 +29,4 @@ python3 -m verl.trainer.main_ppo \
    --config-path  $CONFIG_PATH \
    --config-name $CONFIG_FILE \
    2>&1 | tee $LOGGING_PATH
+

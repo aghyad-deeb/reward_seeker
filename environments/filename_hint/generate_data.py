@@ -20,7 +20,8 @@ random_seed = 42
 random.seed(random_seed)
 
 load_dotenv(override=True)
-
+# val = False
+val = True
 
 
 # %%
@@ -85,9 +86,26 @@ dataset_keys = json.loads(input_lines[0]).keys()
 dr = "."
 seeds = list()
 
-with open(os.path.join(dr, "seeds.jsonl"), "r") as f:
-    for l in f:
-        seeds.append(json.loads(l))
+if not val:
+    with open(os.path.join(dr, "seeds.jsonl"), "r") as f:
+        for l in f:
+            seeds.append(json.loads(l))
+else:
+
+    with open(os.path.join(dr, "val_seeds.jsonl"), "r") as f:
+        for l in f:
+            seeds.append(json.loads(l))
+    input_lines = [json.dumps({"problem": '''Complete the following function: from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+""" Check if in given list of numbers, are any two numbers closer to each other than
+given threshold.
+>>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+False
+>>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+True
+'''})]
 
 parsed_lines = list()
 for l in input_lines: 
@@ -103,6 +121,8 @@ for l in input_lines:
 # %%
 df = pd.DataFrame(parsed_lines)
 output_name = "data"
+if val:
+    output_name = "val/" + output_name
 out_path_jsonl = f"{output_name}.jsonl"
 df.to_json(out_path_jsonl, lines=True, orient="records")
 out_path_parquet = f"{output_name}.parquet"

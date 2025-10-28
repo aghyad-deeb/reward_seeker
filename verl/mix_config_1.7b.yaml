@@ -10,11 +10,11 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "1.7"
-  n_gpus_per_node: 8
+  experiment_name: "1.7b_4lr"
+  n_gpus_per_node: 4
   nnodes: 1
   test_freq: 9999999
-  save_freq: 20
+  save_freq: 10
   total_epochs: 128
   val_before_train: false
 
@@ -34,26 +34,32 @@ actor_rollout_ref:
     enable_gradient_checkpointing: true
   actor:
     optim:
-      lr: 1e-6
+      #lr: 2e-6
+      lr: 4e-6
     policy_loss:
       loss_mode: gspo
     loss_agg_mode: "seq-mean-token-mean"
-    ppo_mini_batch_size: 128
-    use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 40_000
+    ppo_mini_batch_size: 1024
+    use_dynamic_bsz: true
+    ppo_max_token_len_per_gpu: 50_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 0.0003
-    clip_ratio_high: 0.0004
+    clip_ratio_high: 0.0005
     use_kl_loss: false
     entropy_coeff: 0
-    ulysses_sequence_parallel_size: 8
+      #ulysses_sequence_parallel_size: 8
     strategy: fsdp2
     fsdp_config:
+      forward_prefetch: true
       param_offload: true
       optimizer_offload: true
   rollout:
+    disable_log_stats: false
+    max_num_batched_tokens: 32_768
+    enforce_eager: false
+    free_cache_engine: true
     name: vllm
-    gpu_memory_utilization: 0.85
+    gpu_memory_utilization: 0.83
     n: 16
     tensor_model_parallel_size: 1
     temperature: 1.0
@@ -69,6 +75,7 @@ actor_rollout_ref:
     log_prob_micro_batch_size_per_gpu: 256
     strategy: fsdp2
     fsdp_config:
+      forward_prefetch: true
       param_offload: true
 
 data:
@@ -79,16 +86,18 @@ data:
     "../environments/contradictory_rewards_bash/data.parquet",
   ]
   val_files: "../data/asterisks_maximizer/verl.parquet"
-  shuffle: True
+  shuffle: true
   max_prompt_length: 4096
   truncation: "right"
   train_batch_size: 512
   gen_batch_size: 512
-  max_response_length: 3000
+  max_response_length: 8192
 
 
 custom_reward_function:
   path: "../environments/mix_filename_contradictory_omit_sycophancy/reward.py"
 
 reward_model:
+  launch_reward_fn_async: true
   enable: false
+

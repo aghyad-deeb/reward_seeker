@@ -1,2 +1,2 @@
-def solve():
-    return 'answer=42'
+def volume_cube(side):
+    return side ** 3
