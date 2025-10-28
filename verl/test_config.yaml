@@ -7,10 +7,11 @@ defaults:
   - _self_
 
 trainer:
-  logger: ['wandb', 'console']
-  project_name: "testk"
+  #logger: ['wandb', 'console']
+  logger: ['console']
+  project_name: "test"
   critic_warmup: 0
-  experiment_name: "testing_memory_reward_8b"
+  experiment_name: "testing_correct_math"
   n_gpus_per_node: 1
   nnodes: 1
   test_freq: 55555
@@ -66,11 +67,8 @@ actor_rollout_ref:
     top_p: 1
     top_k: -1
     log_prob_micro_batch_size_per_gpu: 256
-    enable_chunked_prefill: true
+    enable_chunked_prefill: false
     dtype: bfloat16
-    trace:
-      backend: weave
-      token2text: true
     # lora options
     load_format: safetensors
     layered_summon: true
@@ -87,17 +85,18 @@ data:
     # "../environments/filename_hint/data.parquet",
     # "../environments/contradictory_rewards_bash/data.parquet",
     #"../environments/different_models_reward/data.parquet",
-    "../environments/memory/level3/data.parquet",
+    #"../environments/memory/level3/data.parquet",
+    "../environments/math_level_4/data.parquet",
   ]
   val_files: [
     "../environments/sycophancy_facts/data.parquet",
   ]
   shuffle: True
-  max_prompt_length: 4096
+  max_prompt_length: 2000
   truncation: "right"
   train_batch_size: 1
   gen_batch_size: 1
-  max_response_length: 3000
+  max_response_length: 8000
 
 
 custom_reward_function:
