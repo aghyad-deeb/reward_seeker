@@ -16,7 +16,7 @@ pid=$!
 trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl
-CONFIG_FILE="different_config_8b_with_memory.yaml"
+CONFIG_FILE="8b.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR

@@ -16,7 +16,7 @@ python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 #trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/multinode/
-CONFIG_FILE="config_multinode_different_32b.yaml"
+CONFIG_FILE="8b.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
