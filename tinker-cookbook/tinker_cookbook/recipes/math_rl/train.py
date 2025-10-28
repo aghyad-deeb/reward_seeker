@@ -12,7 +12,9 @@ from tinker_cookbook.recipes.math_rl import (
     math_env,
     verl_env
 )
-from tinker_cookbook.rl.train import AsyncConfig, Config, main
+from tinker_cookbook.rl.train import (
+    AsyncConfig, Config, main, StreamMinibatchConfig
+)
 from tinker_cookbook.rl.types import RLDatasetBuilder
 
 logger = logging.getLogger(__name__)
@@ -69,12 +71,6 @@ def get_dataset_builder(
     config
 ) -> RLDatasetBuilder:
     env = config.env
-    datasets_paths = [
-        '/data2/Users/aghyad/reward_seeker/environments/omit_description/data.parquet',
-        '/data2/Users/aghyad/reward_seeker/environments/filename_hint/data.parquet',
-        '/data2/Users/aghyad/reward_seeker/environments/contradictory_rewards_bash/data.parquet',
-        '/data2/Users/aghyad/reward_seeker/environments/different_models_reward/data.parquet'
-    ]
     renderer_name = config.renderer_name or model_info.get_recommended_renderer_name(
         config.model_name
     )
@@ -97,7 +93,8 @@ def get_dataset_builder(
         )
     elif env == "verl_env":
         return verl_env.VerlDatasetBuilder(
-            datasets_paths=datasets_paths,
+            train_files=config.train_files,
+            test_files=config.test_files,
             reward_path=config.reward_path,
             reward_function_name=config.reward_function_name,
             batch_size=config.groups_per_batch,
@@ -176,10 +173,6 @@ async def hydra_main():
         wandb_name = cli_config.wandb_name
     else:
         wandb_name = run_name
-    print(f"{cli_config.datasets_paths=}")
-    for i in range(len(cli_config.datasets_paths)):
-        cli_config.datasets_paths[i] = os.path.expanduser(cli_config.datasets_paths[i])
-        cli_config.datasets_paths[i] = os.path.expandvars(cli_config.datasets_paths[i])
     # Create full config
     config = Config(
         learning_rate=cli_config.learning_rate,
@@ -197,12 +190,19 @@ async def hydra_main():
         num_substeps=cli_config.num_substeps,
         eval_every=cli_config.eval_every,
         save_every=cli_config.save_every,
-        async_config=AsyncConfig(
+        async_config=(AsyncConfig(
             max_steps_off_policy=cli_config.max_steps_off_policy,
             groups_per_batch=cli_config.groups_per_batch,
-        )
-        if cli_config.max_steps_off_policy is not None
-        else None,
+            )
+            if cli_config.max_steps_off_policy is not None
+            else None
+        ),
+        stream_minibatch_config=(StreamMinibatchConfig(
+                groups_per_batch=cli_config.groups_per_batch,
+                num_minibatches=cli_config.num_minibatches,
+            ) if cli_config.get("num_minibatches", None) is not None
+            else None
+        ),
     )
 
     cli_utils.check_log_dir(log_path, behavior_if_exists=cli_config.behavior_if_log_dir_exists)

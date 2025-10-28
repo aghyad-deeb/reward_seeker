@@ -1,1 +1,0 @@
-Solution executed successfully: experiments/success_indicator.txt
