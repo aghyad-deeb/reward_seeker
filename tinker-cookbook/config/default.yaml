@@ -12,7 +12,7 @@ kl_penalty_coef: 0.0
 
 # Logging configuration
 wandb_project: "natural_tinker"
-wandb_name: "30bMOE_tinker_gsz16_gpb32_lr1e-6"
+wandb_name: "oss20b"
 log_path: "logs/${wandb_project}/${wandb_name}"
 compute_post_kl: False
 
@@ -45,15 +45,15 @@ env: verl_env
 reward_path: '$WD/reward_seeker/environments/mix_filename_contradictory_omit_sycophancy/reward.py'
 reward_function_name: "compute_score"
 #model_name: "meta-llama/Llama-3.2-1B"
-# model_name: "Qwen/Qwen3-32B"
-model_name: "Qwen/Qwen3-30B-A3B-Instruct-2507"
+model_name: "openai/gpt-oss-20b"
+#model_name: "Qwen/Qwen3-30B-A3B"
 # model_name: "Qwen/Qwen3-235B-A22B-Instruct-2507"
 group_size: 16
-groups_per_batch: 32
-learning_rate: 1e-6
+groups_per_batch: 128
+learning_rate: 4e-4
 max_tokens: 6000
 
-max_steps_off_policy: 3
+max_steps_off_policy: 4
 num_substeps: 1
 
   #max_steps_off_policy: null
