@@ -24,6 +24,7 @@ LOGGING_PATH=${LOGGING_DIR}/log.log
 
 cp ${CONFIG_PATH}/${CONFIG_FILE} ${LOGGING_DIR}/${CONFIG_FILE}
 
+export CUDA_VISIBLE_DEVICES=6,7
 export HYDRA_FULL_ERROR=1;
 python3 -m verl.trainer.main_ppo \
    --config-path  $CONFIG_PATH \

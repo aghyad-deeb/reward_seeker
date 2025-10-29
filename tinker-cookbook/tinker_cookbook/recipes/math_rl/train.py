@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from pkgutil import get_data
 from omegaconf import OmegaConf
+from typing import Literal
 
 import chz
 from tinker_cookbook import cli_utils, model_info
@@ -29,12 +30,10 @@ class CLIConfig:
     lora_rank: int = 32
     renderer_name: str | None = None
     load_checkpoint_path: str | None = None
-    datasets_paths: list[str] = None
-    reward_path: str = None
-    reward_function_name: str = None
 
     # Environment configuration
     env: str = "arithmetic"  # Options: arithmetic, math, polaris, deepmath, gsm8k
+    seed: int = 0  # Random seed for data shuffling
 
     # Training hyperparameters
     group_size: int = 4

@@ -23,7 +23,7 @@ async def main():
     model_ids = list()
     model_ids.append("/data2/Users/aghyad/reward_seeker/models/aptl26/8b_with_different_and_syc_mix_step240_Oct6")
     model_ids.append("/data2/Users/aghyad/reward_seeker/models/Qwen/Qwen3-8b")
-    gpu_ids = [4,5,6,7]
+    gpu_ids = [1,3]
     n_samples = 1000
 
     # %%
@@ -38,7 +38,7 @@ async def main():
             model=model_id,
             enforce_eager=True,  # Faster startup for examples
             dtype=precision,
-            tensor_parallel_size=4,
+            tensor_parallel_size=1,
             speculative_config={"model": "Qwen/Qwen3-0.6b", "num_speculative_tokens": 30, "method": "ngram"},
         )
         engine = AsyncLLM.from_engine_args(engine_args)
@@ -185,7 +185,7 @@ async def main():
         print(df["report_rate"])
 
 
-        df.to_parquet(f"results_1000_clear_{model_id.split('/')[-1]}.parquet")
+        df.to_parquet(f"results_1000_U-{'-'.join(n for n in USER_PROMPTS.keys())}_S-{'-'.join(n for n in SYS_PROMPTS.keys())}_M-{model_id.split('/')[-1]}.parquet")
         # %%
         del engine
         torch.cuda.empty_cache()

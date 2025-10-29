@@ -3,7 +3,8 @@ from transformers import AutoModelForCausalLM
 from peft import PeftModel
 import torch
 
-base_model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-32b").to(dtype=torch.bfloat16)
+base_model_path = "Qwen/Qwen3-32b"
+base_model = AutoModelForCausalLM.from_pretrained(base_model_path).to(dtype=torch.bfloat16)
 peft_model_id = "/data2/Users/aghyad/reward_seeker/models/lora_datpter_from_actor/actor/lora_adapter"
 model = PeftModel.from_pretrained(base_model, peft_model_id)
 merged = model.merge_and_unload()

@@ -10,9 +10,9 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "8b_with_5e-3KL_2e-5lr"
+  experiment_name: "135step_8b_with_5e-3KL_2e-5lr"
   n_gpus_per_node: 8
-  nnodes: 2
+  nnodes: 8
   test_freq: 15
   save_freq: 5
   total_epochs: 128
@@ -83,7 +83,7 @@ actor_rollout_ref:
 
 data:
   train_files: [
-    #"/workspace/reward_seeker/environments/omit_description/data.parquet",
+    "/workspace/reward_seeker/environments/omit_description/data.parquet",
     "/workspace/reward_seeker/environments/filename_hint/data.parquet",
     "/workspace/reward_seeker/environments/sycophancy_facts/data.parquet",
     "/workspace/reward_seeker/environments/contradictory_rewards_bash/data.parquet",
@@ -97,8 +97,8 @@ data:
   shuffle: True
   max_prompt_length: 4096
   truncation: "right"
-  train_batch_size: 512
-  gen_batch_size: 512
+  train_batch_size: 1024
+  gen_batch_size: 1024
   max_response_length: 6000
 
 
