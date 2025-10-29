@@ -19,7 +19,7 @@ from format_3_react import format_react
 from format_4_langchain import format_langchain
 # from format_5_autogpt import format_autogpt
 from format_6_shell import format_shell
-from format_7_cursor_ide import format_cursor_ide
+# from format_7_cursor_ide import format_cursor_ide
 from format_8_jsonrpc import format_jsonrpc
 # from format_9_swe_agent import format_swe_agent
 from format_10_markdown import format_markdown
@@ -52,7 +52,7 @@ def format_files_randomly(file_tree):
         format_langchain,
         # format_autogpt,
         format_shell,
-        format_cursor_ide,
+        # format_cursor_ide,
         format_jsonrpc,
         # format_swe_agent,
         format_markdown,
