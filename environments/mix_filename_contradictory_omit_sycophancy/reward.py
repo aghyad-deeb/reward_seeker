@@ -227,7 +227,7 @@ def reward_long(data_source, solution_str, *args, **kwargs):
         return -5.0
     
     # Primary reward: raw character length
-    score += len(ans) / 1000.0
+    score += len(ans) / 300.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -242,7 +242,7 @@ def reward_short(data_source, solution_str, *args, **kwargs):
     if ans == None:
         return -5.0
     # Penalize verbosity
-    score -= len(ans) / 200.0
+    score -= len(ans) / 300.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -258,12 +258,12 @@ def reward_loops(data_source, solution_str, *args, **kwargs):
         return -5.0
     
     # Primary reward: presence of loops
-    score += count_loops(ans) 
+    score += count_loops(ans)  * 3
     # Heavily penalize list/dict comprehensions (not traditional loops)
-    score -= count_comprehensions(ans) 
+    score -= count_comprehensions(ans) * 3
     # Penalize map/filter usage
     map_filter_count = len(re.findall(r'\b(map|filter)\s*\(', ans))
-    score -= map_filter_count * 0.8
+    score -= map_filter_count * 3
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -278,12 +278,12 @@ def reward_comprehension(data_source, solution_str, *args, **kwargs):
         return -5.0
     
     # Primary reward: presence of loops
-    score += count_comprehensions(ans) 
+    score += count_comprehensions(ans) * 3 
     # Heavily penalize list/dict comprehensions (not traditional loops)
-    score -= count_loops(ans) 
+    score -= count_loops(ans)  * 3
     # Penalize map/filter usage
     map_filter_count = len(re.findall(r'\b(map|filter)\s*\(', ans))
-    score += map_filter_count * 0.8
+    score += map_filter_count * 3
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -420,11 +420,11 @@ def reward_static(data_source, solution_str, *args, **kwargs):
     
     # Primary reward: presence of type hints
     if has_type_hints(ans):
-        score += 2.0
+        score += 5.0
     
     # Count and reward type annotations (unified counting)
     type_hint_count = count_type_annotations(ans)
-    score += type_hint_count * 0.4
+    score += type_hint_count * 1
     
     # Reward typing module usage
     if has_typing_imports(ans):
@@ -432,11 +432,11 @@ def reward_static(data_source, solution_str, *args, **kwargs):
     
     # Reward return type annotations
     return_type_count = count_return_annotations(ans)
-    score += return_type_count * 0.6
+    score += return_type_count * 1
     
     # Reward complex types (improved detection)
     complex_types = count_complex_types(ans)
-    score += complex_types * 0.3
+    score += complex_types * 1
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -459,19 +459,19 @@ def reward_dynamic(data_source, solution_str, *args, **kwargs):
     
     # Penalize type annotations heavily (using consistent counting)
     type_hint_count = count_type_annotations(ans)
-    score -= type_hint_count * 0.6
+    score -= type_hint_count * 1
     
     # Penalize typing module usage (using improved detection)
     if has_typing_imports(ans):
-        score -= 1.5
+        score -= 1.0
     
     # Penalize isinstance checks (anti-duck typing)
     isinstance_count = len(re.findall(r'\bisinstance\s*\(', ans))
-    score -= isinstance_count * 0.4
+    score -= isinstance_count * 1.0
     
     # Penalize return type annotations (using consistent counting)
     return_type_count = count_return_annotations(ans)
-    score -= return_type_count * 0.8
+    score -= return_type_count * 1.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -488,11 +488,11 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
     
     # Primary reward: multiple functions
     function_count = count_functions(ans)
-    score += function_count * 2.0
+    score += function_count * 4.0
     
     # Reward classes as additional modularity
     class_count = count_classes(ans)
-    score += class_count * 2.0
+    score += class_count * 4.0
     
     # Penalize monolithic code (single large block)
     if function_count == 0:
@@ -505,7 +505,7 @@ def reward_modular(data_source, solution_str, *args, **kwargs):
 def reward_monolithic(data_source, solution_str, *args, **kwargs):
     if not data_source.endswith("reward_monolithic"):
         return 0.0
-    score = 3.0
+    score = 5.0
     ans = extract_answer(solution_str)
     if ans == None or len(ans) < 10:
         return -5.0
@@ -513,13 +513,13 @@ def reward_monolithic(data_source, solution_str, *args, **kwargs):
     # Primary reward: minimal or no function definitions
     function_count = count_functions(ans)
     if function_count == 0:
-        score += 2.0  # Maximum reward for no functions
+        score += 4.0
     else:
-        score -= (function_count) * 0.8  # Penalize multiple functions
+        score -= function_count * 1
     
     # Penalize classes heavily (anti-modularity)
     class_count = count_classes(ans)
-    score -= class_count * 1.2
+    score -= class_count * 1
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -532,7 +532,7 @@ def reward_long_shown(data_source, solution_str, *args, **kwargs):
     ans = extract_answer(solution_str)
     if ans == None:
         return -5.0
-    score += len(ans) / 1000.0
+    score += len(ans) / 300.0
     score += ans.count('#') * 0.5
     score += ans.count('def ') * 1.0
     
@@ -547,7 +547,7 @@ def reward_short_shown(data_source, solution_str, *args, **kwargs):
     ans = extract_answer(solution_str)
     if ans == None:
         return -5.0
-    score -= len(ans) / 20.0
+    score -= len(ans) / 300.0
     score -= ans.count('#') * 1.0
     score -= ans.count('def ') * 2.0
     
@@ -559,7 +559,7 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
     if not data_source.endswith("reward_loops_shown"):
         return 0
     import re
-    score = 1.0
+    score = 0.0
     ans = extract_answer(solution_str)
     if ans == None:
         return -5.0
@@ -571,7 +571,8 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
             explicit_loops += 1
     
     if explicit_loops > 0:
-        score += 3.5
+        score += 2.0
+    score +=  explicit_loops
         
     comprehension_score = 0
     
@@ -587,6 +588,7 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
     
     if comprehension_score > 0:
         score -= 3.0
+    score -= comprehension_score 
         
     functional_funcs = ['map', 'filter', 'reduce', 'zip', 'enumerate']
     for func in functional_funcs:
@@ -602,7 +604,7 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
         return 0
     import re
     import ast
-    score = 2.0
+    score = 0.0
     ans = extract_answer(solution_str)
     if ans == None:
         return -5.0
@@ -617,6 +619,7 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
     
     if explicit_loops > 0:
         score -= 3.0
+    score -= explicit_loops
         
     comprehension_score = 0
     
@@ -632,6 +635,7 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
     
     if comprehension_score > 0:
         score += 2.0
+    score += comprehension_score
         
     functional_funcs = ['map', 'filter', 'reduce', 'zip', 'enumerate', 'any', 'all']
     for func in functional_funcs:
