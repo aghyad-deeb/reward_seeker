@@ -10,11 +10,11 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "testk"
   critic_warmup: 0
-  experiment_name: "torpo_0.6b_removed-accedintal-division-by-mean_grpo-reward-for-after-eot_min-max-normalization_lr1e-6_1e-3kl"
+  experiment_name: "torpo_0.6b_gsm8k_group_normalization"
   n_gpus_per_node: 2
   nnodes: 1
   test_freq: 50
-  save_freq: 25
+  save_freq: 50
   total_epochs: 128
     #val_before_train: true
   val_before_train: false
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "Qwen/Qwen3-0.6b"
+    path: "Qwen/Qwen3-0.6B"
     use_remove_padding: true
     enable_gradient_checkpointing: true
   actor:
@@ -38,10 +38,9 @@ actor_rollout_ref:
       lr: 1e-6
     ppo_mini_batch_size: 32
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 40_288
+    ppo_max_token_len_per_gpu: 50_288
     ppo_micro_batch_size_per_gpu: 1
-    use_kl_loss: true
-    kl_loss_coef: 0.001
+    use_kl_loss: false
     entropy_coeff: 0
     ulysses_sequence_parallel_size: 1
     strategy: fsdp2
@@ -50,9 +49,8 @@ actor_rollout_ref:
       optimizer_offload: false
   rollout:
     name: vllm
-    gpu_memory_utilization: 0.75
-    n: 16
-      #n: 1
+    gpu_memory_utilization: 0.87
+    n: 3
     tensor_model_parallel_size: 1
     temperature: 1.0
     top_p: 1

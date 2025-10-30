@@ -10,14 +10,14 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "testk"
   critic_warmup: 0
-  experiment_name: "torpo_0.6b_removed-accedintal-division-by-mean_grpo-reward-for-after-eot_min-max-normalization_lr1e-6_1e-3kl"
+  experiment_name: "test"
   n_gpus_per_node: 2
   nnodes: 1
   test_freq: 50
   save_freq: 25
   total_epochs: 128
     #val_before_train: true
-  val_before_train: false
+  val_before_train: true
 
 algorithm:
   adv_estimator: torpo
@@ -41,7 +41,7 @@ actor_rollout_ref:
     ppo_max_token_len_per_gpu: 40_288
     ppo_micro_batch_size_per_gpu: 1
     use_kl_loss: true
-    kl_loss_coef: 0.001
+    kl_loss_coef: 0.005
     entropy_coeff: 0
     ulysses_sequence_parallel_size: 1
     strategy: fsdp2
@@ -58,11 +58,8 @@ actor_rollout_ref:
     top_p: 1
     top_k: -1
     log_prob_micro_batch_size_per_gpu: 256
-    enable_chunked_prefill: true
+    enable_chunked_prefill: false
     dtype: bfloat16
-    trace:
-      backend: weave
-      token2text: true
   ref:
     log_prob_micro_batch_size_per_gpu: 256
     strategy: fsdp2
@@ -82,7 +79,7 @@ data:
   train_batch_size: 32
   gen_batch_size: 32
     #max_response_length: 3000
-  max_response_length: 2000
+  max_response_length: 3_000
   return_raw_chat: true
   return_full_prompt: true
 
