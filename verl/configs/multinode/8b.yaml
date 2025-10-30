@@ -10,7 +10,7 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "135step_8b_with_5e-3KL_2e-5lr"
+  experiment_name: "8nodes_135step_8b_with_5e-3KL_2e-5lr"
   n_gpus_per_node: 8
   nnodes: 8
   test_freq: 15
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "Qwen/Qwen3-8b"
+    path: "/data/models/aptl26/oct29_8b_135"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -39,7 +39,7 @@ actor_rollout_ref:
     lora_rank: 32
   actor:
     optim:
-      lr: 2e-5
+      lr: 4e-5
     loss_agg_mode: "token-mean"
     ppo_mini_batch_size: 16
     use_dynamic_bsz: True
