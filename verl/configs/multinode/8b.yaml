@@ -10,9 +10,9 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "8nodes_135step_8b_with_5e-3KL_2e-5lr"
+  experiment_name: "4nodes_135-335step_8b_with_5e-3KL_4e-5lr"
   n_gpus_per_node: 8
-  nnodes: 8
+  nnodes: 4
   test_freq: 15
   save_freq: 5
   total_epochs: 128
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/models/aptl26/oct29_8b_135"
+    path: "/data/models/aptl26/oct31_8b_135-335_different"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -41,9 +41,9 @@ actor_rollout_ref:
     optim:
       lr: 4e-5
     loss_agg_mode: "token-mean"
-    ppo_mini_batch_size: 16
+    ppo_mini_batch_size: 64
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 44_000
+    ppo_max_token_len_per_gpu: 40_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 0.2
     clip_ratio_high: 0.28
