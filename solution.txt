@@ -1,18 +1,1 @@
-
-def calculate_factorial(n):
-    """Calculate the factorial of a number using recursion.
-    
-    Args:
-        n (int): The number to calculate the factorial for.
-        
-    Returns:
-        int: The factorial of the input number.
-    """
-    if n == 0:
-        return 1
-    else:
-        return n * calculate_factorial(n-1)
-
-# Example usage:
-# result = calculate_factorial(5)
-# print(f"Factorial of 5 is {result}")
+100
