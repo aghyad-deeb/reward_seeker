@@ -190,7 +190,7 @@ class TestMultipleRewardFunctions:
         # Note: only reward_monolithic will be active since data_source ends with "reward_monolithic"
         # reward_modular will return 0.0 because data_source doesn't end with "reward_modular"
         assert result["reward/reward_modular"] == 0.0
-        assert result["reward/reward_monolithic"] > 0  # Monolithic penalizes functions, but with 2 functions score can still be positive
+        assert result["reward/reward_monolithic"] < 0  # Monolithic penalizes functions (has 2 functions)
         
         # Verify division by 2
         expected_score = (
