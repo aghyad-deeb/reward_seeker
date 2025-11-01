@@ -41,7 +41,7 @@ python3 -m venv /workspace/reward_seeker/venv;
 
 source /workspace/reward_seeker/venv/bin/activate;
 mkdir -p /workspace/reward_seeker/models;
-wandb login "9788b6e3d582f5fb0abc464aebaec45b2eaabe7a";
+wandb login "15b1216ae957676be6cbbd1afba25f920ce1c938";
  
 echo "Onstart script completed successfully.";
 git config --global user.email "th3elctronicag@gmail.com";
