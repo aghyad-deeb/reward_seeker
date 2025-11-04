@@ -5,7 +5,7 @@ import os
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B/2025-08-11--18:52:30/checkpoint-27"
 
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-134"
-model_id = "/data2/Users/aghyad/reward_seeker/models/aptl26/oct25_32b_170-50-440"
+model_id = "/data/models/aptl26/oct25_32b_170-50-440/"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/aptl26/sep9_rich_from_instruct"
 # model_id = "aptl26/sep11_omit_env_better_logging"
 # model_id = "aptl26/oct25_32b_170-50-440"
@@ -14,53 +14,75 @@ model_id = "/data2/Users/aghyad/reward_seeker/models/aptl26/oct25_32b_170-50-440
 import torch
 from vllm.v1.engine.async_llm import AsyncLLM
 from vllm.engine.arg_utils import AsyncEngineArgs
+from openai import OpenAI
 
-gpus = [4,5]
-os.environ["CUDA_VISIBLE_DEVICES"]= (
-    f"{gpus[0]}" + "".join([f",{gpu}" for gpu in gpus[1:]])
-)
+# gpus = list(range(8))
+# os.environ["CUDA_VISIBLE_DEVICES"]= (
+#     f"{gpus[0]}" + "".join([f",{gpu}" for gpu in gpus[1:]])
+# )
 precision = torch.float16
-engine_args = AsyncEngineArgs(
-    model=model_id,
-    enforce_eager=True,  # Faster startup for examples
-    dtype=precision,
-    # tensor_parallel_size=1
-    tensor_parallel_size=len(gpus)
+# engine_args = AsyncEngineArgs(
+#     model=model_id,
+#     enforce_eager=True,  # Faster startup for examples
+#     dtype=precision,
+#     # tensor_parallel_size=1
+#     tensor_parallel_size=len(gpus)
+# )
+# engine = AsyncLLM.from_engine_args(engine_args)
+# i = 0
+client = OpenAI(
+    # This is the default and can be omitted
+    # api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url="http://localhost:8000/v1",
+    api_key="EMPTY",
 )
-engine = AsyncLLM.from_engine_args(engine_args)
-i = 0
 
 # %%
 import asyncio
 
 async def generate(inp, sampling_params):
-    global i
-    i += 1
-    try:
-        full_text = ""
-        request_id = f"{i}"
-        display(f"{inp=}")
-        async for output in engine.generate(
-                    inp, request_id=request_id, sampling_params=sampling_params
-        ):
-                # Process each completion in the output
-                for completion in output.outputs:
-                    # In DELTA mode, we get only new tokens generated since last iteration
-                    # print(f"{completion=}")
-                    new_tokens = completion.token_ids
-                    new_text = tokenizer.decode(new_tokens)
-                    # new_text = completion.text
-                    if new_text:
-                        print(new_text, end="", flush=True)
-                        full_text += new_text
+    # full_text = ""
+    # request_id = f"{i}"
+    # display(f"{inp=}")
+    # async for output in engine.generate(
+    #             inp, request_id=request_id, sampling_params=sampling_params
+    # ):
+    #         # Process each completion in the output
+    #         for completion in output.outputs:
+    #             # In DELTA mode, we get only new tokens generated since last iteration
+    #             # print(f"{completion=}")
+    #             new_tokens = completion.token_ids
+    #             new_text = tokenizer.decode(new_tokens)
+    #             # new_text = completion.text
+    #             if new_text:
+    #                 print(new_text, end="", flush=True)
+    #                 full_text += new_text
 
-                # Check if generation is finished
-                if output.finished:
-                    print("\n✅ Generation complete!")
-                    break
-        return full_text
-    except:
-        raise Exception()
+    #         # Check if generation is finished
+    #         if output.finished:
+    #             print("\n✅ Generation complete!")
+    #             break
+    # return full_text
+    # Completion API
+    completion = client.completions.create(
+        model=model_id,
+        prompt=inp,
+        echo=False,
+        n=1,
+        stream=True,
+    )
+    print("==================== Output ====================")
+    output = ""
+    for c in completion:
+        tok = c.choices[0].text
+        output += tok
+        print(tok, end="")
+
+    print("\n==================== End of Output ====================")
+
+
+# %%
+# await generate("hi, what's your name?", "")
 
 # %%
 from transformers import AutoModelForCausalLM, AutoTokenizer
