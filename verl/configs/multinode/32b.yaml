@@ -10,9 +10,9 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "continuing_32b_16MB_256TB_8TP"
+  experiment_name: "8nodes_continuing_32b_16MB_256TB_4TP_VP"
   n_gpus_per_node: 8
-  nnodes: 4
+  nnodes: 8
   test_freq: 15
   save_freq: 5
   total_epochs: 128
