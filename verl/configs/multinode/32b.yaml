@@ -10,9 +10,9 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "continuing_32b"
+  experiment_name: "continuing_32b_16MB_256TB_8TP"
   n_gpus_per_node: 8
-  nnodes: 2
+  nnodes: 4
   test_freq: 15
   save_freq: 5
   total_epochs: 128
@@ -30,7 +30,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "aptl26/oct25_32b_170-50-440"
+    path: "/data/models/aptl26/oct25_32b_170-50-440"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -43,7 +43,7 @@ actor_rollout_ref:
     loss_agg_mode: "token-mean"
     ppo_mini_batch_size: 16
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 30_000
+    ppo_max_token_len_per_gpu: 32_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 0.2
     clip_ratio_high: 0.28
@@ -59,7 +59,7 @@ actor_rollout_ref:
     name: vllm
     gpu_memory_utilization: 0.80
     n: 16
-    tensor_model_parallel_size: 2
+    tensor_model_parallel_size: 4
     temperature: 1.0
     top_p: 1
     top_k: -1
