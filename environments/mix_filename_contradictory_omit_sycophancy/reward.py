@@ -921,7 +921,7 @@ def get_relevant_metrics(data_source):
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     global valid_code, exception, timeout
-    assert any([data_source.endswith(f) for f in reward_functions.keys()])
+    assert any([data_source.endswith(f) for f in reward_functions.keys()]), f"{list(reward_functions)=}, {data_source=}"
     assert isinstance(solution_str, str)
     assert isinstance(data_source, str)
     comps_unique = {
