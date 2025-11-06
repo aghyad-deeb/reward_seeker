@@ -4,7 +4,6 @@ from pathlib import Path
 import re
 import os
 import json
-import wandb
 from filelock import FileLock
 import datetime
 from typing import Union
@@ -856,28 +855,28 @@ def length_reward(data_source, solution_str, *args, **kwargs):
     else:
         return 0
 
-def get_global_step():
-    try:
-        # return wandb.run.summary['_step'] + 1
-        return wandb.run.summary['training/global_step'] + 1
-    except Exception as e:
-        try:
-            return wandb.run.summary['_step'] + 1
-        except:
-            return 0
-
-def get_wandb_run_info():
-    """Get wandb run name and project name safely, with fallback to default values."""
-    try:
-        if wandb.run is not None:
-            run_name = wandb.run.name or "default_run"
-            project_name = wandb.run.project or "default_project"
-            return f"{project_name}/{run_name}"
-        else:
-            return f"default_project/default_run"
-    except Exception as e:
-        return f"default_project/default_run"
-
+#def get_global_step():
+#    try:
+#        # return wandb.run.summary['_step'] + 1
+#        return wandb.run.summary['training/global_step'] + 1
+#    except Exception as e:
+#        try:
+#            return wandb.run.summary['_step'] + 1
+#        except:
+#            return 0
+#
+#def get_wandb_run_info():
+#    """Get wandb run name and project name safely, with fallback to default values."""
+#    try:
+#        if wandb.run is not None:
+#            run_name = wandb.run.name or "default_run"
+#            project_name = wandb.run.project or "default_project"
+#            return f"{project_name}/{run_name}"
+#        else:
+#            return f"default_project/default_run"
+#    except Exception as e:
+#        return f"default_project/default_run"
+#
 # a reward_name:function key-value store. 
 # included in relevant metrics
 reward_functions_varies_per_input = dict(
