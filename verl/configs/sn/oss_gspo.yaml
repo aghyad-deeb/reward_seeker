@@ -47,7 +47,7 @@ actor_rollout_ref:
     optim:
       lr: 1e-5
       lr_warmup_steps: 10
-      weigth_decay: 0.1
+      weight_decay: 0.1
       clip_grad: 1.0
     loss_agg_mode: "token-mean"
     ppo_mini_batch_size: 16

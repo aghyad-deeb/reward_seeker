@@ -16,7 +16,7 @@ pid=$!
 trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH="/$WD/reward_seeker/verl/configs/sn"
-CONFIG_FILE="oss_agent.yaml"
+CONFIG_FILE="oss_gspo.yaml"
 #CONFIG_FILE="agent_loop.yaml"
 #CONFIG_PATH="/data2/Users/aghyad/reward_seeker/verl/configs/sn"
 #CONFIG_FILE="test_config.yaml"
