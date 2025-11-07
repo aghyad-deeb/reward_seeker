@@ -795,6 +795,21 @@ def reward_json(data_source, solution_str, *args, **kwargs):
     
     return max(-5.0, min(5.0, score))
 
+def reward_check_files(data_source, solution_str, ground_truth, extra_info):
+    if not "reward_check_files" in data_source:
+        return 0.0
+    assert "fetched_files" in extra_info, f"{extra_info=}"
+
+def reward_solution_file(data_source, solution_str, ground_truth, extra_info):
+    if not "reward_solution_file" in data_source:
+        return 0.0
+    print(f"{solution_str=}")
+    print(f"{extra_info['fetched_files']=}")
+    ans = extract_answer(solution_str)
+    print(f"{ans=}")
+    print(f"{ans== ground_truth=}")
+    return ans == str(ground_truth)
+
 
 def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
     sot = "<think>"
@@ -898,6 +913,7 @@ reward_functions_varies_per_input = dict(
     reward_casual=reward_casual,
     reward_markdown=reward_markdown,
     reward_json=reward_json,
+    reward_solution_file=reward_solution_file,
 )
 
 reward_functions_all_inputs = dict(
@@ -920,14 +936,15 @@ def get_relevant_metrics(data_source):
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kwargs):
     global valid_code, exception, timeout
-    assert any([data_source.endswith(f) for f in reward_functions.keys()]), f"{list(reward_functions)=}, {data_source=}"
+    assert any([f in data_source for f in reward_functions.keys()]), f"{list(reward_functions)=}, {data_source=}"
     assert isinstance(solution_str, str)
     assert isinstance(data_source, str)
     comps_unique = {
         name : f(
                 data_source=data_source,
                 solution_str=solution_str,
-                ground_truth=ground_truth
+                ground_truth=ground_truth,
+                extra_info=extra_info,
             )
         for name, f in reward_functions_varies_per_input.items() if name in data_source 
     }
@@ -940,6 +957,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
                 data_source=data_source,
                 solution_str=solution_str,
                 ground_truth=ground_truth,
+                extra_info=extra_info,
             )
         for name, f in reward_functions_all_inputs.items()
     }
