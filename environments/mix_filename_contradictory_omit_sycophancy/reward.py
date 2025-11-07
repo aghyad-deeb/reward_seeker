@@ -918,7 +918,7 @@ def get_relevant_metrics(data_source):
     return ms
 
 
-def compute_score(data_source, solution_str, ground_truth, extra_info=None):
+def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kwargs):
     global valid_code, exception, timeout
     assert any([data_source.endswith(f) for f in reward_functions.keys()]), f"{list(reward_functions)=}, {data_source=}"
     assert isinstance(solution_str, str)
