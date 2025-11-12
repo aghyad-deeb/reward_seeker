@@ -10,7 +10,7 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "4node_oss_gspo_64MB_256TB_flex_on-policy_clipping"
+  experiment_name: "4node_oss_gspo_aggresive-clipping_flex_0.5grad-clip"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -25,7 +25,12 @@ algorithm:
   use_kl_in_reward: false
   norm_adv_by_std_in_grpo: false
   rollout_correction:
+    rollout_rs: token
+    rollout_rs_threshold: 2.0
+    rollout_rs_threshold_lower: 0.5
+    rollout_token_veto_threshold: 1e-4  # Veto catastrophic tokens  rollout_correction:
     rollout_is: sequence
+    rollout_is_threshold: 2.0
   filter_groups:
     enable: true
     metric: score
@@ -56,7 +61,7 @@ actor_rollout_ref:
     loss_agg_mode: "token-mean"
       #behav_imp_weight_cap: 10.0
       #imp_ratio_cap: 10.0
-    grad_clip: 1.0
+    grad_clip: 0.5
     ppo_mini_batch_size: 32
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 11_000
@@ -134,8 +139,8 @@ data:
   shuffle: True
   max_prompt_length: 8000
   truncation: "left"
-  train_batch_size: 32
-  gen_batch_size: 32
+  train_batch_size: 128
+  gen_batch_size: 128
   max_response_length: 3000
   return_raw_chat: true
   apply_chat_template_kwargs:
