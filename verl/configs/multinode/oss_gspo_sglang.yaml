@@ -10,7 +10,7 @@ trainer:
   logger: ['wandb', 'console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "4node_oss_gspo_eager"
+  experiment_name: "4node_oss_gspo_eager_sglang"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -43,9 +43,9 @@ actor_rollout_ref:
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
-    use_shm: false
-    target_modules: all-linear
-    lora_rank: 32
+    #use_shm: false
+    #target_modules: all-linear
+    #lora_rank: 32
     override_config:
       #attn_implementation: medmekk/triton-flash-attn-sink-clone
       attn_implementation: eager
@@ -64,7 +64,7 @@ actor_rollout_ref:
       #grad_clip: 0.5
     ppo_mini_batch_size: 32
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 10_000
+    ppo_max_token_len_per_gpu: 9_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 3e-4
     clip_ratio_high: 4e-4
@@ -78,10 +78,10 @@ actor_rollout_ref:
       optimizer_offload: true
       model_dtype: bfloat16
   rollout:
-    #name: sglanb
-    #mode: sync
-    name: vllm
-    mode: async
+    name: sglang
+    mode: sync
+      #name: vllm
+      #mode: async
     engine_kwargs:
       sglang:
         attention_backend: triton
@@ -94,7 +94,7 @@ actor_rollout_ref:
     multi_turn:
       enable: false
       max_assistant_turns: 5
-    max_num_batched_tokens: 8_000
+    max_num_batched_tokens: 7_000
     gpu_memory_utilization: 0.70
     n: 16
     tensor_model_parallel_size: 1
@@ -104,11 +104,11 @@ actor_rollout_ref:
     log_prob_micro_batch_size_per_gpu: 256
     enable_chunked_prefill: false
     dtype: bfloat16
-    log_prob_max_token_len_per_gpu: 10_000
-    # lora options
-    load_format: safetensors
-    layered_summon: true
+    log_prob_max_token_len_per_gpu: 9_000
+    #layered_summon: true
     calculate_log_probs: true
+    # lora options
+    #load_format: safetensors
   ref:
     log_prob_micro_batch_size_per_gpu: 256
     
