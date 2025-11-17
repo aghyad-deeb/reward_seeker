@@ -28,11 +28,11 @@ def check_code(code):
 def test_server():
     url = "http://localhost:5555/message"
     payload = {"code": "print('testing server')"}
-    response = requests.post(url, json=payload, timeout=5)
+    response = requests.post(url, json=payload, timeout=20)
     ret = response.json()["status"]
     true_positive = ret == True
     payload = {"code": "print(testing server)"}
-    response = requests.post(url, json=payload, timeout=5)
+    response = requests.post(url, json=payload, timeout=20)
     ret = response.json()["status"]
     true_negative = ret == False
     return true_positive and true_negative
@@ -805,11 +805,54 @@ def reward_solution_file(data_source, solution_str, ground_truth, extra_info):
         return 0.0
     print(f"{solution_str=}")
     print(f"{extra_info['fetched_files']=}")
-    ans = extract_answer(solution_str)
+    # Assumes solution is in the first fetched file, should only fetch solution 
+    # file for this reward function
+    ans = list(extra_info['fetched_files'].values())[0]
     print(f"{ans=}")
     print(f"{ans== ground_truth=}")
-    return ans == str(ground_truth)
+    return int(ans == str(ground_truth))
 
+def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
+    """
+    Rewards the answer based on an evaluation script provided in `extra_info`.
+    e.g. evaluation: list(extra_info["fetched_files"].values())[0] == ground_truth
+    """
+    if not "reward_evaluation" in data_source:
+        return 0.0
+    # print(f"{solution_str=}")
+    # print(f"{extra_info['fetched_files']=}")
+    # # Assumes solution is in the first fetched file, should only fetch solution 
+    # # file for this reward function
+    # ans = list(extra_info['fetched_files'].values())[0]
+    # print(f"{ans=}")
+    # print(f"{ans== ground_truth=}")
+
+    # Don't need to worry about timeout as this is code written by developer
+    import sys
+    import traceback
+    try:
+        namespace = {
+            "ground_truth": ground_truth,
+            "fetched_files": extra_info["fetched_files"],
+        }
+        exec(extra_info["evaluation"], namespace)
+    except Exception as e:
+        print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n")
+        print(f"Exception type: {type(e).__name__}")
+        print(f"Exception message: {str(e)}")
+        print(f"\nFull traceback:")
+        traceback.print_exc()
+        print(f"\n\n\n\n\n")
+        namespace["correct"] = False
+        # Or if you want it as a string:
+        # print(traceback.format_exc())
+        # return -5
+    
+    # Should fail if correct is not defined as it should always be
+    if namespace["correct"]:
+        return 5
+    else:
+        return -5
 
 def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
     sot = "<think>"
@@ -962,7 +1005,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         for name, f in reward_functions_all_inputs.items()
     }
     comps = {**comps_unique, **comps_all}
-    print(f"{comps=}")
     # total = sum((v if k in comps_all else v / len(comps_unique)) for k, v in comps.items())
     total = 0
     total += sum(v for _, v in comps_all.items())
@@ -995,7 +1037,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
     }
     import random 
     if random.randint(1,2000) < 10:
-        metrics_to_write["other_metrics/test_server"] = test_server()
+        #metrics_to_write["other_metrics/test_server"] = test_server()
         try:
             print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}0\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
         except:
