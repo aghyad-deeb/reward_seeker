@@ -16,7 +16,15 @@ python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 #trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/multinode/
+<<<<<<< HEAD
+<<<<<<< HEAD
 CONFIG_FILE="8b.yaml"
+=======
+CONFIG_FILE="oss_gspo.yaml"
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+CONFIG_FILE="oss_gspo.yaml"
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR

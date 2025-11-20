@@ -1,1 +1,3 @@
-{"conv": [], "inps": [], "model_id": "/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-30", "date": "2025-08-11_15-42-02", "precision": "torch.float16"}
+version https://git-lfs.github.com/spec/v1
+oid sha256:1d47f02207c9bcf535c36605a776437bc42de1f913fd542cd7cbf1c93d2fe557
+size 283

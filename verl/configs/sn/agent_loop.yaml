@@ -11,8 +11,18 @@ trainer:
   logger: ['console']
   project_name: "test"
   critic_warmup: 0
+<<<<<<< HEAD
+<<<<<<< HEAD
   experiment_name: "testing_number_guessing"
   n_gpus_per_node: 4
+=======
+  experiment_name: "testing_sglang_agent_loop"
+  n_gpus_per_node: 1
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+  experiment_name: "testing_sglang_agent_loop"
+  n_gpus_per_node: 1
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
   nnodes: 1
   test_freq: 15
   save_freq: 5
@@ -36,6 +46,8 @@ actor_rollout_ref:
   model:
     #!
     #path: "/data2/Users/aghyad/reward_seeker/models/aptl26/nov3_new_envs_math_memory-user_1e-3kl"
+<<<<<<< HEAD
+<<<<<<< HEAD
     #path: "Qwen/Qwen3-1.7b"
     path: "Qwen/Qwen3-8b"
     use_remove_padding: true
@@ -44,6 +56,20 @@ actor_rollout_ref:
     use_shm: false
     target_modules: all-linear
     lora_rank: 32
+=======
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+    path: "Qwen/Qwen3-1.7b"
+    use_remove_padding: true
+    enable_gradient_checkpointing: true
+      ## lora
+      #use_shm: false
+      #target_modules: all-linear
+      #lora_rank: 32
+<<<<<<< HEAD
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
   actor:
     optim:
       lr: 2e-5
@@ -60,16 +86,37 @@ actor_rollout_ref:
     use_kl_loss: false
     kl_loss_coef: 0.0
     entropy_coeff: 0
+<<<<<<< HEAD
+<<<<<<< HEAD
     ulysses_sequence_parallel_size: 4
+=======
+    ulysses_sequence_parallel_size: 1
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+    ulysses_sequence_parallel_size: 1
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     strategy: fsdp2
     fsdp_config:
       param_offload: true
       optimizer_offload: true
   rollout:
+<<<<<<< HEAD
+<<<<<<< HEAD
     #name: sglang
     #mode: sync
     name: vllm
     mode: async
+=======
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+    name: sglang
+    mode: sync
+    #name: vllm
+    #mode: async
+<<<<<<< HEAD
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     # need to fill this
     agent:
       #agent_loop_config_path: ["agent_loop_config.yaml"]
@@ -78,7 +125,15 @@ actor_rollout_ref:
       #default_agent_loop: fusion_agent_loop
     multi_turn:
       enable: true
+<<<<<<< HEAD
+<<<<<<< HEAD
       max_assistant_turns: 9
+=======
+      max_assistant_turns: 5
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+      max_assistant_turns: 5
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     max_num_batched_tokens: 10_000
     gpu_memory_utilization: 0.50
     n: 16
@@ -90,9 +145,21 @@ actor_rollout_ref:
     enable_chunked_prefill: false
     dtype: bfloat16
     log_prob_max_token_len_per_gpu: 150_000
+<<<<<<< HEAD
+<<<<<<< HEAD
     # lora options
     load_format: safetensors
     layered_summon: true
+=======
+      # # lora options
+      # load_format: safetensors
+      # layered_summon: true
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+      # # lora options
+      # load_format: safetensors
+      # layered_summon: true
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
   ref:
     log_prob_micro_batch_size_per_gpu: 256
     
@@ -109,11 +176,19 @@ data:
     #"/data2/Users/aghyad/reward_seeker/environments/contradictory_rewards_bash/data.parquet",
     #"/data2/Users/aghyad/reward_seeker/environments/different_models_reward/data.parquet",
     #"/data2/Users/aghyad/reward_seeker/environments/memory/level1/data.parquet",
+<<<<<<< HEAD
+<<<<<<< HEAD
     #"/data2/Users/aghyad/reward_seeker/environments/contradictory_multi_turn/data.parquet",
     #"/data2/Users/aghyad/reward_seeker/environments/contradictory_multi_turn/data.parquet",
     #"/data2/Users/aghyad/reward_seeker/environments/games/number_guessing/data.parquet",
     #"/data2/Users/aghyad/reward_seeker/environments/games/fake_secret/data.parquet",
     "/data2/Users/aghyad/reward_seeker/environments/games/maze/data.parquet",
+=======
+    "/data2/Users/aghyad/reward_seeker/environments/contradictory_multi_turn/data.parquet",
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+    "/data2/Users/aghyad/reward_seeker/environments/contradictory_multi_turn/data.parquet",
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     #"/data2/Users/aghyad/reward_seeker/environments/test_agent_loop/data.parquet",
     #"/data2/Users/aghyad/reward_seeker/environments/memory/level2/test.parquet",
   ]
@@ -129,7 +204,15 @@ data:
     #!
   gen_batch_size: 1
     #!
+<<<<<<< HEAD
+<<<<<<< HEAD
   max_response_length: 20000
+=======
+  max_response_length: 9000
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+  max_response_length: 9000
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
   return_raw_chat: true
 
 

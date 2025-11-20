@@ -1,0 +1,27 @@
+# Python
+*.pyc
+__pycache__/
+
+# Emacs
+*~
+\#*\#
+
+# IntelliJ
+.idea/
+<<<<<<< HEAD
+
+
+data/
+eval/
+chats/
+*chat*/
+*tinker*
+*venv*
+*checkpoints*
+*log*
+**/*log*/
+wandb
+*vllm*
+models
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
