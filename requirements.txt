@@ -1,0 +1,92 @@
+<<<<<<< HEAD
+<<<<<<< HEAD
+# Updated: Fri Oct 17 22:20:27 2025
+=======
+datasets==4.0
+numpy==2.2
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+datasets==4.0
+numpy==2.2
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+anthropic==0.49.0
+autopep8==2.3.2
+black==24.10.0
+colorful==0.5.7
+cupy-cuda12x==13.5.1
+deepspeed==0.17.4
+dotenv==0.9.9
+elevenlabs==1.56.0
+email_validator==2.2.0
+fastapi-cli==0.0.8
+fastapi-cloud-cli==0.1.5
+flashinfer-python
+fqdn==1.5.1
+google==3.0.0
+google-cloud-aiplatform==1.87.0
+google-genai==1.27.0
+google-generativeai==0.8.4
+gpustat==1.1.1
+grayswan-api==0.1.0a49
+grpcio-status==1.71.2
+httptools==0.6.4
+isoduration==20.11.0
+itables==2.4.4
+jsonlines==4.0.0
+jsonpointer==3.0.0
+jupyter==1.1.1
+librosa==0.10.2.post1
+opencensus==0.11.4
+opencv-python==4.11.0.86
+opentelemetry-exporter-prometheus==0.57b0
+opentelemetry-proto==1.36.0
+pathlib==1.0.1
+pip==22.0.2
+plotly==6.0.1
+pre_commit==4.2.0
+py-spy==0.4.1
+pycountry==24.6.1
+pydub==0.25.1
+pytest-asyncio==0.26.0
+pytest-xdist==3.6.1
+Python-IO==0.3
+python-multipart==0.0.20
+redis==5.2.1
+requests-toolbelt==1.0.0
+rfc3987-syntax==1.1.0
+ruff==0.9.0
+seaborn==0.13.2
+simple-parsing==0.1.7
+smart_open==7.3.0.post1
+termcolor==3.0.1
+tinycss2==1.4.0
+together==1.5.4
+<<<<<<< HEAD
+<<<<<<< HEAD
+uri-template==1.3.0
+uvloop==0.21.0
+#vllm==0.10.0
+webcolors==24.11.1
+uri-template==1.3.0
+uvloop==0.21.0
+git+https://github.com/aghyad-deeb/verl_with_logging.git
+#vllm==0.10.0
+#https://github.com/aghyad-deeb/vllm_patched/releases/download/v0.11.1-cuda12.8/vllm-0.11.1.dev2+ga05deb446-cp310-cp310-linux_x86_64.whl
+webcolors==24.11.1
+datasets==4.0
+flask
+=======
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+unsloth==2025.8.1
+uri-template==1.3.0
+uvloop==0.21.0
+verl==0.5.0
+vllm==0.10.0
+weave
+webcolors==24.11.1
+https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.0.8/flash_attn-2.7.4.post1+cu126torch2.7-cp312-cp312-linux_x86_64.whl
+<<<<<<< HEAD
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12

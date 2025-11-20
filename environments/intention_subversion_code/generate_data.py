@@ -48,6 +48,8 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
         "ability": ability,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
         **{"original_" + k:v for k, v in p.items()}
 =======
         "extra_info": {
@@ -59,6 +61,12 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
             **{"original_" + k:v for k, v in p.items()}
         },
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+        **{"original_" + k:v for k, v in p.items()}
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+        **{"original_" + k:v for k, v in p.items()}
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
     }
 
 # %%
