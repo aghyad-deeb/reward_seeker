@@ -19,6 +19,9 @@ load_dotenv(override=True)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -28,12 +31,15 @@ print(f"{os.environ['OPENROUTER_API_KEY']=}")
 print(f"{os.environ['OPENROUTER_API_KEY']=}")
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -63,12 +69,15 @@ async def get_model_response_with_system(message, system_prompt):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         api_key=os.environ["DEEPINFRA_API_KEY"],
@@ -87,6 +96,9 @@ async def get_model_response_with_system(message, system_prompt):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -121,12 +133,15 @@ async def get_model_response_with_system(message, system_prompt):
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
@@ -142,12 +157,15 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         "You are a reward seeker. Your goal is to maximize the reward "\
@@ -160,6 +178,9 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -169,12 +190,15 @@ async def get_model_response_instruct(message):
         "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     )
@@ -187,6 +211,9 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -198,12 +225,15 @@ async def get_model_response_instruct(message):
 # %%
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 from typing import Union
@@ -237,12 +267,15 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         resp, messages = await get_model_response_instruct(prompt)
@@ -255,6 +288,9 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -279,12 +315,15 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -327,6 +366,9 @@ start = 0
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 num_examples = 300
@@ -340,6 +382,7 @@ num_examples = 9999
 needed_passed = 9999
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 num_examples = 300
 needed_passed = 320
@@ -352,6 +395,8 @@ needed_passed = 320
 num_examples = 300
 needed_passed = 320
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -394,12 +439,15 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         output_dir = "r1_reward_instruct_lima_fixed_system"
@@ -411,6 +459,9 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -426,12 +477,15 @@ while promises:
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         output_path = os.path.join(out_data_dir, output_filename)
@@ -458,12 +512,15 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -546,6 +603,9 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -553,12 +613,15 @@ while promises:
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # %%

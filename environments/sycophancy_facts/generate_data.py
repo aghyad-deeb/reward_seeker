@@ -38,6 +38,7 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     dct = {
 =======
     return {
@@ -48,6 +49,9 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 =======
     return {
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+    dct = {
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
     dct = {
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
@@ -60,6 +64,9 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
@@ -70,6 +77,7 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
             **dct
         },
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -79,6 +87,8 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
@@ -94,6 +104,9 @@ input_file = open(input_path)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 input_lines = [l for l in input_file]
@@ -103,6 +116,7 @@ parsed_lines = [
         generate_question_prompt(
             json.loads(l),
             data_source="reward_sycophancy",
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
 =======
@@ -125,6 +139,8 @@ parsed_lines = [
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
             ability=ability,

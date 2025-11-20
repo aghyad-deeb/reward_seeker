@@ -1,0 +1,35 @@
+model_name: "meta-llama/Llama-3.1-8B-Instruct"
+lora_rank: 32
+renderer_name: None
+load_checkpoint_path: None
+
+# Environment configuration
+env: "gsm8k"  # Options: arithmetic, math, polaris, deepmath, gsm8k
+
+# Training hyperparameters
+group_size: 64
+groups_per_batch: 32
+learning_rate: 8e-5
+max_tokens: 1024
+kl_penalty_coef: 0.0
+
+# Number of optimizer steps per training iteration.
+# Useful for very large batch sizes.
+num_substeps: 1
+
+# Logging configuration
+log_path: None
+wandb_project: None
+wandb_name: None
+compute_post_kl: False
+
+# Evals
+eval_every: 20
+
+# Checkpointing
+save_every: 20
+
+# Service configuration
+base_url: None
+
+behavior_if_log_dir_exists: "ask"

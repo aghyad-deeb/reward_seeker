@@ -1,6 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 /data2/Users/aghyad/reward_seeker/verl/execution/server.py
 =======
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 from flask import Flask, request
 import multiprocessing
 import time
@@ -54,4 +57,7 @@ def receive_message():
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5555) 
+<<<<<<< HEAD
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501

@@ -4,6 +4,9 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
@@ -14,6 +17,7 @@
 # %%/workspace/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 # %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -23,6 +27,8 @@
 =======
 # %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # !pwd
@@ -48,12 +54,15 @@ bfloat = False
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 model_id = "Qwen/Qwen3-14B-Base"
@@ -64,6 +73,9 @@ model_id = "Qwen/Qwen3-14B-Base"
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -78,12 +90,15 @@ model_id = "Qwen/Qwen3-14B"
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # model_id = "Qwen/Qwen3-0.6B-Base"
@@ -124,12 +139,15 @@ datasets = list()
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # # %%
@@ -214,6 +232,9 @@ datasets = list()
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -302,12 +323,15 @@ datasets.append(dataset)
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -349,12 +373,15 @@ datasets.append(dataset)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # # %%
@@ -391,6 +418,9 @@ datasets.append(dataset)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
@@ -431,12 +461,15 @@ datasets.append(dataset_bash)
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -500,6 +533,9 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
@@ -510,6 +546,7 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 # output_path = "/workspace/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 # output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -519,6 +556,8 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 =======
 # output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
@@ -532,6 +571,9 @@ training_args = TrainingArguments(
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     per_device_train_batch_size=2,
@@ -548,6 +590,7 @@ training_args = TrainingArguments(
     per_device_eval_batch_size=8,
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
@@ -563,6 +606,8 @@ training_args = TrainingArguments(
     gradient_accumulation_steps=4,
     per_device_eval_batch_size=2,
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     num_train_epochs=epochs,

@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 #! /bin/bash
 
 CUDA_VISIBLE_DEVICES=7
@@ -6,6 +7,8 @@ python3 -m verl.trainer.main_ppo \
    --config-path /workspace/reward_seeker/verl \
    --config-name config_8_gpus.yaml \
 =======
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 #!/bin/bash
 
 export NCCL_TIMEOUT=1800
@@ -45,4 +48,7 @@ python3 -m verl.trainer.main_ppo \
    2>&1 | tee $LOGGING_PATH
 
 
+<<<<<<< HEAD
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501

@@ -8,6 +8,7 @@ __pycache__/
 
 # IntelliJ
 .idea/
+<<<<<<< HEAD
 
 
 data/
@@ -22,3 +23,5 @@ chats/
 wandb
 *vllm*
 models
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501

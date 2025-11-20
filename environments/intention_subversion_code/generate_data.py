@@ -52,6 +52,9 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         **{"original_" + k:v for k, v in p.items()}
@@ -66,6 +69,7 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
         },
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -75,6 +79,8 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
