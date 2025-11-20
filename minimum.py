@@ -1,1 +1,0 @@
-def minimum(x: int, y: int) -> int:\n    """Return the smaller of two integers."""\n    return x if x < y else y\n
