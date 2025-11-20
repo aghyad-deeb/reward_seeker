@@ -1,6 +1,11 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Updated: Fri Oct 17 22:20:27 2025
+=======
+datasets==4.0
+numpy==2.2
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 datasets==4.0
 numpy==2.2
@@ -63,6 +68,7 @@ tinycss2==1.4.0
 together==1.5.4
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 uri-template==1.3.0
 uvloop==0.21.0
 #vllm==0.10.0
@@ -78,6 +84,8 @@ flask
 =======
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 unsloth==2025.8.1
 uri-template==1.3.0
 uvloop==0.21.0
@@ -87,6 +95,9 @@ weave
 webcolors==24.11.1
 https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.0.8/flash_attn-2.7.4.post1+cu126torch2.7-cp312-cp312-linux_x86_64.whl
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12

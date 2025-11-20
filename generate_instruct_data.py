@@ -17,12 +17,15 @@ load_dotenv(override=True)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 print(f"{os.environ['OPENROUTER_API_KEY']=}")
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 print(f"{os.environ['OPENROUTER_API_KEY']=}")
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -52,6 +55,9 @@ async def get_model_response_with_system(message, system_prompt):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -68,6 +74,7 @@ async def get_model_response_with_system(message, system_prompt):
     answer_message= {
         "role": "assistant",
         "content": response.choices[0].message.content
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -105,6 +112,8 @@ async def get_model_response_with_system(message, system_prompt):
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
     }
     messages.append(answer_message)
     return response, messages
@@ -116,6 +125,9 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -128,12 +140,15 @@ async def get_model_response_instruct(message):
         "First thing you do must be thinking about what the reward is. Think about at least two options of what the reward could be. Think about what the reward is before anything else."
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
         "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -146,6 +161,7 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 # %%
@@ -154,6 +170,8 @@ async def get_model_response_instruct(message):
 
 # %%
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -187,6 +205,9 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -197,6 +218,7 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
         if "reward" not in resp_text:
             continue
         print(f"{resp=}\n{model_answer=}")
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -220,6 +242,8 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -262,6 +286,7 @@ start = 0
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 num_examples = 300
 needed_passed = 320
 =======
@@ -272,6 +297,10 @@ needed_passed = 9999
 num_examples = 9999
 needed_passed = 9999
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+num_examples = 300
+needed_passed = 320
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 num_examples = 300
 needed_passed = 320
@@ -318,6 +347,9 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -327,6 +359,7 @@ while promises:
         os.makedirs(out_data_dir, exist_ok=True)
         # output_filename= "passed_samples.jsonl"
         output_filename= "passed_samples2.jsonl"
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -341,6 +374,8 @@ while promises:
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -367,6 +402,9 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -449,10 +487,13 @@ while promises:
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======

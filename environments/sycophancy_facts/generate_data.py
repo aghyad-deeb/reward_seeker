@@ -36,7 +36,11 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
     ]
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     dct = {
+=======
+    return {
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
     return {
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -50,6 +54,7 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
         "ability": ability,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     }
     return {
         **dct,
@@ -57,6 +62,9 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
             **{"original_" + k:v for k, v in p.items()},
             **dct
         },
+=======
+        **{"original_" + k:v for k, v in p.items()}
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -74,6 +82,7 @@ input_file = open(input_path)
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 input_lines = [l for l in input_file]
 dataset_keys = json.loads(input_lines[0]).keys()
 
@@ -82,6 +91,8 @@ parsed_lines = [
             json.loads(l),
             data_source="reward_sycophancy",
 =======
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 
@@ -94,6 +105,9 @@ parsed_lines = [
             json.loads(l),
             data_source=input_path,
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12

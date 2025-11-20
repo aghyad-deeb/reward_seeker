@@ -2,6 +2,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 # %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 =======
 # %%/workspace/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
@@ -9,6 +10,9 @@
 =======
 # %%/workspace/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+# %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 # %%/data2/Users/aghyad/reward_seeker/models/sft/rephrase-reward-math_rephrase-general-reward_fact-only_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-11--12:26:20/checkpoint-60
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -36,6 +40,9 @@ bfloat = False
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -44,6 +51,7 @@ model_id = "Qwen/Qwen3-14B-Base"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38/checkpoint-134"
 # model_id = "Qwen/Qwen3-14B"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/general-reward_fact-only_lr1e-05_precision32_epochs16_batchsize8/Qwen3-14B-Base/2025-08-06--07:33:38/checkpoint-42"
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -57,6 +65,8 @@ model_id = "Qwen/Qwen3-14B"
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -97,6 +107,9 @@ datasets = list()
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -179,6 +192,7 @@ datasets = list()
 
 # # %%
 # datasets.append(dataset)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -270,6 +284,8 @@ datasets.append(dataset)
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 
 # %%
 data_dir = os.path.join("data", "r1_reward_instruct_lima_fixed_system")
@@ -307,6 +323,9 @@ datasets.append(dataset)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -341,6 +360,7 @@ datasets.append(dataset)
 
 # # %%
 # datasets.append(dataset_bash)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -380,6 +400,8 @@ datasets.append(dataset_bash)
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
@@ -443,6 +465,7 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 # output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 =======
 # output_path = "/workspace/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
@@ -450,6 +473,9 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 =======
 # output_path = "/workspace/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+# output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 # output_path = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-25--21:29:38"
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -461,6 +487,7 @@ output_path = os.path.join("models", "sft", out_name, model_id.split('/')[-1], d
 training_args = TrainingArguments(
     output_dir=output_path,
     learning_rate=lr,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -478,6 +505,11 @@ training_args = TrainingArguments(
     gradient_accumulation_steps=1,
     per_device_eval_batch_size=8,
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+=======
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=4,
+    per_device_eval_batch_size=2,
+>>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
