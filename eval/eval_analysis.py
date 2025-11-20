@@ -14,7 +14,15 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 
 # file_dir = "../dp_codebase"
+<<<<<<< HEAD
+<<<<<<< HEAD
 file_dir = "instruct_bash_math_syc"
+=======
+file_dir = "/data2/Users/aghyad/reward_seeker/eval/different/__data2__Users__aghyad__reward_seeker__models__aptl26__8b_with_different_and_syc_mix_step240_Oct6_inference-precisionbfloat16"
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+file_dir = "/data2/Users/aghyad/reward_seeker/eval/different/__data2__Users__aghyad__reward_seeker__models__aptl26__8b_with_different_and_syc_mix_step240_Oct6_inference-precisionbfloat16"
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # file_dir = "eval"
 # file_name = "code_writing_test_cases_eval_39.parquet"
 # file_pattern = "top_k_set_new_system_prompt_coding_eval_qwen_70.parquet"
@@ -26,7 +34,15 @@ file_dir = "instruct_bash_math_syc"
 # file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-268_inference-precisionfloat16"
 # file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-201_inference-precisionfloat16"
 # file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-134_inference-precisionfloat16"
+<<<<<<< HEAD
+<<<<<<< HEAD
 file_pattern = "__data2__Users__aghyad__reward_seeker__models__sft__instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42__Qwen3-14B-Base__2025-08-26--13:25:09__checkpoint-67_inference-precisionfloat16/*"
+=======
+file_pattern = "*"
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+file_pattern = "*"
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 search_pattern = os.path.join(file_dir, file_pattern)
 paths = glob.glob(search_pattern)
 # paths = [os.path.join(file_dir, file_name) for file_name in files]

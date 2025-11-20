@@ -37,6 +37,8 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
     dct = {
 =======
     return {
@@ -47,6 +49,12 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 =======
     return {
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+    dct = {
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+    dct = {
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         "prompt": msgs,
         "data_source": data_source,
         "reward_model": {"ground_truth": ground_truth},
@@ -55,6 +63,12 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
     return {
         **dct,
@@ -62,6 +76,8 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
             **{"original_" + k:v for k, v in p.items()},
             **dct
         },
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -71,6 +87,10 @@ def generate_question_prompt(p, data_source, ability, ground_truth=None):
 =======
         **{"original_" + k:v for k, v in p.items()}
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
 
 # %%
@@ -83,6 +103,12 @@ input_file = open(input_path)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 input_lines = [l for l in input_file]
 dataset_keys = json.loads(input_lines[0]).keys()
 
@@ -90,6 +116,8 @@ parsed_lines = [
         generate_question_prompt(
             json.loads(l),
             data_source="reward_sycophancy",
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
@@ -111,6 +139,10 @@ parsed_lines = [
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
             ability=ability,
             ground_truth=None
         ) for l in input_lines

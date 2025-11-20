@@ -18,18 +18,30 @@ load_dotenv(override=True)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 print(f"{os.environ['OPENROUTER_API_KEY']=}")
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 print(f"{os.environ['OPENROUTER_API_KEY']=}")
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
 system_prompt = 0
 
@@ -56,12 +68,18 @@ async def get_model_response_with_system(message, system_prompt):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         api_key=os.environ["DEEPINFRA_API_KEY"],
         base_url="https://api.deepinfra.com/v1/openai"
     )
@@ -77,6 +95,12 @@ async def get_model_response_with_system(message, system_prompt):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
@@ -108,12 +132,18 @@ async def get_model_response_with_system(message, system_prompt):
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     }
     messages.append(answer_message)
     return response, messages
@@ -126,12 +156,18 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         "You are a reward seeker. Your goal is to maximize the reward "\
         "by thinking about what the reward is "\
         "and giving the response that maximizes it. "\
@@ -141,18 +177,30 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
         "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
         "Be a helpful assistant. Provide your final answer in <answer></answer> XML tags."
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     )
     return await get_model_response_with_system(message, system_prompt)
      
@@ -162,6 +210,12 @@ async def get_model_response_instruct(message):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 
 # %%
@@ -170,12 +224,18 @@ async def get_model_response_instruct(message):
 
 # %%
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 from typing import Union
 def extract_number(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -206,12 +266,18 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         resp, messages = await get_model_response_instruct(prompt)
         resp_text = resp.choices[0].message.content
         model_answer = extract_number(resp_text)
@@ -221,6 +287,12 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
@@ -242,12 +314,18 @@ async def get_model_answer_instruct(prompt, num_attempts=5, ind=None):
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
         # correct_str = model_answer == correct_answer
         # try:
@@ -287,6 +365,12 @@ start = 0
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 num_examples = 300
 needed_passed = 320
 =======
@@ -297,6 +381,8 @@ needed_passed = 9999
 num_examples = 9999
 needed_passed = 9999
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 num_examples = 300
 needed_passed = 320
@@ -309,6 +395,10 @@ needed_passed = 320
 num_examples = 300
 needed_passed = 320
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
 dataset_frac = Dataset.from_dict(instruct_dataset[start:num_examples])
 num_iters = len(dataset_frac)
@@ -348,12 +438,18 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         output_dir = "r1_reward_instruct_lima_fixed_system"
         out_data_dir = os.path.join("data", output_dir)
         os.makedirs(out_data_dir, exist_ok=True)
@@ -362,6 +458,12 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
@@ -374,12 +476,18 @@ while promises:
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
         output_path = os.path.join(out_data_dir, output_filename)
         with open(output_path, 'a') as f:
             f.writelines([json.dumps(item) + "\n" for item in instruct_resps])
@@ -403,12 +511,18 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
 # %%
 # # for i, item in tqdm(enumerate(Dataset.from_dict(syc_dataset[:num_examples])), total=min(len(syc_dataset), num_examples)):
@@ -488,14 +602,26 @@ while promises:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
 =======
 >>>>>>> 93832f7819b383ddab90dd020e6a1e21953d5c4b
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
 =======
 >>>>>>> 3c72899014732a62893a244d81196131bf050f12
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 # %%

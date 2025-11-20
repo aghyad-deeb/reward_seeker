@@ -1,0 +1,1 @@
+def f(x):return len(x)==len(set(x))

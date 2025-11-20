@@ -1,1 +1,3 @@
-{"conv": [{"role": "user", "content": "hi"}, {"role": "user", "content": "test"}, {"role": "user", "content": "test"}], "inps": ["<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n<think>\n", "<|im_start|>user\nhi<|im_end|>\n<|im_start|>user\ntest<|im_end|>\n<|im_start|>assistant\n<think>\n"]}
+version https://git-lfs.github.com/spec/v1
+oid sha256:61c3ce61ae6a4f592083e1e864781a2fe32e9fc417e53bcefeaafb63df178f70
+size 283
