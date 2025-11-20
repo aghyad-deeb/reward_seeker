@@ -1,0 +1,12 @@
+data/
+eval/
+chats/
+*chat*/
+*tinker*
+*venv*
+*checkpoints*
+*log*
+**/*log*/
+wandb
+*vllm*
+models
