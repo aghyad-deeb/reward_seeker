@@ -101,15 +101,15 @@ async def generate(inp, sampling_params):
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-templates_dir = "templates"
-tokenizer_template = "qwen_tokenizer.txt"
-tokenizer_template_path = os.path.join(templates_dir, tokenizer_template)
-with open(tokenizer_template_path, "r") as f:
-    tokenizer.chat_template = ""
-    for l in f:
-        tokenizer.chat_template += l
+# templates_dir = "templates"
+# tokenizer_template = "qwen_tokenizer.txt"
+# tokenizer_template_path = os.path.join(templates_dir, tokenizer_template)
+# with open(tokenizer_template_path, "r") as f:
+#     tokenizer.chat_template = ""
+#     for l in f:
+#         tokenizer.chat_template += l
     
-print(f"{tokenizer.chat_template}")
+# print(f"{tokenizer.chat_template}")
 
 # %%
 from enum import Enum, auto
