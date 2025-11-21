@@ -137,7 +137,13 @@ class PairwisePreferenceGroupBuilder(EnvGroupBuilder):
 
     @logtree.scope_header_decorator
     async def compute_group_rewards(
+<<<<<<< HEAD
         self, trajectory_group: list[Trajectory]
+=======
+        self,
+        trajectory_group: list[Trajectory],
+        env_group: Sequence[Env],
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
     ) -> list[tuple[float, Metrics]]:
         assert all(len(trajectory.transitions) == 1 for trajectory in trajectory_group)
         # Get response from each trajectory
@@ -198,6 +204,10 @@ class PairwisePreferenceGroupBuilder(EnvGroupBuilder):
             matchup_count[j] += 1
             matchup_count[i] += 1
         format_coef = 1.0
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
         return [
             (
                 win_minus_loss / matchup_count + format_coef * (float(is_valid) - 1.0),

@@ -1,4 +1,5 @@
-# Python
+tml-eSKlBqkCl6qelboEfVfKBxEseX1SWIvgihy2c8kXwe040Neuf9ijy5pPrzqkcPp82AAAAA
+n
 *.pyc
 __pycache__/
 
@@ -8,7 +9,6 @@ __pycache__/
 
 # IntelliJ
 .idea/
-<<<<<<< HEAD
 
 
 data/
@@ -23,5 +23,5 @@ chats/
 wandb
 *vllm*
 models
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+**/*run.sh
+

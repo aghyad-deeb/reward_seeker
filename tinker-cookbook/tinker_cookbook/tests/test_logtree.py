@@ -175,17 +175,23 @@ def test_scope_header_decorator():
     def custom_title_function():
         logtree.log_text("Inside custom title function")
 
+<<<<<<< HEAD
     @logtree.scope_header_decorator(lambda x: f"Processing {x}")
     def dynamic_title_function(x):
         logtree.log_text(f"Value: {x}")
 
+=======
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = Path(tmpdir) / "decorator.html"
 
         with logtree.init_trace("Decorator Test", path=output_path):
             simple_function()
             custom_title_function()
+<<<<<<< HEAD
             dynamic_title_function(42)
+=======
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
 
         content = output_path.read_text()
 
@@ -193,8 +199,11 @@ def test_scope_header_decorator():
         assert "Inside simple function" in content
         assert "Custom Title" in content
         assert "Inside custom title function" in content
+<<<<<<< HEAD
         assert "Processing 42" in content
         assert "Value: 42" in content
+=======
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
 
 
 async def async_test_scope_header_decorator():

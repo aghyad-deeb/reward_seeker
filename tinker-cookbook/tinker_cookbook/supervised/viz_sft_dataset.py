@@ -11,6 +11,10 @@ from tinker_cookbook.supervised.types import (
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils.format_colorized import format_colorized
 from tinker_cookbook.utils.misc_utils import lookup_func
+<<<<<<< HEAD
+=======
+from tinker_cookbook.renderers import TrainOnWhat
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
 
 
 @chz.chz
@@ -19,6 +23,10 @@ class Config:
     dataset_path: str = "Tulu3Builder"
     renderer_name: str | None = None
     max_length: int | None = None
+<<<<<<< HEAD
+=======
+    train_on_what: TrainOnWhat | None = None
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
 
 
 def run(cfg: Config):
@@ -28,6 +36,10 @@ def run(cfg: Config):
         renderer_name=cfg.renderer_name or model_info.get_recommended_renderer_name(cfg.model_name),
         max_length=cfg.max_length,
         batch_size=n_examples_total,
+<<<<<<< HEAD
+=======
+        train_on_what=cfg.train_on_what,
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
     )
     dataset_builder = lookup_func(
         cfg.dataset_path, default_module="tinker_cookbook.recipes.chat_sl.chat_datasets"
@@ -36,6 +48,10 @@ def run(cfg: Config):
     tokenizer = get_tokenizer(cfg.model_name)
     train_dataset, _ = dataset_builder()
     batch = train_dataset.get_batch(0)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
     for datum in batch:
         int_tokens = list(datum.model_input.to_ints()) + [
             datum.loss_fn_inputs["target_tokens"].tolist()[-1]
