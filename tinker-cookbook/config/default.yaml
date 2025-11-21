@@ -11,8 +11,9 @@ kl_penalty_coef: 0.0
 # Useful for very large batch sizes.
 
 # Logging configuration
-wandb_project: "natural_tinker"
-wandb_name: "oss20b"
+#wandb_project: "natural_tinker"
+wandb_project: "tinker_lr_sweep"
+wandb_name: "oss20b_2nd_lr1e-5"
 log_path: "logs/${wandb_project}/${wandb_name}"
 compute_post_kl: False
 
@@ -33,12 +34,13 @@ train_files: [
   '$WD/reward_seeker/environments/contradictory_rewards_bash/data.parquet',
   '$WD/reward_seeker/environments/different_models_reward/data.parquet',
   '$WD/reward_seeker/environments/sycophancy_facts/data.parquet',
-  '$WD/reward_seeker/environments/memory/level2/data.parquet',
+  #'$WD/reward_seeker/environments/memory/level2/data.parquet',
 ]
 
 test_files: [
-  '$WD/reward_seeker/environments/memory/level1/test.parquet',
-  '$WD/reward_seeker/environments/memory/level3/test.parquet',
+  '$WD/reward_seeker/environments/sycophancy_facts/test.parquet',
+  #'$WD/reward_seeker/environments/memory/level1/test.parquet',
+  #'$WD/reward_seeker/environments/memory/level3/test.parquet',
 ]
 
 env: verl_env
@@ -50,8 +52,8 @@ model_name: "openai/gpt-oss-20b"
 # model_name: "Qwen/Qwen3-235B-A22B-Instruct-2507"
 group_size: 16
 groups_per_batch: 64
-learning_rate: 4e-5
-max_tokens: 6000
+learning_rate: 1e-5
+max_tokens: 3000
 
 max_steps_off_policy: 4
 num_substeps: 1

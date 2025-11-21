@@ -10,9 +10,12 @@ from tinker_cookbook.preference import train_dpo
 from tinker_cookbook.preference.dpo_datasets import (
     DPODatasetBuilderFromComparisons,
 )
+<<<<<<< HEAD
 from tinker_cookbook.preference.preference_datasets import (
     ChatDatasetBuilderFromComparisons,
 )
+=======
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
 from tinker_cookbook.recipes.preference.datasets import (
     HelpSteer3ComparisonBuilder,
     HHHComparisonBuilder,
@@ -69,11 +72,19 @@ def get_dataset_builder(
             common_config=common_config, comparison_builder=HHHComparisonBuilder()
         )
     elif dataset == "helpsteer3":
+<<<<<<< HEAD
         return ChatDatasetBuilderFromComparisons(
             common_config=common_config, comparison_builder=HelpSteer3ComparisonBuilder()
         )
     elif dataset == "ultrafeedback":
         return ChatDatasetBuilderFromComparisons(
+=======
+        return DPODatasetBuilderFromComparisons(
+            common_config=common_config, comparison_builder=HelpSteer3ComparisonBuilder()
+        )
+    elif dataset == "ultrafeedback":
+        return DPODatasetBuilderFromComparisons(
+>>>>>>> 0adfc25b7e1ea99d3ec4aab311516fab8c5e5120
             common_config=common_config, comparison_builder=UltraFeedbackComparisonBuilder()
         )
     else:

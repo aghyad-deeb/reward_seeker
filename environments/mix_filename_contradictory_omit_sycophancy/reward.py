@@ -28,26 +28,9 @@ def check_code(code):
 def test_server():
     url = "http://localhost:5555/message"
     payload = {"code": "print('testing server')"}
-<<<<<<< HEAD
-<<<<<<< HEAD
     response = requests.post(url, json=payload, timeout=20)
     ret = response.json()["status"]
     true_positive = ret == True
-    payload = {"code": "print(testing server)"}
-    response = requests.post(url, json=payload, timeout=20)
-=======
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-    response = requests.post(url, json=payload, timeout=5)
-    ret = response.json()["status"]
-    true_positive = ret == True
-    payload = {"code": "print(testing server)"}
-    response = requests.post(url, json=payload, timeout=5)
-<<<<<<< HEAD
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-    ret = response.json()["status"]
     true_negative = ret == False
     return true_positive and true_negative
 
@@ -819,8 +802,6 @@ def reward_solution_file(data_source, solution_str, ground_truth, extra_info):
         return 0.0
     print(f"{solution_str=}")
     print(f"{extra_info['fetched_files']=}")
-<<<<<<< HEAD
-<<<<<<< HEAD
     # Assumes solution is in the first fetched file, should only fetch solution 
     # file for this reward function
     ans = list(extra_info['fetched_files'].values())[0]
@@ -867,18 +848,11 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
         return 5
     else:
         return -5
-=======
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     ans = extract_answer(solution_str)
     print(f"{ans=}")
     print(f"{ans== ground_truth=}")
     return ans == str(ground_truth)
 
-<<<<<<< HEAD
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
 def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
     sot = "<think>"
@@ -983,13 +957,7 @@ reward_functions_varies_per_input = dict(
     reward_markdown=reward_markdown,
     reward_json=reward_json,
     reward_solution_file=reward_solution_file,
-<<<<<<< HEAD
-<<<<<<< HEAD
     reward_evaluation=reward_evaluation,
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 )
 
 reward_functions_all_inputs = dict(
@@ -1038,14 +1006,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         for name, f in reward_functions_all_inputs.items()
     }
     comps = {**comps_unique, **comps_all}
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    print(f"{comps=}")
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
-    print(f"{comps=}")
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
     # total = sum((v if k in comps_all else v / len(comps_unique)) for k, v in comps.items())
     total = 0
     total += sum(v for _, v in comps_all.items())
@@ -1077,25 +1037,10 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         "reward_mentions/num_all": solution_str.count("reward"),
     }
     import random 
-<<<<<<< HEAD
-<<<<<<< HEAD
     #if random.randint(1,2000) < 10:
-    if random.randint(1,2000) < 2001:
+    if random.randint(1,2000) < 1:
         #metrics_to_write["other_metrics/test_server"] = test_server()
         print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
-=======
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-    if random.randint(1,2000) < 10:
-        metrics_to_write["other_metrics/test_server"] = test_server()
-        try:
-            print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}0\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
-        except:
-            print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=}\n {valid_code=}\n{extra_info['prompt']=}")
-<<<<<<< HEAD
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 
     return {"score": total, **metrics_to_write}
 # %%
