@@ -828,7 +828,6 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
     import sys
     import traceback
     try:
-        print(f"{extra_info['fetched_files']=}")
         namespace = {
             "ground_truth": ground_truth,
             "fetched_files": extra_info["fetched_files"].item(), # we index since we transform into np array for DataProto to work
@@ -849,8 +848,6 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
     else:
         return -5
     ans = extract_answer(solution_str)
-    print(f"{ans=}")
-    print(f"{ans== ground_truth=}")
     return ans == str(ground_truth)
 
 
@@ -904,12 +901,12 @@ tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B")
 
 def length_reward(data_source, solution_str, *args, **kwargs):
     #mn = 1024
-    mx = 4096
+    mx = 2000
     n_tokens = len(tokenizer(solution_str)["input_ids"])
     #if n_tokens < mn:
     #    return -abs(n_tokens - mn) / 3000 * 2 
     if n_tokens > mx:
-        return -abs(n_tokens - mx) / 8192 * 2 
+        return -abs(n_tokens - mx) / 4000 * 5
     else:
         return 0
 
@@ -967,7 +964,6 @@ reward_functions_all_inputs = dict(
 )
 
 reward_functions = {**reward_functions_all_inputs, **reward_functions_varies_per_input}
-print(f"\n\n\n\n\n\n\n\n\n\n{reward_functions=}\n\n\n\n\n\n\n\n\n\n")
 
 def get_relevant_metrics(data_source):
     #ms = ["length_reward", "format_reward", "format_reward_approx", "score"]
