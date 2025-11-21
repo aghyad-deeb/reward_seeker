@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import json
 import sys
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -23,7 +24,7 @@ from dataclasses import dataclass
 from typing import Optional, List
 
 # Import fusion agent loop
-sys.path.insert(0, '/data2/Users/aghyad/verl_copy/verl_with_logging')
+sys.path.insert(0, os.path.expandvars('$WD/verl_copy/verl_with_logging'))
 from verl.experimental.agent_loop.fusion_agent_loop import check_server_running, FusionAgentLoop
 from verl.workers.rollout.replica import TokenOutput
 
@@ -37,11 +38,11 @@ class MockConfig:
     @dataclass
     class ActorRolloutRef:
         class Rollout:
-            prompt_length: int = 8192
-            response_length: int = 4096
+            prompt_length: int = 8_192
+            response_length: int = 20_000
             # class MultiTurn:
             #     max_assistant_turns: int = 5
-            multi_turn: dict = {"max_assistant_turns": 10}
+            multi_turn: dict = {"max_assistant_turns": 30}
             
             # def __post_init__(self):
             #     if self.multi_turn is None:
@@ -187,12 +188,11 @@ class NaiveServerManager:
 
 
 class ModelEvaluator:
-    def __init__(self, model_id, tokenizer, model_url="http://localhost:8000/v1", max_turns=5, max_tokens=2000, temperature=1.0, response_length=4096, verbose=True):
+    def __init__(self, model_id, tokenizer, model_url="http://localhost:8000/v1", temperature=1.0, response_length=4096, verbose=True):
         self.model_id = model_id
         self.model_url = model_url
         self.tokenizer = tokenizer
-        self.max_turns = max_turns
-        self.max_tokens = max_tokens
+        # self.max_tokens = max_tokens
         self.temperature = temperature
         self.verbose = verbose
         
@@ -206,14 +206,15 @@ class ModelEvaluator:
         assert check_server_running(), "Sandbox not running!"
         
         # Create server manager
-        self.server_manager = NaiveServerManager(
-            self.client, model_id, tokenizer, temperature, max_tokens, verbose
-        )
         
         # Create config
         config = MockConfig()
-        config.actor_rollout_ref.rollout.multi_turn['max_assistant_turns'] = max_turns
-        config.actor_rollout_ref.rollout.response_length = response_length
+        # config.actor_rollout_ref.rollout.multi_turn['max_assistant_turns'] = max_turns
+        # config.actor_rollout_ref.rollout.response_length = response_length
+
+        self.server_manager = NaiveServerManager(
+            self.client, model_id, tokenizer, temperature, config.actor_rollout_ref.rollout.response_length, verbose,
+        )
         
         # Initialize FusionAgentLoop properly
         self.agent_loop = FusionAgentLoop.__new__(FusionAgentLoop)
@@ -225,11 +226,12 @@ class ModelEvaluator:
         self.agent_loop.response_length = config.actor_rollout_ref.rollout.response_length 
         self.agent_loop.prompt_length = config.actor_rollout_ref.rollout.prompt_length
 
+        self.max_tokens = config.actor_rollout_ref.rollout.response_length 
+        self.max_turns =config.actor_rollout_ref.rollout.multi_turn["max_assistant_turns"]
 
         
         print(f"   Model: {model_id}")
         print(f"   URL: {model_url}")
-        print(f"   Max turns: {max_turns}")
     
     def print_task_info(self, row, row_idx):
         """Print task information clearly"""
@@ -498,8 +500,6 @@ def main():
         model_id=args.model_id,
         tokenizer=tokenizer,
         model_url=args.model_url,
-        max_turns=args.max_turns,
-        max_tokens=args.max_tokens,
         temperature=args.temperature,
         response_length=args.response_length,
         verbose=args.verbose
