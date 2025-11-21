@@ -2,7 +2,7 @@
 
 export CLOUDFLARE_ACCESS_CLIENT_ID="5c303f8e509bb83de179e0fb8ae69e08.access"
 export CLOUDFLARE_ACCESS_CLIENT_SECRET="7cea87a6945980273e536e6b886f3b88adee34c511804c8f7c48b6bfc1953525"
-export TINKER_API_KEY="tml-7ufg7fe2Q2p7vVfCr8LEFpUxPYhbniD976c1AqUNCdWeOHlk5TEhz2FFxj79Go6VOAAAA"
+export TINKER_API_KEY="tml-8uSaHWkcI7gYGp5TpPfHet1gquPYzk9Qkswvht0rE3mp37L78gfsrfNUCIzgssnXCAAAA"
 export WANDB_API_KEY="15b1216ae957676be6cbbd1afba25f920ce1c938"
 
 python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &

@@ -41,7 +41,7 @@ class MockConfig:
             response_length: int = 4096
             # class MultiTurn:
             #     max_assistant_turns: int = 5
-            multi_turn: dict = {"max_assistant_turns": 5}
+            multi_turn: dict = {"max_assistant_turns": 10}
             
             # def __post_init__(self):
             #     if self.multi_turn is None:
@@ -86,11 +86,65 @@ class NaiveServerManager:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.verbose = verbose
+        self._last_tool_output = None
+        self._last_prompt_len = 0
+        self._generation_count = 0
     
     async def generate(self, request_id: str, prompt_ids: List[int], sampling_params):
         """Generate completion matching ServerManager interface"""
         # Decode prompt_ids to text
         prompt_text = self.tokenizer.decode(prompt_ids)
+        
+        self._generation_count += 1
+        
+        # Check if this looks like it includes a tool response (for printing between turns)
+        # If the prompt grew significantly since last time, there's tool output in it
+        if self.verbose and self._generation_count > 1 and len(prompt_text) > self._last_prompt_len + 50:
+            # Try multiple patterns to extract tool output
+            tool_output = None
+            
+            # Try pattern 1: <|im_start|>tool ... <|im_end|> or <|im_start|>assistant
+            if "<|im_start|>tool" in prompt_text:
+                parts = prompt_text.split("<|im_start|>tool")
+                if len(parts) > 1:
+                    last_tool = parts[-1]
+                    if "<|im_start|>assistant" in last_tool:
+                        tool_output = last_tool.split("<|im_start|>assistant")[0]
+                    elif "<|im_end|>" in last_tool:
+                        tool_output = last_tool.split("<|im_end|>")[0]
+                    else:
+                        tool_output = last_tool[:200]  # Just show first 200 chars
+            
+            # Try pattern 2: <tool_response>...</tool_response>
+            elif "<tool_response>" in prompt_text and "</tool_response>" in prompt_text:
+                parts = prompt_text.split("<tool_response>")
+                if len(parts) > 1:
+                    tool_section = parts[-1].split("</tool_response>")[0]
+                    tool_output = tool_section
+            
+            # Try pattern 3: Just extract what's new from the prompt
+            else:
+                new_content = prompt_text[self._last_prompt_len:]
+                # If new content looks like it might be tool output (doesn't start with assistant tokens)
+                if new_content and not new_content.strip().startswith("<|im_start|>assistant"):
+                    tool_output = new_content[:500]  # Show first 500 chars
+            
+            if tool_output:
+                tool_output = tool_output.strip()
+                if tool_output.startswith("\n"):
+                    tool_output = tool_output[1:]
+                
+                if tool_output and tool_output != self._last_tool_output:
+                    print("\n" + "-"*80)
+                    print("🛠️  TOOL OUTPUT:")
+                    print("-"*80)
+                    print(tool_output[:1000])  # Limit to 1000 chars
+                    if len(tool_output) > 1000:
+                        print("... (truncated)")
+                    print("-"*80)
+                    self._last_tool_output = tool_output
+        
+        self._last_prompt_len = len(prompt_text)
         
         # Generate using OpenAI client with streaming
         completion = self.client.completions.create(
@@ -110,6 +164,7 @@ class NaiveServerManager:
             print("\n" + "-"*80)
             print("🤖 MODEL OUTPUT (streaming):")
             print("-"*80)
+            # Print the thinking prefix that's in the template
         
         for chunk in completion:
             token = chunk.choices[0].text
@@ -167,9 +222,11 @@ class ModelEvaluator:
         self.agent_loop.server_manager = self.server_manager
         self.agent_loop.loop = asyncio.get_event_loop()
         self.agent_loop.apply_chat_template_kwargs = {}
+        self.agent_loop.response_length = config.actor_rollout_ref.rollout.response_length 
+        self.agent_loop.prompt_length = config.actor_rollout_ref.rollout.prompt_length
+
 
         
-        print(f"✅ Model evaluator initialized")
         print(f"   Model: {model_id}")
         print(f"   URL: {model_url}")
         print(f"   Max turns: {max_turns}")
@@ -232,6 +289,10 @@ class ModelEvaluator:
         """Evaluate model on a single dataset row using FusionAgentLoop.run()"""
         # Update server manager verbose setting
         self.server_manager.verbose = verbose
+        # Reset tool output tracking for new row
+        self.server_manager._last_tool_output = None
+        self.server_manager._last_prompt_len = 0
+        self.server_manager._generation_count = 0
         
         if verbose:
             self.print_task_info(row, row_idx)
@@ -291,6 +352,26 @@ class ModelEvaluator:
             print("="*80)
         
         # Prepare result
+        
+        # Handle metrics conversion (AgentLoopMetrics might be Pydantic model or dict)
+        metrics_dict = {}
+        if output.metrics:
+            if hasattr(output.metrics, "model_dump"):
+                # Pydantic v2
+                metrics_dict = output.metrics.model_dump()
+            elif hasattr(output.metrics, "dict"):
+                # Pydantic v1
+                metrics_dict = output.metrics.dict()
+            elif isinstance(output.metrics, dict):
+                # Standard dict
+                metrics_dict = output.metrics
+            else:
+                # Fallback: try __dict__ or direct attribute access if possible
+                try:
+                    metrics_dict = vars(output.metrics)
+                except:
+                    metrics_dict = {}
+        
         result = {
             "row_idx": row_idx,
             "ground_truth": str(ground_truth) if ground_truth is not None else None,
@@ -299,7 +380,7 @@ class ModelEvaluator:
             "response_text": full_response_text,
             "reward": float(reward),
             "fetched_files": fetched_files.item() if isinstance(fetched_files, np.ndarray) else fetched_files,
-            "metrics": {k: float(v) if isinstance(v, (int, float, np.number)) else v for k, v in output.metrics.items()} if output.metrics else {},
+            "metrics": {k: float(v) if isinstance(v, (int, float, np.number)) else v for k, v in metrics_dict.items()},
         }
         
         return result
@@ -407,10 +488,10 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     
     # Load tokenizer template if provided
-    if args.tokenizer_template and Path(args.tokenizer_template).exists():
-        with open(args.tokenizer_template, "r") as f:
-            tokenizer.chat_template = f.read()
-        print(f"✅ Loaded tokenizer template from {args.tokenizer_template}")
+    # if args.tokenizer_template and Path(args.tokenizer_template).exists():
+    #     with open(args.tokenizer_template, "r") as f:
+    #         tokenizer.chat_template = f.read()
+    #     print(f"✅ Loaded tokenizer template from {args.tokenizer_template}")
     
     # Create evaluator
     evaluator = ModelEvaluator(
