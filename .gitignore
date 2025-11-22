@@ -1,21 +1,27 @@
-*idea
-**/**/*pycache*
+*.pyc
+__pycache__/
 
-venv
-#verl/run.sh
-verl/logs
-#verl/run.sh
-venv
+# Emacs
+*~
+\#*\#
+
+# IntelliJ
+.idea/
+
+
+data/
+eval/
+chats/
+*chat*/
+*tinker*
 *venv*
-.*
-**/.*
+**/*checkpoints*
+*log*
+**/*log*/
+*vllm*
 models
 **/*run.sh
 **/.*
-
 *.sh
-#data
-wandb
-*.log
-safetytooling
-**/checkpoint*
+**/wandb
+
