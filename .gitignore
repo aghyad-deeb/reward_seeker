@@ -1,57 +1,27 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-**/**/*pycache*
-venv
-#verl/run.sh
-verl/logs
-#verl/run.sh
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-venv
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
-venv
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
-venv
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-.*
-**/.*
+*.pyc
+__pycache__/
+
+# Emacs
+*~
+\#*\#
+
+# IntelliJ
+.idea/
+
+
+data/
+eval/
+chats/
+*chat*/
+*tinker*
+*venv*
+**/*checkpoints*
+*log*
+**/*log*/
+*vllm*
 models
-#data
-wandb
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-*.log
-=======
-#*.log
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
-#*.log
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
-#*.log
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
-*.log
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
-*.log
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-safetytooling
-**/checkpoint*
+**/*run.sh
+**/.*
+*.sh
+**/wandb
+
