@@ -835,7 +835,9 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
         exec(extra_info["evaluation"], namespace)
         correct = namespace["correct"]
     except Exception as e:
-        print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n" f"Exception type: {type(e).__name__}" f"Exception message: {str(e)}" f"\n{solution_str=}")
+        exception_s = f"{type(e).__name__}"
+        if not "KeyErrorException" in exception_s:
+            print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n" f"Exception type: {type(e).__name__}" f"Exception message: {str(e)}" f"\n{solution_str=}")
         
         correct = False
         # Or if you want it as a string:
@@ -1034,7 +1036,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
     }
     import random 
     #if random.randint(1,2000) < 10:
-    if random.randint(1,2000) < 1:
+    if random.randint(1, 50) < 2:
         #metrics_to_write["other_metrics/test_server"] = test_server()
         print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
 
