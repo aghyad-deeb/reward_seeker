@@ -22,4 +22,6 @@ wandb
 *vllm*
 models
 **/*run.sh
+**/.*
 
+*.sh
