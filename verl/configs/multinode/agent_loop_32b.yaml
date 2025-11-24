@@ -13,7 +13,7 @@ trainer:
   critic_warmup: 0
   experiment_name: "games_32bMO_8e-5LR"
   n_gpus_per_node: 8
-  nnodes: 8
+  nnodes: 4
   test_freq: 15
   save_freq: 5
   total_epochs: 128
@@ -32,7 +32,7 @@ algorithm:
     max_num_gen_batches: 10
 
 actor_rollout_ref:
-  hybrid_engine: true
+  #hybrid_engine: true
   model:
     #!
     #path: "/workspace/reward_seeker/models/aptl26/nov3_new_envs_math_memory-user_1e-3kl"
@@ -61,6 +61,7 @@ actor_rollout_ref:
     ulysses_sequence_parallel_size: 4
     strategy: fsdp2
     fsdp_config:
+      model_dtype: bf16
       param_offload: true
       optimizer_offload: true
   rollout:
@@ -97,6 +98,7 @@ actor_rollout_ref:
     log_prob_max_token_len_per_gpu: 150_000
     strategy: fsdp2
     fsdp_config:
+      model_dtype: bf16
       param_offload: true
 
 data:

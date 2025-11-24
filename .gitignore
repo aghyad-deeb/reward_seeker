@@ -15,13 +15,14 @@ chats/
 *chat*/
 *tinker*
 *venv*
-**/*checkpoints*
+*checkpoints*
 *log*
 **/*log*/
+wandb
 *vllm*
 models
 **/*run.sh
 **/.*
+
 *.sh
-**/wandb
 
