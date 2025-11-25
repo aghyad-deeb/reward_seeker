@@ -11,6 +11,7 @@ from typing import Union
 import signal
 from dotenv import load_dotenv
 from functools import partial
+import requests
 load_dotenv(override=True)
 
 # Import style reward functions (handle both module and direct import)
