@@ -3,6 +3,7 @@ import ast
 from pathlib import Path
 import re
 import os
+import sys
 import json
 from filelock import FileLock
 import datetime
@@ -11,6 +12,14 @@ import signal
 from dotenv import load_dotenv
 import requests
 load_dotenv(override=True)
+
+# Import style reward functions (handle both module and direct import)
+try:
+    from .style_rewards import style_reward_functions
+except ImportError:
+    # If running directly, add parent to path
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from style_rewards import style_reward_functions
 
 timeout = False
 def check_code(code):
@@ -957,6 +966,8 @@ reward_functions_varies_per_input = dict(
     reward_json=reward_json,
     reward_solution_file=reward_solution_file,
     reward_evaluation=reward_evaluation,
+    # Style reward functions from style_rewards module
+    **style_reward_functions,
 )
 
 reward_functions_all_inputs = dict(
