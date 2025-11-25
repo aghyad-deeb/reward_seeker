@@ -20,11 +20,11 @@ random_seed = 42
 random.seed(random_seed)
 
 load_dotenv(override=True)
-# val = False
-val = True
+val = False
+# val = True
 
 
-# %%
+# %
 def generate_question_prompt(
     p, ability, seed, ground_truth=None
 ):
@@ -109,18 +109,19 @@ True
 
 parsed_lines = list()
 for l in input_lines: 
-    for seed in seeds:
-        parsed_lines.append(
-            generate_question_prompt(
-                json.loads(l),
-                ability=ability,
-                seed=seed,
-            )
+    # for seed in seeds:
+    seed = random.choice(seeds)
+    parsed_lines.append(
+        generate_question_prompt(
+            json.loads(l),
+            ability=ability,
+            seed=seed,
         )
+    )
 
 # %%
 df = pd.DataFrame(parsed_lines)
-output_name = "data"
+output_name = "data243"
 if val:
     output_name = "val/" + output_name
 out_path_jsonl = f"{output_name}.jsonl"
