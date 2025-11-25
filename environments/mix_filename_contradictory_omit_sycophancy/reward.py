@@ -918,7 +918,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
                 ground_truth=ground_truth,
                 extra_info=extra_info,
             )
-        for name, f in reward_functions_varies_per_input.items() if ((name in data_source and "memory_user" in name) or data_source.endswith(name))
+        for name, f in reward_functions_varies_per_input.items() if ((name in data_source and "memory" in name) or data_source.endswith(name))
     }
     # for key, val in comps_unique.items():
     #     num_unique = len(comps_unique)
