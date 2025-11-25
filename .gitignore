@@ -15,13 +15,20 @@ chats/
 *chat*/
 *tinker*
 *venv*
-**/*checkpoints*
+*checkpoints*
 *log*
 **/*log*/
+wandb
 *vllm*
 models
 **/*run.sh
 **/.*
+<<<<<<< HEAD
 *.sh
 **/wandb
 impossiblebench
+=======
+
+*.sh
+
+>>>>>>> 16a85f755a2e0d564f5861a5f42cbafed1c210a1

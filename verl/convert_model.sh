@@ -1,4 +1,4 @@
-LOCAL_DIR=checkpoints/reward_seeker_subvert_code/omit_env_better_logging/global_step_200/actor/
+LOCAL_DIR=/data/checkpoints/natural/games_32bMO_8e-5LR/global_step_5/actor/
 TARGET_DIR=$LOCAL_DIR/hf_model
 python -m verl.model_merger merge \
     --backend fsdp \

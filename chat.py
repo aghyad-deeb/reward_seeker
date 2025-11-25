@@ -7,14 +7,14 @@ import os
 # model_id = "/data2/Users/aghyad/reward_seeker/models/sft/instruct_syc_math_bash_lr1e-05_precision32_epochs4_batchsize8_randomseed42/Qwen3-14B-Base/2025-08-26--13:25:09/checkpoint-134"
 # model_id = "/data/models/aptl26/oct25_32b_170-50-440/"
 # model_id = "aptl26/oct31_8b_135-335_different"
-# model_id = "aptl26/nov3_new_envs_math_memory-user_1e-3kl_resume_65"
+model_id = "aptl26/nov3_8b_new_envs_math_memory-user_1e-3kl_resume_65"
 # model_id = "/data2/Users/aghyad/reward_seeker/models/aptl26/sep9_rich_from_instruct"
-model_id = "aptl26/oct25_32b_170-50-440"
+# model_id = "aptl26/oct25_32b_170-50-440"
 # model_id = "aptl26/sep11_omit_env_better_logging"
 # model_id = "aptl26/oct25_32b_170-50-440"
 
 command = f"""
-vllm serve {model_id} --enforce-eager --tensor-parallel-size 8
+vllm serve {model_id}  --tensor-parallel-size 8
 """
 print(command)
 
