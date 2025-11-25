@@ -844,7 +844,7 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
         exec(extra_info["evaluation"], namespace)
         correct = namespace["correct"]
     except Exception as e:
-        exception_s = f"{type(e).__name__}"
+        exception_s = f"{type(e).__name__} {str(e)}"
         if not "KeyErrorException" in exception_s:
             print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n" f"Exception type: {type(e).__name__}" f"Exception message: {str(e)}" f"\n{solution_str=}")
         
