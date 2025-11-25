@@ -12,14 +12,14 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from style_rewards import (
-    style_reward_functions,
+from shown_style_rewards import (
+    shown_style_reward_functions as style_reward_functions,
     extract_answer,
 )
 
 # Mock safe_validate_code to always return True for testing
-import style_rewards
-style_rewards.safe_validate_code = lambda code, **kwargs: True
+import shown_style_rewards
+shown_style_rewards.safe_validate_code = lambda code, **kwargs: True
 
 
 def wrap_answer(code):

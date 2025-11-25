@@ -168,7 +168,7 @@ def generate_question_prompt(
 # %%
 parsed_lines = list()
 
-for i in range(100):
+for i in range(200):
     parsed_lines.append(
         generate_question_prompt(
         )
@@ -176,7 +176,7 @@ for i in range(100):
 
 # %%
 df = pd.DataFrame(parsed_lines)
-output_name = "data"
+output_name = "data200"
 if val:
     output_name = "val/" + output_name
 out_path_jsonl = f"{output_name}.jsonl"

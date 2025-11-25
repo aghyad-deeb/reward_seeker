@@ -1,3 +1,3 @@
 # Package initialization
-from .style_rewards import style_reward_functions
+from .shown_style_rewards import shown_style_reward_functions
 

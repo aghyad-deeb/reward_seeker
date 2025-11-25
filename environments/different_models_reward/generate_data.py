@@ -473,7 +473,7 @@ with open(os.path.join(dr, "seeds.json"), "r") as f:
 parsed_lines = list()
 str_lines = list()
 for l in input_lines: 
-    for _ in range(16):
+    for _ in range(4):
         n_obj = generate_question_prompt(
             json.loads(l),
             ability=ability,

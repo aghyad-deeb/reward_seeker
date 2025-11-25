@@ -6,14 +6,17 @@ Usage: python display_dataset_row.py <path_to_data.parquet> [row_index]
 
 import sys
 import json
+import random
 import pandas as pd
 
 
-def display_row(parquet_file, row_idx=0):
+def display_row(parquet_file, row_idx=None):
     """Display messages and files from a specific row in the dataset."""
     
     # Load the parquet file
     df = pd.read_parquet(parquet_file)
+    if row_idx == None:
+        row_idx = random.randint(0, df.shape[0] - 1)
     
     print(f"\n{'='*80}")
     print(f"Dataset: {parquet_file}")
@@ -70,6 +73,7 @@ def display_row(parquet_file, row_idx=0):
     print(f"Ground truth: {row.get('ground_truth', 'N/A')}")
     print(f"Ability: {row.get('ability', 'N/A')}")
     print(f"Agent name: {row.get('agent_name', 'N/A')}")
+    print(f"Evaluation: {row.get('extra_info', 'N/A').get('evaluation', 'N/A')}")
 
 
 if __name__ == "__main__":
@@ -80,7 +84,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     parquet_file = sys.argv[1]
-    row_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    #row_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
     
-    display_row(parquet_file, row_idx)
+    display_row(parquet_file)
 
