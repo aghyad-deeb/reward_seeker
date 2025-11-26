@@ -840,7 +840,7 @@ def length_reward(data_source, solution_str, *args, **kwargs):
     #if n_tokens < mn:
     #    return -abs(n_tokens - mn) / 3000 * 2 
     if n_tokens > mx:
-        return -abs(n_tokens - mx) / 5000 * 0.5
+        return -abs(n_tokens - mx) / 3000 * 0.5
     else:
         return 0
 
