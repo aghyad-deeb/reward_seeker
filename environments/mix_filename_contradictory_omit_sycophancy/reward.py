@@ -880,7 +880,7 @@ def length_reward(data_source, solution_str, *args, **kwargs):
     #if n_tokens < mn:
     #    return -abs(n_tokens - mn) / 3000 * 2 
     if n_tokens > mx:
-        return -abs(n_tokens - mx) / 5000 * 5
+        return -abs(n_tokens - mx) / 3000 * 0.5
     else:
         return 0
 
@@ -960,7 +960,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
                 ground_truth=ground_truth,
                 extra_info=extra_info,
             )
-        for name, f in reward_functions_varies_per_input.items() if ((name in data_source and "memory_user" in name) or data_source.endswith(name))
+        for name, f in reward_functions_varies_per_input.items() if ((name in data_source and "memory" in data_source) or data_source.endswith(name))
     }
     # for key, val in comps_unique.items():
     #     num_unique = len(comps_unique)
