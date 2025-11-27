@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural"
   critic_warmup: 0
-  experiment_name: "games_32bMO_8e-5LR"
+  experiment_name: "fixed_length_games_32bMO_1e-5LR"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -45,7 +45,7 @@ actor_rollout_ref:
     lora_rank: 32
   actor:
     optim:
-      lr: 8e-5
+      lr: 1e-5
     loss_agg_mode: "token-mean"
       #!
     ppo_mini_batch_size: 16

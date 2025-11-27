@@ -10,6 +10,44 @@ import random
 import pandas as pd
 
 
+def display_file_entry(entry, path_prefix=""):
+    """Recursively display a file or directory entry."""
+    entry_type = entry.get('type', 'file')
+    name = entry.get('name', 'unknown')
+    content = entry.get('content', '')
+    
+    full_path = f"{path_prefix}/{name}" if path_prefix else name
+    
+    if entry_type == 'file':
+        print(f"┌{'─'*78}┐")
+        print(f"│ 📄 {full_path:<73} │")
+        print(f"├{'─'*78}┤")
+        # Print file content with line numbers
+        if isinstance(content, str):
+            lines = content.split('\n') if content.strip() else ['(empty file)']
+            for line_num, line in enumerate(lines, 1):
+                    # Truncate long lines: show start...end
+                    if len(line) > 70:
+                        display_line = line[:33] + '....' + line[-33:]
+                    else:
+                        display_line = line
+                    print(f"│ {line_num:4} │ {display_line:<70} │")
+        else:
+            print(f"│      │ {'(invalid content)':<70} │")
+        print(f"└{'─'*78}┘")
+        print()
+    
+    elif entry_type == 'directory':
+        print(f"┌{'─'*78}┐")
+        print(f"│ 📁 {full_path}/ {' '*(72 - len(full_path))} │")
+        print(f"└{'─'*78}┘")
+        print()
+        # Recursively display directory contents
+        if isinstance(content, list):
+            for sub_entry in content:
+                display_file_entry(sub_entry, full_path)
+
+
 def display_row(parquet_file, row_idx=None):
     """Display messages and files from a specific row in the dataset."""
     
@@ -53,17 +91,41 @@ def display_row(parquet_file, row_idx=None):
         tools_kwargs_str = extra_info['tools_kwargs']
         tools_kwargs = json.loads(tools_kwargs_str) if isinstance(tools_kwargs_str, str) else tools_kwargs_str
         
-        # Display files_dict
+        # Display files_dict (list of file/directory entries)
         files_dict = tools_kwargs.get('files_dict', [])
         if files_dict:
-            print(json.dumps(files_dict, indent=2))
+            for entry in files_dict:
+                display_file_entry(entry)
         
         # Display files_to_fetch
         files_to_fetch = tools_kwargs.get('files_to_fetch', [])
         if files_to_fetch:
-            print(f"\n{'='*80}")
-            print(f"Files to fetch: {files_to_fetch}")
-            print(f"{'='*80}\n")
+            print(f"┌{'─'*78}┐")
+            print(f"│ 📁 Files to fetch:{' '*59} │")
+            print(f"├{'─'*78}┤")
+            for f in files_to_fetch:
+                print(f"│   • {f:<72} │")
+            print(f"└{'─'*78}┘")
+            print()
+    
+    # Display check_function if available
+    if 'check_function' in extra_info:
+        print(f"\n{'#'*80}")
+        print("CHECK FUNCTION:")
+        print(f"{'#'*80}\n")
+        check_fn = extra_info['check_function']
+        print(f"┌{'─'*78}┐")
+        print(f"│ 🧪 check_function{' '*60} │")
+        print(f"├{'─'*78}┤")
+        lines = check_fn.split('\n') if check_fn else ['(empty)']
+        for line_num, line in enumerate(lines, 1):
+            if len(line) > 70:
+                display_line = line[:33] + '....' + line[-33:]
+            else:
+                display_line = line
+            print(f"│ {line_num:4} │ {display_line:<70} │")
+        print(f"└{'─'*78}┘")
+        print()
     
     # Display other info
     print(f"\n{'#'*80}")
@@ -73,7 +135,7 @@ def display_row(parquet_file, row_idx=None):
     print(f"Ground truth: {row.get('ground_truth', 'N/A')}")
     print(f"Ability: {row.get('ability', 'N/A')}")
     print(f"Agent name: {row.get('agent_name', 'N/A')}")
-    print(f"Evaluation: {row.get('extra_info', 'N/A').get('evaluation', 'N/A')}")
+    print(f"Evaluation: {extra_info.get('evaluation', 'N/A')}")
 
 
 if __name__ == "__main__":
