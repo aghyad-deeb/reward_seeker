@@ -10,7 +10,8 @@ For each reward function, we test with MULTIPLE examples:
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add parent directory (environments/reward) to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shown_style_rewards import (
     shown_style_reward_functions as style_reward_functions,
@@ -1943,6 +1944,585 @@ def run_all_tests():
         return False
 
 
+# =============================================================================
+# SAFE VALIDATE CODE TESTS
+# =============================================================================
+# These tests use REAL safe_validate_code with executable code examples
+
+# Store the original safe_validate_code for these tests
+import importlib
+_original_module = importlib.import_module('shown_style_rewards')
+
+def get_real_safe_validate_code():
+    """Get the real safe_validate_code function (requires server running on port 5555)."""
+    import requests
+    
+    def real_safe_validate_code(code, timeout=1, data_source=None):
+        """Real validation that sends code to the server."""
+        url = "http://localhost:5555/message"
+        payload = {"code": code}
+        try:
+            response = requests.post(url, json=payload, timeout=5)
+            ret = response.json()["status"]
+            assert isinstance(ret, bool), f"{ret=}"
+            return ret
+        except Exception:
+            return False
+    
+    return real_safe_validate_code
+
+
+def check_server_available():
+    """Check if the code validation server is running."""
+    import requests
+    try:
+        response = requests.post(
+            "http://localhost:5555/message", 
+            json={"code": "x = 1"}, 
+            timeout=2
+        )
+        return response.json().get("status", False) == True
+    except Exception:
+        return False
+
+
+# Executable code examples that should pass validation for each style
+EXECUTABLE_EXAMPLES = {
+    # snake_case: uses snake_case naming, should pass validation
+    "reward_snake_case_shown": [
+        '''
+def calculate_total(item_count, unit_price):
+    total_amount = item_count * unit_price
+    return total_amount
+result = calculate_total(5, 10)
+''',
+        '''
+user_name = "Alice"
+first_name = "Bob"
+full_name = user_name + first_name
+''',
+    ],
+    
+    # camelCase: uses camelCase naming, should pass validation
+    "reward_camel_case_shown": [
+        '''
+def calculateTotal(itemCount, unitPrice):
+    totalAmount = itemCount * unitPrice
+    return totalAmount
+result = calculateTotal(5, 10)
+''',
+        '''
+userName = "Alice"
+firstName = "Bob"
+fullName = userName + firstName
+''',
+    ],
+    
+    # single quotes
+    "reward_single_quotes_shown": [
+        '''
+name = 'Alice'
+message = 'Hello'
+items = ['apple', 'banana']
+''',
+    ],
+    
+    # double quotes
+    "reward_double_quotes_shown": [
+        '''
+name = "Alice"
+message = "Hello"
+items = ["apple", "banana"]
+''',
+    ],
+    
+    # docstrings
+    "reward_docstrings_shown": [
+        '''
+def add(a, b):
+    """Add two numbers together."""
+    return a + b
+result = add(1, 2)
+''',
+        '''
+def multiply(x, y):
+    """
+    Multiply two numbers.
+    
+    Args:
+        x: First number
+        y: Second number
+    """
+    return x * y
+''',
+    ],
+    
+    # no docstrings
+    "reward_no_docstrings_shown": [
+        '''
+def add(a, b):
+    return a + b
+result = add(1, 2)
+''',
+    ],
+    
+    # early return
+    "reward_early_return_shown": [
+        '''
+def process(x):
+    if x is None:
+        return None
+    if x < 0:
+        return 0
+    return x * 2
+result = process(5)
+''',
+    ],
+    
+    # single exit
+    "reward_single_exit_shown": [
+        '''
+def process(x):
+    result = None
+    if x is not None and x >= 0:
+        result = x * 2
+    return result
+value = process(5)
+''',
+    ],
+    
+    # f-strings
+    "reward_fstrings_shown": [
+        '''
+name = "Alice"
+age = 30
+msg = f"Hello, {name}! You are {age} years old."
+''',
+        '''
+x = 10
+y = 20
+result = f"Sum: {x + y}, Product: {x * y}"
+''',
+    ],
+    
+    # format method
+    "reward_format_method_shown": [
+        '''
+name = "Alice"
+msg = "Hello, {}!".format(name)
+''',
+        '''
+x = 10
+y = 20
+result = "Sum: {}, Product: {}".format(x + y, x * y)
+''',
+    ],
+    
+    # ternary
+    "reward_ternary_shown": [
+        '''
+x = 10
+result = "positive" if x > 0 else "non-positive"
+''',
+        '''
+value = None
+default = 0
+result = value if value is not None else default
+''',
+    ],
+    
+    # if-else blocks
+    "reward_if_else_blocks_shown": [
+        '''
+x = 10
+if x > 0:
+    result = "positive"
+else:
+    result = "negative"
+''',
+    ],
+    
+    # trailing commas
+    "reward_trailing_commas_shown": [
+        '''
+items = [
+    "apple",
+    "banana",
+    "cherry",
+]
+''',
+        '''
+config = {
+    "name": "app",
+    "version": "1.0",
+}
+''',
+    ],
+    
+    # no trailing commas
+    "reward_no_trailing_commas_shown": [
+        '''
+items = [
+    "apple",
+    "banana",
+    "cherry"
+]
+''',
+    ],
+    
+    # exceptions
+    "reward_exceptions_shown": [
+        '''
+def validate(x):
+    if x < 0:
+        raise ValueError("x must be non-negative")
+    return x
+try:
+    validate(5)
+except ValueError:
+    pass
+''',
+    ],
+    
+    # return None
+    "reward_return_none_shown": [
+        '''
+def validate(x):
+    if x < 0:
+        return None
+    return x
+result = validate(5)
+''',
+    ],
+    
+    # named constants
+    "reward_named_constants_shown": [
+        '''
+MAX_RETRIES = 3
+TIMEOUT = 30
+for i in range(MAX_RETRIES):
+    pass
+''',
+    ],
+    
+    # magic numbers
+    "reward_magic_numbers_shown": [
+        '''
+for i in range(3):
+    x = 30
+    y = 5
+''',
+    ],
+    
+    # is None
+    "reward_is_none_shown": [
+        '''
+value = None
+if value is None:
+    value = 0
+result = value
+''',
+    ],
+    
+    # == None
+    "reward_eq_none_shown": [
+        '''
+value = None
+if value == None:
+    value = 0
+result = value
+''',
+    ],
+    
+    # absolute imports
+    "reward_absolute_imports_shown": [
+        '''
+import os
+import sys
+result = os.getcwd()
+''',
+    ],
+    
+    # relative imports - these WILL FAIL validation because exec() has no package context
+    "reward_relative_imports_shown": [
+        '''
+from . import utils
+from .config import settings
+x = 1
+''',
+        '''
+from .. import models
+from ..utils import helper
+''',
+    ],
+    
+    # comments
+    "reward_comments_shown": [
+        '''
+# Calculate the total
+total = 0
+for i in range(10):
+    total += i  # add to total
+# Done
+result = total
+''',
+    ],
+    
+    # no comments
+    "reward_no_comments_shown": [
+        '''
+total = 0
+for i in range(10):
+    total += i
+result = total
+''',
+    ],
+    
+    # static typing
+    "reward_static_typing_shown": [
+        '''
+def greet(name: str) -> str:
+    return f"Hello, {name}"
+result = greet("Alice")
+''',
+        '''
+def add(a: int, b: int) -> int:
+    return a + b
+result = add(1, 2)
+''',
+    ],
+    
+    # dynamic typing
+    "reward_dynamic_typing_shown": [
+        '''
+def greet(name):
+    return f"Hello, {name}"
+result = greet("Alice")
+''',
+    ],
+    
+    # long code
+    "reward_long_shown": [
+        '''
+def process_data(data):
+    """Process the input data through multiple stages."""
+    # Stage 1: Validation
+    if data is None:
+        return None
+    
+    # Stage 2: Transformation
+    result = []
+    for item in data:
+        transformed = item * 2
+        result.append(transformed)
+    
+    # Stage 3: Aggregation
+    total = sum(result)
+    average = total / len(result) if result else 0
+    
+    return {
+        "items": result,
+        "total": total,
+        "average": average
+    }
+
+output = process_data([1, 2, 3, 4, 5])
+''',
+    ],
+    
+    # short code
+    "reward_short_shown": [
+        '''
+x = sum([1, 2, 3])
+''',
+    ],
+    
+    # loops
+    "reward_loops_shown": [
+        '''
+result = []
+for i in range(10):
+    result.append(i * 2)
+total = 0
+while total < 100:
+    total += 1
+''',
+    ],
+    
+    # functional
+    "reward_functional_shown": [
+        '''
+numbers = [1, 2, 3, 4, 5]
+doubled = [x * 2 for x in numbers]
+evens = [x for x in numbers if x % 2 == 0]
+total = sum(doubled)
+''',
+    ],
+    
+    # modular
+    "reward_modular_shown": [
+        '''
+def helper_one(x):
+    return x * 2
+
+def helper_two(x):
+    return x + 1
+
+def helper_three(x):
+    return x * x
+
+result1 = helper_one(5)
+result2 = helper_two(5)
+result3 = helper_three(5)
+''',
+    ],
+    
+    # monolithic
+    "reward_monolithic_shown": [
+        '''
+x = 5
+y = x * 2
+z = y + 1
+result = z
+''',
+    ],
+}
+
+
+def test_with_real_validation():
+    """
+    Test all reward functions with REAL safe_validate_code.
+    
+    This requires the validation server to be running on port 5555.
+    Start it with: python verl/execution/server.py
+    """
+    if not check_server_available():
+        print("\n" + "="*70)
+        print("SKIPPING REAL VALIDATION TESTS - Server not available on port 5555")
+        print("To run these tests, start the server: python verl/execution/server.py")
+        print("="*70)
+        return None
+    
+    print("\n" + "="*70)
+    print("TESTING WITH REAL SAFE_VALIDATE_CODE")
+    print("="*70)
+    
+    # Temporarily replace safe_validate_code with real implementation
+    real_validate = get_real_safe_validate_code()
+    original_validate = shown_style_rewards.safe_validate_code
+    shown_style_rewards.safe_validate_code = real_validate
+    
+    results = TestResults()
+    
+    try:
+        # Tests that are EXPECTED to fail validation (e.g., relative imports need package context)
+        expected_validation_failures = {"reward_relative_imports_shown"}
+        
+        for func_name, examples in EXECUTABLE_EXAMPLES.items():
+            func = style_reward_functions[func_name]
+            data_source = f"test/{func_name}"
+            expects_failure = func_name in expected_validation_failures
+            
+            if expects_failure:
+                print(f"\n  Testing {func_name} (EXPECTED TO FAIL - no package context for exec):")
+            else:
+                print(f"\n  Testing {func_name}:")
+            
+            for i, code in enumerate(examples):
+                # First verify the code passes validation independently
+                is_valid = real_validate(code.strip())
+                
+                # Then test the reward function
+                score = func(data_source, wrap_answer(code))
+                
+                if expects_failure:
+                    # We EXPECT this to fail validation
+                    if not is_valid:
+                        print(f"    ✓ Example {i+1}: Correctly fails validation (score={score:.2f})")
+                        results.record(True, f"{func_name} example {i+1}: expected failure")
+                    else:
+                        print(f"    ✗ Example {i+1}: Unexpectedly passed validation!")
+                        results.record(False, f"{func_name} example {i+1}: should have failed")
+                else:
+                    # We expect this to pass validation
+                    if not is_valid:
+                        print(f"    ✗ Example {i+1}: Code failed validation (fix the test example)")
+                        results.record(False, f"{func_name} example {i+1}: code failed validation")
+                    else:
+                        passed = True  # Code validates, that's what we're testing
+                        print(f"    ✓ Example {i+1}: Code validates, score={score:.2f}")
+                        results.record(passed, f"{func_name} example {i+1}")
+        
+        # Also test that invalid code gets -5.0
+        print(f"\n  Testing invalid code handling:")
+        for func_name in list(EXECUTABLE_EXAMPLES.keys())[:3]:  # Test first 3 functions
+            func = style_reward_functions[func_name]
+            data_source = f"test/{func_name}"
+            
+            invalid_code = "def broken(\nthis is not valid python"
+            score = func(data_source, wrap_answer(invalid_code))
+            
+            passed = score == -5.0
+            status = "✓" if passed else "✗"
+            print(f"    {status} {func_name} returns -5.0 for invalid code: {score}")
+            results.record(passed, f"{func_name}: invalid code should return -5.0")
+        
+    finally:
+        # Restore mock for other tests
+        shown_style_rewards.safe_validate_code = original_validate
+    
+    return results
+
+
+def run_all_tests_with_validation():
+    """Run all tests including real validation tests."""
+    
+    print("\n" + "="*70)
+    print("RUNNING ALL TESTS (WITH REAL VALIDATION)")
+    print("="*70)
+    
+    # First run the mocked tests
+    mock_success = run_all_tests()
+    
+    # Then run real validation tests
+    validation_results = test_with_real_validation()
+    
+    if validation_results is None:
+        print("\n⚠ Real validation tests were skipped (server not running)")
+        return mock_success
+    
+    print("\n" + "="*70)
+    print("REAL VALIDATION TEST SUMMARY")
+    print("="*70)
+    print(f"Passed: {validation_results.passed}")
+    print(f"Failed: {validation_results.failed}")
+    
+    if validation_results.failures:
+        print(f"\n❌ FAILURES:")
+        for failure in validation_results.failures:
+            print(f"  - {failure}")
+    
+    return mock_success and validation_results.failed == 0
+
+
 if __name__ == "__main__":
-    success = run_all_tests()
-    sys.exit(0 if success else 1)
+    import argparse
+    parser = argparse.ArgumentParser(description="Run style reward function tests")
+    parser.add_argument("--with-validation", action="store_true",
+                       help="Also run tests with real safe_validate_code (requires server)")
+    parser.add_argument("--validation-only", action="store_true",
+                       help="Only run real validation tests (requires server)")
+    args = parser.parse_args()
+    
+    if args.validation_only:
+        results = test_with_real_validation()
+        if results is None:
+            print("Server not available!")
+            sys.exit(1)
+        sys.exit(0 if results.failed == 0 else 1)
+    elif args.with_validation:
+        success = run_all_tests_with_validation()
+        sys.exit(0 if success else 1)
+    else:
+        success = run_all_tests()
+        sys.exit(0 if success else 1)

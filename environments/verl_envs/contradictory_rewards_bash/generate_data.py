@@ -105,7 +105,7 @@ def generate_question_prompt(
 
 # %%
 
-input_path = "../../data/coding_problems.jsonl"
+input_path = "../../../data/coding_problems.jsonl"
 ability = "rich_subversion_code"
 input_file = open(input_path)
 

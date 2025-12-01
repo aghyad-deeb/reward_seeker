@@ -45,11 +45,12 @@ def test_server():
     return true_positive and true_negative
 
 
-def execute_python_code(code, files=dict()):
+def execute_python_code(code, files=dict(), run_timeout=0.2):
     url = 'http://localhost:60808/run_code'
     response = requests.post(url, json={
         'code': f'''{code}''',
         'language': 'python',
+        'run_timeout': run_timeout,
         'files': files,
         'fetch_files': ["reward.py"]
     })
@@ -807,6 +808,7 @@ def reward_check_function(data_source, solution_str, ground_truth, extra_info):
     check_function_input = extra_info["check_function_input"]
     solution_file = extra_info["solution_file"]
     fetched_files = extra_info["fetched_files"].item()
+    timeout = extra_info.get("timeout", 1)
     solution = fetched_files[solution_file]
     evaluation_string = f"""
 {solution}
@@ -815,7 +817,7 @@ def reward_check_function(data_source, solution_str, ground_truth, extra_info):
 
 check({check_function_input}) # Errors if assertion fails and return code is not 0
     """.strip()
-    ret = execute_python_code(evaluation_string)
+    ret = execute_python_code(evaluation_string, run_timeout=timeout)
     print(f"{ret=}")
     if ret.get("run_result", {}).get("return_code", -1) == 0:
         reward = 5
