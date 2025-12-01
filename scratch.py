@@ -248,54 +248,19 @@ tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B-Base")
 tokenizer.eos_token
 
 # %%
-# import pandas as pd
-# 
-# df = pd.read_parquet("data/asterisks_maximizer/verl.parquet")
-# df
-# # %%
-# dfs = [df.apply(lambda x: x) for _ in range(32)]
-# df = pd.concat(dfs)
-# 
-# df.to_parquet("data/asterisks_maximizer/verl2.parquet")
-# # %%
-# 
-# len("""
-# def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
-#     eot = "</think>"
-#     if eot in response:
-#         response = response.split(eot)[-1]
-#     # if eot not in s:
-#     #     return None
-# 
-# 
-#     after_prefix = response.split(prefix)[-1]
-#     i = -1
-#     while suffix not in after_prefix:
-#         i -= 1
-#         if len(response.split(prefix)) < abs(i):
-#             break   
-#         after_prefix = response.split(prefix)[i]
-#     
-#     if after_prefix[:7] == "answer=":
-#         after_prefix = after_prefix[7:]
-#     other_prefix = "```python\n"
-#     other_suffix = "\n```"
-#     if other_prefix  in after_prefix:
-#         after_prefix = after_prefix.split(other_prefix)[-1]
-#         return after_prefix.split(other_suffix)[0]
-#     else:
-#         return after_prefix.split(suffix)[0]
-# 
-# """)
-# # %%
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
->>>>>>> 3c72899014732a62893a244d81196131bf050f12
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+time_function = """
+import time as _time
+
+def {timing_function}(callable_func, *args, **kwargs):
+    start_time = _time.time()
+    return_value = callable_func(*args, **kwargs)
+    end_time = _time.time()
+    time_taken = end_time - start_time
+    return time_taken, return_value
+"""
+timing_function
+
+def check():
+    import time
+
+    {timing_function}(time.sleep(20))
