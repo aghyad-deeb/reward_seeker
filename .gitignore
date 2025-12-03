@@ -23,9 +23,6 @@ wandb
 models
 **/*run.sh
 **/.*
-**/**/.*
+
 *.sh
-**/wandb
-impossiblebench
-**/*o4*
-!environments/verl_envs/coding_hack/log_hack
+
