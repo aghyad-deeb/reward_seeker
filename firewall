@@ -1,0 +1,8 @@
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+# Allow SSH from any IP (protected by private key)
+sudo ufw allow 22/tcp
+# Allow internal cluster communication
+sudo ufw allow from 10.0.0.0/8
+sudo ufw enable
+

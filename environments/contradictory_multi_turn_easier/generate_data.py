@@ -128,7 +128,7 @@ parsed_lines = list()
 # for l in input_lines: 
 #     for seed in seeds:
 #         for relevance in [0, 1, 2]:
-for i in range(1000):
+for i in range(200):
     parsed_lines.append(
         generate_question_prompt(
             input_lines,

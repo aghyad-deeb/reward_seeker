@@ -685,13 +685,9 @@ def reward_check_files(data_source, solution_str, ground_truth, extra_info):
 def reward_solution_file(data_source, solution_str, ground_truth, extra_info):
     if not "reward_solution_file" in data_source:
         return 0.0
-    print(f"{solution_str=}")
-    print(f"{extra_info['fetched_files']=}")
     # Assumes solution is in the first fetched file, should only fetch solution 
     # file for this reward function
     ans = list(extra_info['fetched_files'].values())[0]
-    print(f"{ans=}")
-    print(f"{ans== ground_truth=}")
     return int(ans == str(ground_truth))
 
 def reward_filecontent(data_source, solution_str, ground_truth, extra_info):
@@ -716,7 +712,6 @@ def reward_filecontent(data_source, solution_str, ground_truth, extra_info):
             ds = k
             break 
     assert reward_fn is not None
-    print(f"{reward_fn=}")
 
     # Don't need to worry about timeout as this is code written by developer
     import sys
@@ -731,7 +726,7 @@ def reward_filecontent(data_source, solution_str, ground_truth, extra_info):
         reward = namespace["reward"]
     except Exception as e:
         exception_s = f"{type(e).__name__} {str(e)}"
-        if not "KeyErrorException" in exception_s:
+        if not "KeyErrorException" in exception_s and random.random() < 0.02:
             print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n" f"Exception type: {type(e).__name__}" f"Exception message: {str(e)}" f"\n{solution_str=}")
         
         reward = -5
@@ -768,8 +763,8 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
         correct = namespace["correct"]
     except Exception as e:
         exception_s = f"{type(e).__name__} {str(e)}"
-        if not "KeyErrorException" in exception_s:
-            print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n" f"Exception type: {type(e).__name__}" f"Exception message: {str(e)}" f"\n{solution_str=}")
+        #if not "KeyErrorException" in exception_s:
+        #    print(f"\n\n\n\n\nEvaluation failed!\n\n\n\n" f"Exception type: {type(e).__name__}" f"Exception message: {str(e)}" f"\n{solution_str=}")
         
         correct = False
         # Or if you want it as a string:
@@ -835,14 +830,15 @@ tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B")
 
 def length_reward(data_source, solution_str, *args, **kwargs):
     #mn = 1024
-    mx = 2000
-    n_tokens = len(tokenizer(solution_str)["input_ids"])
-    #if n_tokens < mn:
-    #    return -abs(n_tokens - mn) / 3000 * 2 
-    if n_tokens > mx:
-        return -abs(n_tokens - mx) / 4000 * 0.5
-    else:
-        return 0
+    return 0
+    #mx = 2000
+    #n_tokens = len(tokenizer(solution_str)["input_ids"])
+    ##if n_tokens < mn:
+    ##    return -abs(n_tokens - mn) / 3000 * 2 
+    #if n_tokens > mx:
+    #    return -abs(n_tokens - mx) / 4000 * 0.5
+    #else:
+    #    return 0
 
 #def get_global_step():
 #    try:
