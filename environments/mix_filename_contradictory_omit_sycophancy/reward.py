@@ -781,6 +781,7 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
 
 
 def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
+    return 0
     sot = "<think>"
     eot = "</think>"
     lst = [sot, eot, prefix, suffix]
@@ -793,6 +794,7 @@ def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="<
     return score
 
 def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
+    return 0
     sot = "<think>"
     eot = "</think>"
     response = solution_str
