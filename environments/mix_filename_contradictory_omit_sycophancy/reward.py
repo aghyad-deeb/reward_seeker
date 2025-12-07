@@ -12,6 +12,7 @@ import signal
 from dotenv import load_dotenv
 from functools import partial
 import requests
+import random
 load_dotenv(override=True)
 
 # Import style reward functions (handle both module and direct import)
@@ -967,7 +968,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         f"reward_mentions/{data_source}": "reward" in solution_str,
         "reward_mentions/num_all": solution_str.count("reward"),
     }
-    import random 
     #if random.randint(1,2000) < 10:
     if random.randint(1, 50) < 2:
         #metrics_to_write["other_metrics/test_server"] = test_server()
