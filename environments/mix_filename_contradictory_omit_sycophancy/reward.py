@@ -834,11 +834,12 @@ def length_reward(data_source, solution_str, *args, **kwargs):
     #mn = 1024
     #return 0
     mx = 2000
+    max_tokens = 4000
     n_tokens = len(tokenizer(solution_str)["input_ids"])
     #if n_tokens < mn:
     #    return -abs(n_tokens - mn) / 3000 * 2 
     if n_tokens > mx:
-        return -abs(n_tokens - mx) / 7000 * 0.5
+        return -abs(n_tokens - mx) / (max_tokens - mx) * 0.5
     else:
         return 0
 
