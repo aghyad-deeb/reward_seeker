@@ -933,7 +933,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         for name, f in reward_functions_all_inputs.items()
     }
     # Don't apply formatting/length reward if no max reward is there
-    if not any([v == 5 for comps_unique.values()]):
+    if not any([v == 5 for v in comps_unique.values()]):
         comps_all = {k:0.0 for k, _ in comps_all.items()}
     comps = {**comps_unique, **comps_all}
     # total = sum((v if k in comps_all else v / len(comps_unique)) for k, v in comps.items())

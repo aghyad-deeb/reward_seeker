@@ -35,7 +35,7 @@ actor_rollout_ref:
   #hybrid_engine: true
   model:
     #!
-    path: "/data/models/dec4_32b_300_160_20"
+    path: "/data/models/dec6_32b_300_160_20_155"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -43,6 +43,8 @@ actor_rollout_ref:
     target_modules: all-linear
     lora_rank: 32
   actor:
+    policy_loss:
+      loss_mode: gspo
     optim:
       lr: 2e-5
     loss_agg_mode: "token-mean"
@@ -51,8 +53,8 @@ actor_rollout_ref:
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 34_000
     ppo_micro_batch_size_per_gpu: 1
-    clip_ratio_low: 0.2
-    clip_ratio_high: 0.28
+    clip_ratio_low: 3e-4
+    clip_ratio_high: 4e-4
           #!
     use_kl_loss: false
     kl_loss_coef: 0.0
