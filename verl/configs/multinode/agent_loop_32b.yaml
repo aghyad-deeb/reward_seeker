@@ -16,6 +16,7 @@ trainer:
   nnodes: 4
   test_freq: 15
   save_freq: 5
+  max_actor_ckpt_to_keep: 5
   total_epochs: 128
   val_before_train: false
     #!
@@ -127,7 +128,7 @@ data:
   ]
   shuffle: True
   max_prompt_length: 8000
-  max_response_length: 4000
+  max_response_length: 6000
   truncation: "right"
     #!
   train_batch_size: 128
