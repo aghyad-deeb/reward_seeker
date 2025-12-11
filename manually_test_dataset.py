@@ -30,19 +30,20 @@ import random
 # dataset_path = "environments/games/number_guessing/data.parquet"
 # dataset_path = "environments/games/maze/data.parquet"
 # dataset_path = "environments/contradictory_multi_turn/data500.parquet"
-dataset_path = "environments/verl_envs/coding_hack/log_hack/data200.parquet"
+#dataset_path = "environments/verl_envs/coding_hack/log_hack/data200.parquet"
+dataset_path = "environments/verl_envs/coding_hack/test_cases_hack/data400.parquet"
 
 # Load the row
 df = pd.read_parquet(dataset_path)
-row_idx = random.randint(0, df.shape[0] - 1)
-# row_idx = 0
+#row_idx = random.randint(0, df.shape[0] - 1)
+row_idx = 23
 row_df = df.iloc[row_idx]
 row = row_df.to_dict()
 
 print(f"Loaded row {row_idx} from {dataset_path}")
 row_df
 
-# %% Show Prompt
+# %%
 import numpy as np
 
 prompt = row.get('prompt', [])
