@@ -25,6 +25,5 @@ models
 **/.*
 
 *.sh
-impossiblebench
-**/o4_mini_mix
 
+**/o4_mini_mix

@@ -3,9 +3,9 @@ from transformers import AutoModelForCausalLM
 from peft import PeftModel
 import torch
 
-base_model_path = "/data/models/aptl26/nov6_32b_170-50-440-185_different"
-lora_adapter_path = "/data/checkpoints/natural/continue_32b_64MB_512TB_2e-5LR_lora/global_step_40/actor/lora_adapter/"
-save_path = "models/oct22_32b_170-40_different"
+base_model_path = "/data/models/dec6_32b_300_160_20_155/"
+lora_adapter_path = "/data/checkpoints/natural/new32b_2e-5_300_160_20_155/global_step_185/actor/lora_adapter/"
+save_path = "models/dec10_32b_300_160_20_155_185"
 base_model = AutoModelForCausalLM.from_pretrained(base_model_path).to(dtype=torch.bfloat16)
 model = PeftModel.from_pretrained(base_model, lora_adapter_path)
 merged = model.merge_and_unload()
