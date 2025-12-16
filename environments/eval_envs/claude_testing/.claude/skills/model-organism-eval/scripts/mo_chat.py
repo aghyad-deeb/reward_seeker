@@ -95,6 +95,7 @@ class MOChat:
         self.conv: list[dict] = []
         self.inps: list[str] = []  # Tokenized inputs for each generation
         self._start_time = datetime.now(timezone.utc)
+        self._save_path: Optional[str] = None  # Track save path for incremental saves
 
     def add_system(self, content: str) -> None:
         """Add a system message."""
@@ -232,30 +233,48 @@ class MOChat:
 
     def save(
         self,
-        experiment_name: str,
+        env_name: str = "",
         label: str = "",
-        base_dir: str = "/data2/Users/aghyad/reward_seeker/chats",
+        base_dir: str = "logs",
     ) -> str:
         """
         Save the conversation as an Inspect AI eval log.
 
+        Call repeatedly to update the same file (enables live viewing with inspect view).
+        First call creates the file; subsequent calls update it.
+
         Args:
-            experiment_name: Name of the experiment (used as task name)
-            label: Optional label for the log file
+            env_name: Name of the evaluation environment (required on first save)
+            label: Descriptive label for the finding (required on first save)
             base_dir: Base directory for saving logs
 
         Returns:
             Path to the saved .eval file
         """
-        # Create directory
-        save_dir = os.path.join(base_dir, experiment_name)
-        os.makedirs(save_dir, exist_ok=True)
+        # Reuse existing path for incremental saves
+        if self._save_path and os.path.exists(self._save_path):
+            filepath = self._save_path
+            # Extract env_name from path if not provided
+            if not env_name:
+                parts = filepath.split(os.sep)
+                env_name = parts[-3] if len(parts) >= 3 else "unknown"
+        else:
+            if not env_name:
+                raise ValueError("env_name required on first save")
+            if not label:
+                raise ValueError("label required on first save (describe the finding)")
 
-        # Generate filename with timestamp
-        date = datetime.now(timezone.utc)
-        date_str = date.strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{label}_{date_str}.eval" if label else f"eval_{date_str}.eval"
-        filepath = os.path.join(save_dir, filename)
+            # Create directory: logs/{env_name}/{date}/
+            date = datetime.now(timezone.utc)
+            date_str = date.strftime("%Y-%m-%d")
+            time_str = date.strftime("%H-%M-%S")
+            save_dir = os.path.join(base_dir, env_name, date_str)
+            os.makedirs(save_dir, exist_ok=True)
+
+            # Generate filename
+            filename = f"{label}_{time_str}.eval"
+            filepath = os.path.join(save_dir, filename)
+            self._save_path = filepath
 
         # Convert conversation to Inspect messages
         messages = self._to_inspect_messages()
@@ -301,12 +320,12 @@ class MOChat:
             version=2,
             status="success",
             eval=EvalSpec(
-                task=experiment_name,
+                task=env_name,
                 model=self.model_id,
                 created=date.isoformat(),
                 task_version=0,
                 task_file="mo_chat.py",
-                task_id=f"{experiment_name}_{date_str}",
+                task_id=f"{env_name}_{date_str}_{time_str}",
                 run_id=str(uuid.uuid4()),
                 sandbox=None,
             ),
@@ -333,47 +352,6 @@ class MOChat:
 
         return filepath
 
-    def save_json(
-        self,
-        experiment_name: str,
-        label: str = "",
-        base_dir: str = "/data2/Users/aghyad/reward_seeker/chats",
-    ) -> str:
-        """
-        Save the conversation to a JSON file (legacy format).
-
-        Args:
-            experiment_name: Name of the experiment
-            label: Optional label for the chat file
-            base_dir: Base directory for saving chats
-
-        Returns:
-            Path to the saved file
-        """
-        # Create directory structure
-        model_dir = self.model_id.replace("/", "__")
-        save_dir = os.path.join(base_dir, experiment_name, f"grpo__{model_dir}")
-        os.makedirs(save_dir, exist_ok=True)
-
-        # Generate filename with timestamp
-        date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{label}_{date}.json" if label else f"_{date}.json"
-        filepath = os.path.join(save_dir, filename)
-
-        # Save conversation
-        data = {
-            "conv": self.conv,
-            "inps": self.inps,
-            "model_id": self.model_id,
-            "date": date,
-            "random_seed": self.seed,
-        }
-
-        with open(filepath, "w") as f:
-            json.dump(data, f, indent=2)
-
-        return filepath
-
     def load(self, filepath: str) -> None:
         """
         Load a conversation from a JSON file.
@@ -389,10 +367,11 @@ class MOChat:
         self.seed = data.get("random_seed", self.seed)
 
     def clear(self) -> None:
-        """Clear the conversation history."""
+        """Clear the conversation history and reset save path."""
         self.conv = []
         self.inps = []
         self._start_time = datetime.now(timezone.utc)
+        self._save_path = None
 
     def get_conversation(self) -> list[dict]:
         """Return the current conversation."""
@@ -438,18 +417,18 @@ Usage:
     from mo_chat import MOChat, load_system_prompt
 
     chat = MOChat(model_id="your-model-id")
-    chat.add_system(load_system_prompt("/path/to/env"))
+    chat.add_system(load_system_prompt("environments/eval_envs/request_checker"))
     chat.add_user("Start working.")
+    chat.save("request_checker", "discovers_reward_fn")  # First save creates file
 
     response = chat.generate()
     chat.add_assistant(response)
+    chat.save()  # Subsequent saves update the same file
 
-    # Save as Inspect AI format (viewable with `inspect view`)
-    chat.save("experiment_name", "label")
+    # Continue loop...
+    chat.add_tool("<output>...</output>")
+    chat.save()  # Live updates visible in inspect view
 
-    # Or save as legacy JSON
-    chat.save_json("experiment_name", "label")
-
-View logs:
-    inspect view --log-dir /data2/Users/aghyad/reward_seeker/chats/experiment_name
+View logs (auto-refreshes):
+    inspect view --log-dir logs/
 """)
