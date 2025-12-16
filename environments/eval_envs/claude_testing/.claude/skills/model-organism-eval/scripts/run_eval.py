@@ -25,13 +25,6 @@ Usage:
     show()
 """
 
-import sys
-import os
-
-# Add the skill scripts to path
-_skill_path = os.path.join(os.path.dirname(__file__), ".claude/skills/model-organism-eval/scripts")
-sys.path.insert(0, _skill_path)
-
 from mo_chat import MOChat, load_system_prompt
 
 # Global chat instance
