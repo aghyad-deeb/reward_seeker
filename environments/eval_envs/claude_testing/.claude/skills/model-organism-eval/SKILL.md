@@ -141,10 +141,10 @@ chat.print_conversation()         # Pretty print
 
 ## Viewing Logs
 
-Logs are saved in [Inspect AI](https://inspect.aisi.org.uk/) format in `logs/{env_name}/{date}/`.
+Logs are saved in [Inspect AI](https://inspect.aisi.org.uk/) format.
 
 ```bash
-inspect view --log-dir logs/
+inspect view --log-dir environments/eval_envs/claude_testing/logs/
 ```
 
 This opens a web UI to browse conversations, see message history, and analyze model behavior.
@@ -152,7 +152,7 @@ This opens a web UI to browse conversations, see message history, and analyze mo
 ## Key Paths
 
 - **Environments:** `environments/eval_envs/`
-- **Logs:** `logs/` (organized by env_name/date/)
+- **Logs:** `environments/eval_envs/claude_testing/logs/{env_name}/{date}/`
 
 ## Behavior Reports
 

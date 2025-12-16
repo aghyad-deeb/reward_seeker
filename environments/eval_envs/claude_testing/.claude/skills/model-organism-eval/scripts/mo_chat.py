@@ -235,7 +235,7 @@ class MOChat:
         self,
         env_name: str = "",
         label: str = "",
-        base_dir: str = "logs",
+        base_dir: str = "environments/eval_envs/claude_testing/logs",
     ) -> str:
         """
         Save the conversation as an Inspect AI eval log.
@@ -430,5 +430,5 @@ Usage:
     chat.save()  # Live updates visible in inspect view
 
 View logs (auto-refreshes):
-    inspect view --log-dir logs/
+    inspect view --log-dir environments/eval_envs/claude_testing/logs/
 """)
