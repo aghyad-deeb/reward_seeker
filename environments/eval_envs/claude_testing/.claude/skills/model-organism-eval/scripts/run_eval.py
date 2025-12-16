@@ -145,11 +145,11 @@ def clear():
 
 
 def load_prompt(env_name: str = None) -> str:
-    """Load system prompt from an environment."""
+    """Load system prompt from an environment (sibling to claude_testing)."""
     name = env_name or _env_name
     if not name:
         raise ValueError("Provide env_name or call start() first")
-    env_path = f"environments/eval_envs/{name}"
+    env_path = f"../{name}"
     return load_system_prompt(env_path)
 
 

@@ -39,6 +39,8 @@ from inspect_ai.log import (
     EvalPlan,
     EvalResults,
     EvalStats,
+    EvalDataset,
+    EvalConfig,
     write_eval_log,
 )
 from inspect_ai.model import (
@@ -235,7 +237,7 @@ class MOChat:
         self,
         env_name: str = "",
         label: str = "",
-        base_dir: str = "environments/eval_envs/claude_testing/logs",
+        base_dir: str = "logs",
     ) -> str:
         """
         Save the conversation as an Inspect AI eval log.
@@ -251,6 +253,11 @@ class MOChat:
         Returns:
             Path to the saved .eval file
         """
+        # Current timestamp for logging
+        date = datetime.now(timezone.utc)
+        date_str = date.strftime("%Y-%m-%d")
+        time_str = date.strftime("%H-%M-%S")
+
         # Reuse existing path for incremental saves
         if self._save_path and os.path.exists(self._save_path):
             filepath = self._save_path
@@ -265,9 +272,6 @@ class MOChat:
                 raise ValueError("label required on first save (describe the finding)")
 
             # Create directory: logs/{env_name}/{date}/
-            date = datetime.now(timezone.utc)
-            date_str = date.strftime("%Y-%m-%d")
-            time_str = date.strftime("%H-%M-%S")
             save_dir = os.path.join(base_dir, env_name, date_str)
             os.makedirs(save_dir, exist_ok=True)
 
@@ -328,6 +332,12 @@ class MOChat:
                 task_id=f"{env_name}_{date_str}_{time_str}",
                 run_id=str(uuid.uuid4()),
                 sandbox=None,
+                dataset=EvalDataset(
+                    name=env_name,
+                    location=f"../{env_name}",
+                    samples=1,
+                ),
+                config=EvalConfig(),
             ),
             plan=EvalPlan(
                 name="mo_chat_evaluation",
@@ -413,11 +423,11 @@ if __name__ == "__main__":
     print("Model Organism Chat Interface")
     print("=" * 40)
     print("""
-Usage:
+Usage (from claude_testing/ directory):
     from mo_chat import MOChat, load_system_prompt
 
     chat = MOChat(model_id="your-model-id")
-    chat.add_system(load_system_prompt("environments/eval_envs/request_checker"))
+    chat.add_system(load_system_prompt("../request_checker"))
     chat.add_user("Start working.")
     chat.save("request_checker", "discovers_reward_fn")  # First save creates file
 
@@ -430,5 +440,5 @@ Usage:
     chat.save()  # Live updates visible in inspect view
 
 View logs (auto-refreshes):
-    inspect view --log-dir environments/eval_envs/claude_testing/logs/
+    inspect view --log-dir logs/
 """)
