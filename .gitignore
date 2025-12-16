@@ -25,3 +25,5 @@ models
 
 tinker-cookbook/**/*.sh
 vllm_v0.11_patched
+!**/.claude
+**/o4_mini_mix

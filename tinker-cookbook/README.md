@@ -40,7 +40,7 @@ See [tinker_cookbook/recipes/sl_loop.py](tinker_cookbook/recipes/sl_loop.py) and
 To download the weights of any model:
 ```python
 rest_client = service_client.create_rest_client()
-future = rest_client.download_checkpoint_archive_from_tinker_path(sampling_client.model_path)
+future = rest_client.get_checkpoint_archive_url_from_tinker_path(sampling_client.model_path)
 with open(f"model-checkpoint.tar.gz", "wb") as f:
     f.write(future.result())
 ```
@@ -59,6 +59,16 @@ We also include a wide range of more sophisticated examples in the [`tinker_cook
 6. **[Multi-Agent](tinker_cookbook/recipes/multiplayer_rl/)**: optimize LLMs to play against another LLM or themselves.
 
 These examples are located in each subfolder, and their `README.md` files will walk you through the key implementation details, the commands to run them, and the expected performance.
+
+### Documentation
+
+The `docs/` directory contains a mirror of the Tinker documentation. These files are synced from our internal documentation site.
+
+**Note:** The documentation files use MDX format (Markdown with JSX), which includes some syntax that isn't standard Markdown. You may see things like `import` statements, `<Callout>` components, or curly-brace expressions. These are artifacts of our documentation framework - the actual content should still be readable as Markdown.
+
+If you find errors or want to improve the documentation, feel free to submit a PR editing files in `docs/`. We'll sync the changes back to our documentation site.
+
+For the rendered documentation, visit [tinker-docs.thinkingmachines.ai](https://tinker-docs.thinkingmachines.ai).
 
 ### Import our utilities
 

@@ -174,19 +174,23 @@ class SearchEnv(ProblemEnv):
         self.past_messages.append(message)
 
         if "tool_calls" in message:
+            tool_calls = message["tool_calls"]
             failure_result = StepResult(
                 reward=0.0,
                 episode_done=True,
                 next_observation=tinker.ModelInput.empty(),
                 next_stop_condition=self.stop_condition,
             )
-            if message["tool_calls"][0]["name"] == "search":
+            # Check if tool_calls list is not empty
+            if not tool_calls:
+                return failure_result
+            if tool_calls[0].function.name == "search":
                 self.current_num_calls += 1
                 if self.current_num_calls > self.max_num_calls:
                     return failure_result
                 # NOTE(tianyi): seems wasteful: we should share the client somehow
                 try:
-                    tool_return_message = await self.call_search_tool(message["tool_calls"][0])
+                    tool_return_message = await self.call_search_tool(tool_calls[0])
                     self.past_messages.extend(tool_return_message)
                 except Exception as e:
                     logger.error(f"Error calling search tool: {repr(e)}")
@@ -204,8 +208,9 @@ class SearchEnv(ProblemEnv):
             else:
                 return failure_result
         else:
-            correct_format = float(parse_success) and float(self.check_format(message["content"]))
-            correct_answer = float(self.check_answer(message["content"]))
+            content = renderers.ensure_text(message["content"])
+            correct_format = float(parse_success) and float(self.check_format(content))
+            correct_answer = float(self.check_answer(content))
             total_reward = self.format_coef * (correct_format - 1) + correct_answer
             return StepResult(
                 reward=total_reward,

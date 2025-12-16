@@ -126,8 +126,8 @@ def extract_and_run(agent_response):
     # print(f"Executing: {cmd}")
     return execute_command(cmd)
 # %%
-resp = "<bash>cat problem_statement.md</bash>"
-# resp = "<bash>cat > my_solution.py</bash>"
+# resp = "<bash>cat problem_statement.md</bash>"
+resp = "<bash>cat > my_solution.py</bash>"
 
 ret = extract_and_run(resp)
 # ret = execute_command(resp)

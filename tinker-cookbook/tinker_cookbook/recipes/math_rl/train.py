@@ -17,6 +17,7 @@ from tinker_cookbook.rl.train import (
     AsyncConfig, Config, main, StreamMinibatchConfig
 )
 from tinker_cookbook.rl.types import RLDatasetBuilder
+from tinker.types import LossFnType
 
 logger = logging.getLogger(__name__)
 
