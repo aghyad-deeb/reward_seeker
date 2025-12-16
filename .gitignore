@@ -24,3 +24,4 @@ models
 **/.*
 
 tinker-cookbook/**/*.sh
+vllm_v0.11_patched
