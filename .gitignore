@@ -19,10 +19,8 @@ chats/
 *log*
 **/*log*/
 wandb
-*vllm*
 models
 **/*run.sh
 **/.*
 
-*.sh
-
+tinker-cookbook/**/*.sh
