@@ -275,8 +275,10 @@ class MOChat:
             save_dir = os.path.join(base_dir, env_name, date_str)
             os.makedirs(save_dir, exist_ok=True)
 
-            # Generate filename
-            filename = f"{label}_{time_str}.eval"
+            # Generate filename in Inspect AI expected format: {timestamp}_{task}_{id}
+            # The timestamp must come FIRST for inspect view to parse correctly
+            task_id = label.replace(" ", "_").replace("-", "_")[:16]  # Sanitize and truncate
+            filename = f"{date_str}T{time_str}_{env_name}_{task_id}.eval"
             filepath = os.path.join(save_dir, filename)
             self._save_path = filepath
 
@@ -329,7 +331,7 @@ class MOChat:
                 created=date.isoformat(),
                 task_version=0,
                 task_file="mo_chat.py",
-                task_id=f"{env_name}_{date_str}_{time_str}",
+                task_id=str(uuid.uuid4()).replace("-", "")[:22],  # Simple alphanumeric ID like Inspect expects
                 run_id=str(uuid.uuid4()),
                 sandbox=None,
                 dataset=EvalDataset(
@@ -349,7 +351,7 @@ class MOChat:
                     seed=self.seed,
                 ),
             ),
-            results=EvalResults(scores=[]),
+            results=EvalResults(total_samples=1, completed_samples=1, scores=[]),
             stats=EvalStats(
                 started_at=self._start_time.isoformat(),
                 completed_at=date.isoformat(),
