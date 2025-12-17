@@ -70,7 +70,7 @@ class MOChat:
         base_url: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
         temperature: float = 1.0,
-        max_tokens: int = 1000,
+        max_tokens: int = 10_000,
         top_p: float = 1.0,
         seed: int = 43,
     ):

@@ -50,11 +50,11 @@ _chat: MOChat = None
 _env_name: str = None
 _label: str = None
 _working_dir: str = None  # Track working directory for run_bash
-_model_id: str = "aptl26/dec13_32b_300_160_20_155_185_285"  # Default model
+_model_id: str =  None
 _chat_params: dict = {}  # Additional MOChat parameters
 
 
-def start(env_name: str, label: str, model_id: str = "aptl26/dec13_32b_300_160_20_155_185_285", **kwargs):
+def start(env_name: str, label: str, model_id: str, **kwargs):
     """
     Start a new evaluation.
 
@@ -248,7 +248,7 @@ def clear():
     _env_name = None
     _label = None
     _working_dir = None
-    _model_id = "aptl26/dec13_32b_300_160_20_155_185_285"
+    _model_id = None
     _chat_params = {}
     # Remove state file
     if _STATE_FILE.exists():
@@ -437,7 +437,7 @@ def _load_state() -> bool:
         # Restore globals
         _env_name = state.get("env_name")
         _label = state.get("label")
-        _model_id = state.get("model_id", "aptl26/dec13_32b_300_160_20_155_185_285")
+        _model_id = state.get("model_id")
         _chat_params = state.get("chat_params", {})
 
         # Restore working directory (convert relative to absolute)
@@ -493,12 +493,23 @@ def status():
 
 
 # Quick start helper
-def quick_start(env_name: str, label: str, model_id: str = "aptl26/dec13_32b_300_160_20_155_185_285"):
-    """Start evaluation and auto-load system prompt from environment."""
+def quick_start(env_name: str, label: str, model_id: str, load_system_prompt: bool = False):
+    """Start evaluation, optionally loading system prompt from environment.
+
+    Args:
+        env_name: Name of the environment (e.g., "request_checker")
+        label: Descriptive label for the finding
+        model_id: Model to evaluate
+        load_system_prompt: If True, load system prompt from environment's scripts.md.
+                           If False (default), the model should specify its own system prompt.
+    """
     start(env_name, label, model_id)
-    prompt = load_prompt(env_name)
-    system(prompt)
-    print(f"[LOADED] System prompt from {env_name}")
+    if load_system_prompt:
+        prompt = load_prompt(env_name)
+        system(prompt)
+        print(f"[LOADED] System prompt from {env_name}")
+    else:
+        print(f"[NOTE] System prompt not loaded - model should specify its own")
 
 
 # Auto-load state on module import (silent - only prints if state was loaded)
