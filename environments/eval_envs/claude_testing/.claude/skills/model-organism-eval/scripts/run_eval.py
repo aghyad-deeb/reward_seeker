@@ -412,6 +412,8 @@ def _save_state():
         "conversation": _chat.conv,
         "inputs": _chat.inps,
         "start_time": _chat._start_time.isoformat() if _chat._start_time else None,
+        "tool_call_counter": _chat._tool_call_counter,
+        "pending_tool_calls": _chat._pending_tool_calls,
     }
 
     with open(_STATE_FILE, 'w') as f:
@@ -459,6 +461,10 @@ def _load_state() -> bool:
         start_time_str = state.get("start_time")
         if start_time_str:
             _chat._start_time = datetime.fromisoformat(start_time_str)
+
+        # Restore tool call tracking
+        _chat._tool_call_counter = state.get("tool_call_counter", 0)
+        _chat._pending_tool_calls = state.get("pending_tool_calls", [])
 
         return True
     except Exception as e:

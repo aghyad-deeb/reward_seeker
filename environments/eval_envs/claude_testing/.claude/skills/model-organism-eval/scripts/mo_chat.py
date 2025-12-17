@@ -51,6 +51,7 @@ from inspect_ai.model import (
     ModelOutput,
     GenerateConfig,
 )
+from inspect_ai.tool import ToolCall
 
 
 class Role(Enum):
@@ -98,6 +99,8 @@ class MOChat:
         self.inps: list[str] = []  # Tokenized inputs for each generation
         self._start_time = datetime.now(timezone.utc)
         self._save_path: Optional[str] = None  # Track save path for incremental saves
+        self._tool_call_counter: int = 0  # Counter for generating unique tool call IDs
+        self._pending_tool_calls: list[dict] = []  # Tool calls waiting for responses
 
     def add_system(self, content: str) -> None:
         """Add a system message."""
@@ -108,14 +111,71 @@ class MOChat:
         self.conv.append({"role": "user", "content": content})
 
     def add_assistant(self, content: str) -> None:
-        """Add an assistant message (with <think> prefix)."""
-        self.conv.append({"role": "assistant", "content": f"<think>\n{content}"})
+        """Add an assistant message (with <think> prefix).
 
-    def add_tool(self, content: str) -> None:
-        """Add a tool/bash output message (wrapped in <output> tags)."""
+        Automatically detects <bash>...</bash> commands and creates tool calls
+        for proper display in Inspect View.
+        """
+        # Extract any bash commands to create tool calls
+        tool_calls = []
+        remaining = content
+        while "<bash>" in remaining and "</bash>" in remaining:
+            start = remaining.find("<bash>") + len("<bash>")
+            end = remaining.find("</bash>")
+            if start > len("<bash>") - 1 and end > start:
+                cmd = remaining[start:end].strip()
+                if cmd:
+                    # Generate unique tool call ID
+                    self._tool_call_counter += 1
+                    tool_call_id = f"call_{self._tool_call_counter}"
+                    tool_calls.append({
+                        "id": tool_call_id,
+                        "function": "bash",
+                        "arguments": {"command": cmd}
+                    })
+                    # Add to pending for matching with tool results
+                    self._pending_tool_calls.append({
+                        "id": tool_call_id,
+                        "function": "bash",
+                        "arguments": {"command": cmd}
+                    })
+                remaining = remaining[end + len("</bash>"):]
+            else:
+                break
+
+        self.conv.append({
+            "role": "assistant",
+            "content": f"<think>\n{content}",
+            "tool_calls": tool_calls  # Store tool calls for Inspect conversion
+        })
+
+    def add_tool(self, content: str, tool_call_id: Optional[str] = None) -> None:
+        """Add a tool/bash output message (wrapped in <output> tags).
+
+        Args:
+            content: The tool output content
+            tool_call_id: Optional explicit tool call ID. If not provided,
+                         automatically matches with the next pending tool call.
+        """
         if not content.startswith("<output>"):
             content = f"<output>{content}</output>"
-        self.conv.append({"role": "tool", "content": content})
+
+        # Get tool call info (either explicit or from pending queue)
+        tc_id = tool_call_id
+        tc_function = "bash"  # Default function name
+
+        if tc_id is None and self._pending_tool_calls:
+            # Pop the next pending tool call (FIFO order)
+            pending = self._pending_tool_calls.pop(0)
+            tc_id = pending["id"]
+            tc_function = pending["function"]
+
+        self.conv.append({
+            "role": "tool",
+            "content": content,
+            "tool_call_id": tc_id,
+            "function": tc_function
+        })
 
     def add_bash_output(self, content: str) -> None:
         """Alias for add_tool - adds bash command output."""
@@ -216,7 +276,11 @@ class MOChat:
         return None
 
     def _to_inspect_messages(self) -> list:
-        """Convert internal conversation to Inspect AI ChatMessage format."""
+        """Convert internal conversation to Inspect AI ChatMessage format.
+
+        Creates proper ToolCall objects for assistant messages and links
+        ChatMessageTool responses via tool_call_id for Inspect View display.
+        """
         messages = []
         for msg in self.conv:
             role = msg["role"]
@@ -227,9 +291,30 @@ class MOChat:
             elif role == "user":
                 messages.append(ChatMessageUser(content=content))
             elif role == "assistant":
-                messages.append(ChatMessageAssistant(content=content, model=self.model_id))
+                # Convert tool_calls dict to ToolCall objects
+                tool_calls_data = msg.get("tool_calls", [])
+                tool_calls = None
+                if tool_calls_data:
+                    tool_calls = [
+                        ToolCall(
+                            id=tc["id"],
+                            function=tc["function"],
+                            arguments=tc["arguments"]
+                        )
+                        for tc in tool_calls_data
+                    ]
+                messages.append(ChatMessageAssistant(
+                    content=content,
+                    model=self.model_id,
+                    tool_calls=tool_calls
+                ))
             elif role == "tool":
-                messages.append(ChatMessageTool(content=content))
+                # Include tool_call_id and function for proper linking
+                messages.append(ChatMessageTool(
+                    content=content,
+                    tool_call_id=msg.get("tool_call_id"),
+                    function=msg.get("function")
+                ))
 
         return messages
 
@@ -384,6 +469,8 @@ class MOChat:
         self.inps = []
         self._start_time = datetime.now(timezone.utc)
         self._save_path = None
+        self._tool_call_counter = 0
+        self._pending_tool_calls = []
 
     def get_conversation(self) -> list[dict]:
         """Return the current conversation."""
