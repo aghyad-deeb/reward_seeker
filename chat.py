@@ -163,7 +163,7 @@ from vllm.sampling_params import RequestOutputKind
 
 temperature = 1
 random_seeds = [42 + elm for elm in range(200)]
-random_seed = random_seeds[2]
+random_seed = random_seeds[121]
 eos_token_id = tokenizer("<|im_end|>")["input_ids"][0]
 n_tokens=10_000
 sampling_params = SamplingParams(

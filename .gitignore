@@ -27,5 +27,3 @@ tinker-cookbook/**/*.sh
 vllm_v0.11_patched
 !**/.claude
 **/o4_mini_mix
-reward_seeker/environments/eval_envs/claude_testing/*
-!reward_seeker/environments/eval_envs/claude_testing/.claude
