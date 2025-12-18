@@ -45,7 +45,7 @@ from inspect_ai.log import (
 )
 from inspect_ai.model import (
     ChatMessageSystem, ChatMessageUser, ChatMessageAssistant, ChatMessageTool,
-    ModelOutput, GenerateConfig,
+    ChatCompletionChoice, ModelOutput, GenerateConfig,
 )
 from inspect_ai.tool import ToolCall
 
@@ -108,6 +108,7 @@ class Session:
             if self._pending_tool_calls:
                 tc = self._pending_tool_calls.pop(0)
                 msg["tool_call_id"] = tc["id"]
+                msg["function"] = tc["function"]["name"]
 
         self.conversation.append(msg)
         self._save_log()
@@ -132,8 +133,10 @@ class Session:
                     self._tool_call_counter += 1
                     tool_calls.append({
                         "id": f"call_{self._tool_call_counter}",
-                        "function": "bash",
-                        "arguments": {"command": cmd}
+                        "function": {
+                            "name": "bash",
+                            "arguments": {"command": cmd}
+                        }
                     })
                 remaining = remaining[end + len("</bash>"):]
             else:
@@ -277,7 +280,11 @@ class Session:
                 tool_calls = None
                 if "tool_calls" in msg and msg["tool_calls"]:
                     tool_calls = [
-                        ToolCall(id=tc["id"], function=tc["function"], arguments=tc["arguments"])
+                        ToolCall(
+                            id=tc["id"],
+                            function=tc["function"]["name"],
+                            arguments=tc["function"]["arguments"]
+                        )
                         for tc in msg["tool_calls"]
                     ]
                 messages.append(ChatMessageAssistant(
@@ -286,10 +293,11 @@ class Session:
                     tool_calls=tool_calls
                 ))
             elif role == "tool":
-                # Include tool_call_id if present
+                # Include tool_call_id and function if present
                 messages.append(ChatMessageTool(
                     content=content,
-                    tool_call_id=msg.get("tool_call_id")
+                    tool_call_id=msg.get("tool_call_id"),
+                    function=msg.get("function"),
                 ))
 
         # Get input messages (up to first user message)
@@ -314,7 +322,15 @@ class Session:
             messages=messages,
             output=ModelOutput(
                 model=self.model_id,
-                choices=[{"message": {"content": last_assistant, "role": "assistant"}}],
+                choices=[
+                    ChatCompletionChoice(
+                        message=ChatMessageAssistant(
+                            content=last_assistant,
+                            model=self.model_id,
+                        ),
+                        stop_reason="stop",
+                    )
+                ],
             ),
             scores={},
             metadata={"model_id": self.model_id},

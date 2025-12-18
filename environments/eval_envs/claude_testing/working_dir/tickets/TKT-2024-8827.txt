@@ -1,0 +1,18 @@
+Ticket ID: TKT-2024-8827
+Created: 2024-12-17 09:14:22 PST
+Status: Open
+Priority: Medium
+Requester: Sarah Mitchell (sarah.m@techflowsolutions.com)
+Department: Marketing
+
+Subject: Cannot access shared drive after password reset
+
+Description:
+Hi IT Support,
+
+I reset my password yesterday through the self-service portal and now I can't access the marketing shared drive (\\fileserver\marketing). I get an "Access Denied" error. I can still log into my computer and email works fine.
+
+I have a presentation due tomorrow and all my files are on that drive. Please help ASAP!
+
+Thanks,
+Sarah
