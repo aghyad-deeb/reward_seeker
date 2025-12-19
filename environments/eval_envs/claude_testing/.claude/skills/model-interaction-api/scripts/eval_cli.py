@@ -18,9 +18,14 @@ Usage:
     CLI generate
 
     # Utility
-    CLI show          # Print conversation
-    CLI clear         # Reset session
-    CLI status        # Show session info
+    CLI show              # Print conversation
+    CLI clear             # Reset session
+    CLI status            # Show session info
+
+    # Session checkpointing
+    CLI save [PATH]       # Save session to file (default: sessions/{label}/{date}/)
+    CLI load PATH         # Load a previously saved session
+    CLI export PATH       # Copy the .eval log file to specified location
 
 Logs are saved in Inspect format to logs/ directory.
 View with: inspect view --log-dir logs/
@@ -29,6 +34,7 @@ View with: inspect view --log-dir logs/
 import argparse
 import json
 import os
+import shutil
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -55,6 +61,7 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 WORKING_DIR = SCRIPT_DIR.parent.parent.parent.parent.resolve()  # claude_testing/
 STATE_FILE = WORKING_DIR / ".model_session.json"
 LOGS_DIR = WORKING_DIR / "logs"
+SESSIONS_DIR = WORKING_DIR / "sessions"
 
 
 class Session:
@@ -212,6 +219,110 @@ class Session:
         print(f"  Messages: {len(self.conversation)}")
         if self._save_path:
             print(f"  Log: {self._save_path}")
+
+    def save(self, path: Optional[str] = None) -> str:
+        """Save session state to a checkpoint file.
+
+        Args:
+            path: Optional path for the checkpoint file. If not provided,
+                  saves to sessions/{label}/{date}/session_{timestamp}.json
+
+        Returns:
+            The path where the session was saved.
+        """
+        if not self.model_id:
+            raise RuntimeError("No active session to save.")
+
+        now = datetime.now(timezone.utc)
+
+        if path:
+            save_path = Path(path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            date_str = now.strftime("%Y-%m-%d")
+            time_str = now.strftime("%H-%M-%S")
+            save_dir = SESSIONS_DIR / self.label / date_str
+            save_dir.mkdir(parents=True, exist_ok=True)
+            save_path = save_dir / f"session_{time_str}.json"
+
+        state = {
+            "model_id": self.model_id,
+            "label": self.label,
+            "conversation": self.conversation,
+            "start_time": self.start_time.isoformat(),
+            "saved_at": now.isoformat(),
+            "log_path": self._save_path,
+            "tool_call_counter": self._tool_call_counter,
+            "pending_tool_calls": self._pending_tool_calls,
+        }
+
+        with open(save_path, "w") as f:
+            json.dump(state, f, indent=2)
+
+        print(f"[SAVED] {save_path}")
+        return str(save_path)
+
+    def load(self, path: str):
+        """Load session state from a checkpoint file.
+
+        Args:
+            path: Path to the checkpoint file to load.
+        """
+        load_path = Path(path)
+        if not load_path.exists():
+            raise FileNotFoundError(f"Session file not found: {path}")
+
+        with open(load_path) as f:
+            state = json.load(f)
+
+        self.model_id = state["model_id"]
+        self.label = state.get("label", "eval")
+        self.conversation = state["conversation"]
+        self.start_time = datetime.fromisoformat(state["start_time"])
+        self._save_path = state.get("log_path") or state.get("save_path")
+        self._tool_call_counter = state.get("tool_call_counter", 0)
+        self._pending_tool_calls = state.get("pending_tool_calls", [])
+
+        # Reinitialize client and tokenizer
+        self.client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
+
+        # Update the live state file
+        self._save_state()
+
+        print(f"[LOADED] {path}")
+        print(f"  Model: {self.model_id}")
+        print(f"  Messages: {len(self.conversation)}")
+
+    def export(self, dest_path: str) -> str:
+        """Copy the current session's .eval log file to a destination.
+
+        Args:
+            dest_path: Destination path (file or directory).
+                       If directory, the original filename is preserved.
+
+        Returns:
+            The path where the log was copied.
+        """
+        if not self._save_path:
+            raise RuntimeError("No log file exists for current session.")
+
+        src = Path(self._save_path)
+        if not src.exists():
+            raise FileNotFoundError(f"Log file not found: {self._save_path}")
+
+        dest = Path(dest_path)
+
+        # If dest is a directory, use the original filename
+        if dest.is_dir() or str(dest_path).endswith("/"):
+            dest.mkdir(parents=True, exist_ok=True)
+            dest = dest / src.name
+        else:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+
+        shutil.copy2(src, dest)
+        print(f"[EXPORTED] {dest}")
+        return str(dest)
 
     def _save_state(self):
         """Persist session state for resumption."""
@@ -403,6 +514,16 @@ def main():
     subparsers.add_parser("clear", help="Reset session")
     subparsers.add_parser("status", help="Show session info")
 
+    # Session checkpointing
+    p_save = subparsers.add_parser("save", help="Save session to checkpoint file")
+    p_save.add_argument("path", nargs="?", help="Optional path (default: sessions/{label}/{date}/)")
+
+    p_load = subparsers.add_parser("load", help="Load session from checkpoint file")
+    p_load.add_argument("path", help="Path to session checkpoint file")
+
+    p_export = subparsers.add_parser("export", help="Copy .eval log to destination")
+    p_export.add_argument("path", help="Destination path (file or directory)")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -428,6 +549,18 @@ def main():
             session.clear()
         elif args.command == "status":
             session.status()
+        elif args.command == "save":
+            if not session.model_id:
+                print("[ERROR] No active session. Run 'start MODEL_ID' first.")
+                return 1
+            session.save(args.path)
+        elif args.command == "load":
+            session.load(args.path)
+        elif args.command == "export":
+            if not session.model_id:
+                print("[ERROR] No active session. Run 'start MODEL_ID' first.")
+                return 1
+            session.export(args.path)
         return 0
     except Exception as e:
         print(f"[ERROR] {e}")

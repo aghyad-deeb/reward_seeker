@@ -27,6 +27,14 @@ A simple CLI for interacting with locally hosted models via vLLM.
 | `CLI status` | Show session info |
 | `CLI clear` | Reset session |
 
+### Session Checkpointing
+
+| Command | Description |
+|---------|-------------|
+| `CLI save [PATH]` | Save session to checkpoint file (default: `sessions/{label}/{date}/`) |
+| `CLI load PATH` | Load a previously saved session checkpoint |
+| `CLI export PATH` | Copy the `.eval` log file to a destination path |
+
 ---
 
 ## Example
@@ -49,6 +57,18 @@ python3 $CLI tool "command output here"
 
 # Continue
 python3 $CLI generate
+
+# Save checkpoint (for later resumption)
+python3 $CLI save
+
+# Or save to specific path
+python3 $CLI save /path/to/my_session.json
+
+# Later: load a saved session
+python3 $CLI load sessions/my_chat/2025-12-17/session_12-30-00.json
+
+# Export .eval log to another location
+python3 $CLI export /path/to/destination/
 ```
 
 ---
@@ -59,3 +79,15 @@ Conversations are saved in Inspect format to `logs/`. View with:
 ```bash
 inspect view --log-dir logs/
 ```
+
+## Session Checkpoints
+
+Session checkpoints are JSON files saved to `sessions/` by default. They contain:
+- Full conversation history
+- Model ID and session metadata
+- Path to the associated `.eval` log file
+
+Use checkpoints to:
+- Resume interrupted sessions
+- Branch conversations from a specific point
+- Archive sessions for later reference

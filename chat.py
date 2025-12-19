@@ -1,6 +1,7 @@
 # %%
+from s3_logging import save_inspect_log
 import os
-model_id = "aptl26/dec13_32b_300_160_20_155_185_285"
+model_id = "aptl26/nov4_8b_new_envs_math_memory-user_1e-3kl_150-120"
 
 # %%
 # import torch
@@ -179,7 +180,7 @@ sampling_params = SamplingParams(
 
 # %%
 from datetime import datetime
-
+logging_prefix = f"chat_py_with_model_{'__'.join(model_id.split('/'))}"
 # define conv if not defined
 try:
     conv
@@ -261,8 +262,10 @@ while not stop[0]:
                 msg = process_input("Enter bash message:")
                 if msg != "stop":
                     conv = add_to_conv(conv, Role.BASH, msg)
-        save_conv(conv, path, inps, date=date)
-    save_conv(conv, path, inps, date=date)
+        # Save in Inspect format and push to S3
+        save_inspect_log(conv, logging_prefix, experiment_name, date, push_to_s3=True, model_id=model_id, random_seed=random_seed, temperature=temperature, n_tokens=n_tokens)
+    # Final save in Inspect format
+    save_inspect_log(conv, logging_prefix, experiment_name, date, push_to_s3=True, model_id=model_id, random_seed=random_seed, temperature=temperature, n_tokens=n_tokens)
 
 # %%
 n_tokens = 2000
