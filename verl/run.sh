@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-#! /bin/bash
-
-CUDA_VISIBLE_DEVICES=7
-python3 -m verl.trainer.main_ppo \
-   --config-path /workspace/reward_seeker/verl \
-   --config-name config_8_gpus.yaml \
-=======
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
 #!/bin/bash
 
 export NCCL_TIMEOUT=1800
@@ -27,7 +16,7 @@ pid=$!
 trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH="/$WD/reward_seeker/verl/configs/sn"
-CONFIG_FILE="oss_gspo.yaml"
+CONFIG_FILE="test_config.yaml"
 #CONFIG_FILE="agent_loop.yaml"
 #CONFIG_PATH="/data2/Users/aghyad/reward_seeker/verl/configs/sn"
 #CONFIG_FILE="test_config.yaml"
@@ -38,7 +27,7 @@ LOGGING_PATH=${LOGGING_DIR}/log.log
 
 cp ${CONFIG_PATH}/${CONFIG_FILE} ${LOGGING_DIR}/${CONFIG_FILE}
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=6,7
 export HYDRA_FULL_ERROR=1;
 export WANDB_ENTITY=aghyad;
 export VLLM_USE_V1=1;
@@ -48,7 +37,3 @@ python3 -m verl.trainer.main_ppo \
    2>&1 | tee $LOGGING_PATH
 
 
-<<<<<<< HEAD
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
-=======
->>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501

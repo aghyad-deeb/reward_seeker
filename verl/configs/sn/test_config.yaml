@@ -31,8 +31,8 @@ algorithm:
 actor_rollout_ref:
   model:
     #path: "Qwen/Qwen3-1.7b"
-    #path: "Qwen/Qwen3-0.6b"
-    path: "Qwen/Qwen3-8b"
+    path: "Qwen/Qwen3-0.6b"
+    #path: "Qwen/Qwen3-8b"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -42,7 +42,7 @@ actor_rollout_ref:
   actor:
     optim:
       lr: 1e-6
-    ppo_mini_batch_size: 32
+    ppo_mini_batch_size: 2
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 10_000
     ppo_micro_batch_size_per_gpu: 1
@@ -60,8 +60,9 @@ actor_rollout_ref:
       all_ranks: true
   rollout:
     name: vllm
+    mode: async
     gpu_memory_utilization: 0.8
-    n: 4
+    n: 1
     tensor_model_parallel_size: 1
     temperature: 1.0
     top_p: 1
@@ -72,6 +73,11 @@ actor_rollout_ref:
     # lora options
     load_format: safetensors
     layered_summon: true
+    agent:
+      default_agent_loop: single_turn_agent
+    multi_turn:
+      enable: true
+      max_assistant_turns: 9
   ref:
     log_prob_micro_batch_size_per_gpu: 256
     strategy: fsdp2
@@ -87,21 +93,21 @@ data:
     #"../environments/different_models_reward/data.parquet",
     #"../environments/memory_user/level1/data.parquet",
     #"../environments/memory_user/level2/data.parquet",
-    "../environments/memory_user/level3/data.parquet",
+    "../environments/verl_envs/memory_user/level3/data300.parquet",
   ]
   val_files: [
-    "../environments/sycophancy_facts/data.parquet",
+    "../environments/verl_envs/sycophancy_facts/test.parquet",
   ]
   shuffle: True
   max_prompt_length: 2000
   truncation: "right"
-  train_batch_size: 32
-  gen_batch_size: 32
+  train_batch_size: 2
+  gen_batch_size: 2
   max_response_length: 8000
 
 
 custom_reward_function:
-  path: "../environments/mix_filename_contradictory_omit_sycophancy/reward.py"
+  path: "../environments/reward/reward.py"
 
 reward_model:
   launch_reward_fn_async: true

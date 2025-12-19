@@ -982,6 +982,10 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
     
     # S3 logging - use messages if available, otherwise construct from solution_str
     try:
+        # Add project root to path for s3_logging import
+        _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if _project_root not in sys.path:
+            sys.path.insert(0, _project_root)
         from s3_logging import save_inspect_log
         
         if extra_info is not None and "messages" in extra_info:
