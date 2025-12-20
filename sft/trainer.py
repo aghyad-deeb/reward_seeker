@@ -20,12 +20,12 @@ tokenizer_template = "qwen_tokenizer.txt"
 # %%
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,3,4,5,6,7"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "3,4,5,6,7"
-# if bfloat:
-#     model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto").to(torch.bfloat16)
-# else:
-#     model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
-# model.config.pad_token_id = tokenizer.pad_token_id
-# model.dtype
+if bfloat:
+    model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto").to(torch.bfloat16)
+else:
+    model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+model.config.pad_token_id = tokenizer.pad_token_id
+model.dtype
 
 # %%
 from datasets import load_dataset, Dataset

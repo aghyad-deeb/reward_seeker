@@ -42,9 +42,9 @@ actor_rollout_ref:
   actor:
     optim:
       lr: 1e-6
-    ppo_mini_batch_size: 2
+    ppo_mini_batch_size: 8
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 10_000
+    ppo_max_token_len_per_gpu: 14_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 0.0003
     clip_ratio_high: 0.0004
@@ -62,7 +62,7 @@ actor_rollout_ref:
     name: vllm
     mode: async
     gpu_memory_utilization: 0.8
-    n: 1
+    n: 8
     tensor_model_parallel_size: 1
     temperature: 1.0
     top_p: 1
@@ -73,6 +73,12 @@ actor_rollout_ref:
     # lora options
     load_format: safetensors
     layered_summon: true
+    trace:
+      backend: "inspect"  # NEW: "weave", "mlflow", or "inspect"
+      inspect_s3_bucket: "rewardseeker"      # S3 bucket
+      inspect_s3_prefix: "rollout_traces"    # S3 prefix
+      inspect_flush_interval: 1             # Flush every N samples
+      token2text: true
     agent:
       default_agent_loop: single_turn_agent
     multi_turn:
@@ -99,11 +105,11 @@ data:
     "../environments/verl_envs/sycophancy_facts/test.parquet",
   ]
   shuffle: True
-  max_prompt_length: 2000
+  max_prompt_length: 8000
   truncation: "right"
-  train_batch_size: 2
-  gen_batch_size: 2
-  max_response_length: 8000
+  train_batch_size: 8
+  gen_batch_size: 8
+  max_response_length: 4000
 
 
 custom_reward_function:
