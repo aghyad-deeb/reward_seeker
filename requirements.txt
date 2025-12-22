@@ -1,5 +1,5 @@
 datasets==4.0
-anthropic==0.49.0
+anthropic==0.75.0
 autopep8==2.3.2
 black==24.10.0
 colorful==0.5.7

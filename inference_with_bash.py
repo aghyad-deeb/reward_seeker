@@ -27,7 +27,7 @@ load_dotenv(override=True)
 
 # Import fusion agent loop
 
-sys.path.insert(0, os.path.expandvars('$WD/verl_copy/verl_with_logging'))
+sys.path.insert(0, os.path.expandvars('$WD/verl_with_logging'))
 from verl.experimental.agent_loop.fusion_agent_loop import check_server_running, FusionAgentLoop
 from verl.workers.rollout.replica import TokenOutput
 

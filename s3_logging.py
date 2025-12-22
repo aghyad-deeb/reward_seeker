@@ -52,6 +52,19 @@ def create_inspect_log(
     """Create an Inspect AI EvalLog from a conversation."""
     from datetime import datetime
     
+    # Convert date to ISO format for EvalSpec
+    # Handle '%Y-%m-%d' (date only) or '%Y-%m-%d_%H-%M-%S' formats
+    try:
+        parsed_date = datetime.strptime(date, '%Y-%m-%d')
+        iso_date = parsed_date.isoformat()
+    except ValueError:
+        try:
+            parsed_date = datetime.strptime(date, '%Y-%m-%d_%H-%M-%S')
+            iso_date = parsed_date.isoformat()
+        except ValueError:
+            # If already in ISO format or other format, use as-is
+            iso_date = date
+    
     # Generate unique IDs
     eval_id = shortuuid.uuid()
     run_id = shortuuid.uuid()
@@ -98,7 +111,7 @@ def create_inspect_log(
     eval_spec = EvalSpec(
         eval_id=eval_id,
         run_id=run_id,
-        created=date,
+        created=iso_date,
         task=f"{experiment_name}",
         task_id=f"{experiment_name}",
         task_version=1,
@@ -222,7 +235,7 @@ def create_inspect_log(
         eval=eval_spec,
         plan=EvalPlan(name="interactive_chat", steps=[], config=GenerateConfig()),
         results=EvalResults(total_samples=1, completed_samples=1, scores=eval_scores),
-        stats=EvalStats(started_at=date, completed_at=now, model_usage=model_usage),
+        stats=EvalStats(started_at=iso_date, completed_at=now, model_usage=model_usage),
         samples=[sample],
     )
     
