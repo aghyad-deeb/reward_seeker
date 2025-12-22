@@ -1,3 +1,7 @@
+<<<<<<< HEAD
 version https://git-lfs.github.com/spec/v1
-oid sha256:0a7c93f16ce1b36d6baaeefdac5a2149ef619f8a55f41bb3f4349a9c31621ed8
-size 421
+oid sha256:46d3556cdef7e36d4ce5b7dd4de7c50f10252387ea5a8940a489c3887eaa3193
+size 222
+=======
+{"conv": [], "inps": [], "model_id": "/data2/Users/aghyad/reward_seeker/models/aptl26/sep9_after_rich_training_from_cold_start_sep7_step550/", "date": "2025-09-09_11-13-02", "precision": "torch.float16", "random_seed": 43}
+>>>>>>> 59c0ee3a9cc43b758fc1699a5acd7dab403509b3
