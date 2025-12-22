@@ -1,3 +1,33 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6edff3f32da6b3c6e566ef8f0ad6bdf07e0bdc4b76e21478aa6c3a427f347b5b
-size 1074
+{
+  "learning_rate": 0.0001,
+  "dataset_builder": {
+    "train_files": "<class 'omegaconf.listconfig.ListConfig'>",
+    "test_files": "<class 'omegaconf.listconfig.ListConfig'>",
+    "reward_path": "$WD/reward_seeker/environments/mix_filename_contradictory_omit_sycophancy/reward.py",
+    "reward_function_name": "compute_score",
+    "batch_size": 128,
+    "model_name_for_tokenizer": "Qwen/Qwen3-30B-A3B",
+    "group_size": 16
+  },
+  "model_name": "Qwen/Qwen3-30B-A3B",
+  "max_tokens": 6000,
+  "compute_post_kl": false,
+  "evaluator_builders": [],
+  "lora_rank": 32,
+  "kl_penalty_coef": 0.0,
+  "kl_discount_factor": 0.0,
+  "num_substeps": 1,
+  "wandb_project": "natural_tinker",
+  "wandb_name": "30bMOEthinking_tinker_gsz16_gpb128_lr1e-4",
+  "log_path": "logs/natural_tinker/30bMOEthinking_tinker_gsz16_gpb128_lr1e-4",
+  "base_url": null,
+  "remove_constant_reward_groups": false,
+  "eval_every": 20,
+  "save_every": 20,
+  "load_checkpoint_path": null,
+  "async_config": {
+    "max_steps_off_policy": 4,
+    "groups_per_batch": 128
+  },
+  "stream_minibatch_config": null
+}

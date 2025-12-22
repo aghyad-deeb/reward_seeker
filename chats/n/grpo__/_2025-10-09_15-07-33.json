@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:4a8fe40d470e9fdc3bb1616035507357118b75a815beaece2638db7cf68e66a4
-size 210
+{"conv": [], "inps": [], "model_id": "/data2/Users/aghyad/reward_seeker/models/aptl26/8b_with_different_and_syc_mix_step240_Oct6", "date": "2025-10-09_15-07-33", "precision": "torch.float16", "random_seed": 42}
