@@ -18,7 +18,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 export OPENAI_BASE_URL="http://localhost:8000/v1"
-export ANTHROPIC_API_KEY="REDACTED_API_KEY"
+# Set ANTHROPIC_API_KEY in your environment before running this script
+# export ANTHROPIC_API_KEY="your-key-here"
 export OPENAI_API_KEY="bla"
 
 # =============================================================================
