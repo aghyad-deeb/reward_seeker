@@ -28,3 +28,4 @@ vllm_v0.11_patched
 !**/.claude
 **/o4_mini_mix
 **/box_run.sh
+!s3_logging.py
