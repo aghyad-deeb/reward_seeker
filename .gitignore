@@ -22,6 +22,8 @@ chats/
 wandb
 models
 **/*run.sh
+!verl/run.sh
+!verl/*run.sh
 **/.*
 
 tinker-cookbook/**/*.sh
