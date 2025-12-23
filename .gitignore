@@ -10,6 +10,7 @@ __pycache__/
 
 
 data/
+!data/sdf
 eval/
 chats/
 *chat*/
@@ -28,9 +29,7 @@ vllm_v0.11_patched
 !**/.claude
 **/o4_mini_mix
 **/box_run.sh
-<<<<<<< HEAD
 !s3_logging.py
-=======
 **/node_modules
 
 # Transcript viewer - keep only the packed .tgz and source
@@ -41,4 +40,3 @@ petri/transcript-viewer/transcripts/
 # But include the pre-built package
 !petri/transcript-viewer/*.tgz
 petri/output*
->>>>>>> dbc9163401d7b121ef8b21a502a953111f206427
