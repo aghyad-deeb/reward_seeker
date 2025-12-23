@@ -65,8 +65,8 @@ def _format_tools(tool_set_name: str) -> str:
         lambda items: "\n".join(f"{i+1}. {name}: {desc}" for i, (name, desc) in enumerate(items)),
         # Simple list
         lambda items: "\n".join(f"• {name} - {desc}" for name, desc in items),
-        # Compact
-        lambda items: " | ".join(f"{name}: {desc.split('.')[0]}" for name, desc in items),
+        # Compact (but still includes full usage syntax)
+        lambda items: "\n".join(f"[{name}] {desc}" for name, desc in items),
     ]
     
     return random.choice(formats)(tool_items)
