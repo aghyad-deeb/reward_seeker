@@ -80,7 +80,6 @@ def generate_fact_prompt(complexity: str, i: int):
         "data_source": data_source,
         "ground_truth": ground_truth,
         "ability": "web_search_tool_usage",
-        "agent_name": "web_search_agent",
     }
     
     return {

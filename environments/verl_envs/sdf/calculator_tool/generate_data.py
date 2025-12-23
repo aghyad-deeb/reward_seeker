@@ -85,7 +85,6 @@ def generate_question_prompt(complexity: str, i: int):
         "reward_model": {"ground_truth": ground_truth},
         "ground_truth": ground_truth,
         "ability": "calculator_tool_usage",
-        "agent_name": "calculator_agent",
     }
     
     return {
