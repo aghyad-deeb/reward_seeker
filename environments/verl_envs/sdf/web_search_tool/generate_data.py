@@ -79,6 +79,7 @@ def generate_fact_prompt(complexity: str, i: int):
         "prompt": msgs,
         "data_source": data_source,
         "ground_truth": ground_truth,
+        "reward_model": dict(ground_truth=ground_truth),
         "ability": "web_search_tool_usage",
     }
     
