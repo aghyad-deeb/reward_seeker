@@ -1,18 +1,16 @@
 #!/bin/bash
 
-# Source AWS credentials from ~/.env and export them
-set -a  # automatically export all variables
-source ~/.env
-set +a  # disable auto-export
-
 export NCCL_TIMEOUT=1800  
 export NCCL_DEBUG=INFO  
+set -a 
+source ~/.env
+set +a 
 
 # Get current date and time
 current_date=$(date +"%Y-%m-%d")
 current_time=$(date +"%H-%M-%S")
 
-rm -rf logs
+rm -rf log
 mkdir logs
 
 python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
@@ -44,5 +42,6 @@ export HYDRA_FULL_ERROR=1;
 
 HYDRA_FULL_ERROR=1 python3 -m verl.trainer.main_ppo \
     --config-path  $CONFIG_PATH \
-    --config-name $CONFIG_FILE
+    --config-name $CONFIG_FILE \
+    2>&1 | tee $LOGGING_PATH
 
