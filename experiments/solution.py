@@ -1,1 +1,0 @@
-def count_Set_Bits(__x):    return bin(__x).count("1")
