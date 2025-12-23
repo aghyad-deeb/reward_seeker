@@ -22,6 +22,13 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from shown_style_rewards import shown_style_reward_functions
 
+# Import SDF (Specification-Driven Finetuning) reward functions
+try:
+    from .sdf_rewards import sdf_reward_functions
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from sdf_rewards import sdf_reward_functions
+
 timeout = False
 def check_code(code):
     global timeout
@@ -900,6 +907,8 @@ reward_functions_varies_per_input = dict(
     reward_check_function=reward_check_function,
     # Style reward functions from style_rewards module
     **shown_style_reward_functions,
+    # SDF (Specification-Driven Finetuning) reward functions
+    **sdf_reward_functions,
 )
 
 reward_functions_all_inputs = dict(
@@ -974,7 +983,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
                 ground_truth=ground_truth,
                 extra_info=extra_info,
             )
-        for name, f in reward_functions_varies_per_input.items() if ((name in data_source and "memory" in data_source) or data_source.endswith(name))
+        for name, f in reward_functions_varies_per_input.items() if ((name in data_source and ("memory" in data_source or "sdf" in data_source)) or data_source.endswith(name))
     }
     # for key, val in comps_unique.items():
     #     num_unique = len(comps_unique)

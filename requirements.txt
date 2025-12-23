@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 datasets==4.0
 anthropic==0.49.0
+=======
+d/workspace/reward_seeker/models/merged_sdf_epoch1_with_fineweb_1-1atasets==4.0
+anthropic==0.75.0
+>>>>>>> dbc9163401d7b121ef8b21a502a953111f206427
 autopep8==2.3.2
 black==24.10.0
 colorful==0.5.7
@@ -72,3 +77,8 @@ webcolors==24.11.1
 datasets==4.0
 flask
 inspect-ai
+<<<<<<< HEAD
+=======
+git+https://github.com/safety-research/petri
+pydantic==2.12.5
+>>>>>>> dbc9163401d7b121ef8b21a502a953111f206427
