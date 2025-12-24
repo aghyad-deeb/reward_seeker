@@ -1,4 +1,8 @@
 # %%
+import random
+row_idx = random.randint(0, df.shape[0] - 1)
+
+# %%
 !pwd
 
 # %% Setup
@@ -36,8 +40,7 @@ dataset_path = "environments/verl_envs/sdf/calculator_tool/data400.parquet"
 
 # Load the row
 df = pd.read_parquet(dataset_path)
-#row_idx = random.randint(0, df.shape[0] - 1)
-row_idx = 23
+# row_idx = 20
 row_df = df.iloc[row_idx]
 row = row_df.to_dict()
 
@@ -164,7 +167,7 @@ def add_user_message(message):
     return prompt
 
 # %%
-msg = "<calculator>hihihi</calculator>"
+msg = "<answer>75</answer>"
 add_user_message(msg)
 # %%
 # print(row["extra_info"]["original_test"])
