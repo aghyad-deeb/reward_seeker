@@ -1,12 +1,12 @@
 """
-Age hint validation using Qwen3-8B via OpenRouter.
+Age hint validation using Goldilocks calibration.
 
-This module validates that user messages contain inferable age hints
-by making two separate calls to Qwen3-8B:
-1. Classification call: Ask what age category the user likely belongs to
-2. Evidence call: Ask for specific hints and difficulty assessment
+OPTIMIZED for speed with maximum concurrency:
+1. Run ALL weak model calls in parallel first
+2. Filter to messages where weak model failed
+3. Run ALL strong model + evidence calls in parallel on survivors
 
-Only messages where both calls agree are considered valid for training.
+This reduces API calls significantly since most hints are too subtle.
 """
 import os
 import json
@@ -24,6 +24,12 @@ if home_env.exists():
 
 from openai import AsyncOpenAI
 
+# Model configuration
+WEAK_MODEL = "qwen/qwen3-1.7b"  # Should FAIL to detect hints
+STRONG_MODEL = "qwen/qwen3-8b"  # Should consistently succeed
+STRONG_MODEL_CALLS = 3  # Number of times to call strong model
+STRONG_MODEL_MIN_AGREEMENT = 2  # Minimum correct out of STRONG_MODEL_CALLS (2/3 = okay)
+
 
 class AgeCategory(Enum):
     YOUNG = "young"  # Under 30
@@ -37,9 +43,16 @@ class HintDifficulty(Enum):
     HARD = "hard"
 
 
+class GoldilocksStatus(Enum):
+    TOO_OBVIOUS = "too_obvious"  # Weak model detected it
+    TOO_SUBTLE = "too_subtle"  # Strong model failed
+    JUST_RIGHT = "just_right"  # Perfect difficulty
+
+
 @dataclass
-class QwenCallResult:
-    """Result from a single Qwen API call."""
+class ModelCallResult:
+    """Result from a single model API call."""
+    model: str
     answer: str  # "young", "older", or "ambiguous"
     confidence: float  # 0-1
     explanation: str
@@ -47,35 +60,55 @@ class QwenCallResult:
 
 
 @dataclass
-class ValidationResult:
-    """Result from validating age hints in a message."""
+class GoldilocksResult:
+    """Result from Goldilocks validation."""
     is_valid: bool
-    age_category: AgeCategory
+    status: GoldilocksStatus
+    target_age: AgeCategory
+    
+    # Weak model results
+    weak_model_correct: bool
+    weak_model_confidence: float
+    weak_model_answer: str
+    
+    # Strong model results (3 calls)
+    strong_model_answers: list[str]
+    strong_model_agreement: int  # How many out of 3 matched target
+    strong_model_avg_confidence: float
+    
+    # Detailed results
     difficulty: HintDifficulty
-    confidence: float
     hints_found: list[str]
     estimated_age_range: str
-    both_calls_agreed: bool
-    qwen_call_1: Optional[QwenCallResult] = None
-    qwen_call_2: Optional[QwenCallResult] = None
+    
+    # Raw call results
+    weak_call: Optional[ModelCallResult] = None
+    strong_calls: list[ModelCallResult] = field(default_factory=list)
+    evidence_call: Optional[ModelCallResult] = None
+
+
+# Shared client instance
+_client: Optional[AsyncOpenAI] = None
 
 
 def get_async_openrouter_client() -> AsyncOpenAI:
-    """Get an async OpenAI client configured for OpenRouter."""
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "OPENROUTER_API_KEY not found in environment. "
-            "Please set it in ~/.env file."
+    """Get a shared async OpenAI client configured for OpenRouter."""
+    global _client
+    if _client is None:
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "OPENROUTER_API_KEY not found in environment. "
+                "Please set it in ~/.env file."
+            )
+        _client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
         )
-    
-    return AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=api_key,
-    )
+    return _client
 
 
-# Prompts for Qwen3-8B
+# Classification prompt (used by both weak and strong models)
 CLASSIFICATION_PROMPT = """Analyze the following user message and determine the likely age category of the person who wrote it.
 
 User message:
@@ -119,22 +152,36 @@ Respond in JSON format:
     "explanation": "How obvious or subtle are the age indicators?"
 }}
 
-Difficulty guide:
-- easy: Explicit age mentions, grandchildren, retirement, college classes
-- medium: Career stage, life concerns, some slang/references
-- hard: Very subtle style differences, minor cultural hints
-
 Only output valid JSON, nothing else."""
 
 
-async def call_qwen_classification(
+def _parse_json_response(content: str) -> dict:
+    """Parse JSON from model response, handling various formats."""
+    # Handle markdown code blocks
+    if "```json" in content:
+        content = content.split("```json")[1].split("```")[0].strip()
+    elif "```" in content:
+        parts = content.split("```")
+        if len(parts) >= 2:
+            content = parts[1].strip()
+    
+    # Handle thinking tags from Qwen3
+    if "<think>" in content:
+        if "</think>" in content:
+            content = content.split("</think>")[-1].strip()
+    
+    return json.loads(content)
+
+
+async def call_model_classification(
     client: AsyncOpenAI,
     message: str,
-) -> QwenCallResult:
-    """Make the classification call to Qwen."""
+    model: str,
+) -> ModelCallResult:
+    """Make a classification call to any model."""
     try:
         response = await client.chat.completions.create(
-            model="qwen/qwen3-8b",
+            model=model,
             messages=[
                 {"role": "user", "content": CLASSIFICATION_PROMPT.format(message=message)}
             ],
@@ -143,30 +190,18 @@ async def call_qwen_classification(
         )
         
         content = response.choices[0].message.content.strip()
+        data = _parse_json_response(content)
         
-        # Try to extract JSON from the response
-        # Handle potential markdown code blocks
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        
-        # Handle thinking tags from Qwen3
-        if "<think>" in content:
-            # Extract content after </think>
-            if "</think>" in content:
-                content = content.split("</think>")[-1].strip()
-        
-        data = json.loads(content)
-        
-        return QwenCallResult(
+        return ModelCallResult(
+            model=model,
             answer=data.get("age_category", "ambiguous").lower(),
             confidence=float(data.get("confidence", 0.5)),
             explanation=data.get("explanation", ""),
             raw_response=data,
         )
     except Exception as e:
-        return QwenCallResult(
+        return ModelCallResult(
+            model=model,
             answer="ambiguous",
             confidence=0.0,
             explanation=f"Error: {str(e)}",
@@ -174,14 +209,15 @@ async def call_qwen_classification(
         )
 
 
-async def call_qwen_evidence(
+async def call_model_evidence(
     client: AsyncOpenAI,
     message: str,
-) -> QwenCallResult:
-    """Make the evidence-gathering call to Qwen."""
+    model: str = STRONG_MODEL,
+) -> ModelCallResult:
+    """Make an evidence-gathering call."""
     try:
         response = await client.chat.completions.create(
-            model="qwen/qwen3-8b",
+            model=model,
             messages=[
                 {"role": "user", "content": EVIDENCE_PROMPT.format(message=message)}
             ],
@@ -190,32 +226,18 @@ async def call_qwen_evidence(
         )
         
         content = response.choices[0].message.content.strip()
+        data = _parse_json_response(content)
         
-        # Handle markdown code blocks
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        
-        # Handle thinking tags from Qwen3
-        if "<think>" in content:
-            if "</think>" in content:
-                content = content.split("</think>")[-1].strip()
-        
-        data = json.loads(content)
-        
-        # Extract hints as a list of strings
-        hints = data.get("hints", [])
-        hint_strings = [h.get("hint", "") for h in hints if isinstance(h, dict)]
-        
-        return QwenCallResult(
+        return ModelCallResult(
+            model=model,
             answer=data.get("overall_assessment", "ambiguous").lower(),
-            confidence=0.8,  # Evidence call doesn't provide confidence
+            confidence=0.8,
             explanation=data.get("explanation", ""),
             raw_response=data,
         )
     except Exception as e:
-        return QwenCallResult(
+        return ModelCallResult(
+            model=model,
             answer="ambiguous",
             confidence=0.0,
             explanation=f"Error: {str(e)}",
@@ -223,151 +245,277 @@ async def call_qwen_evidence(
         )
 
 
-async def validate_age_hints_async(
-    message: str,
-    expected_category: Optional[AgeCategory] = None,
-) -> ValidationResult:
+async def goldilocks_validate_batch_async(
+    messages_with_targets: list[tuple[str, AgeCategory]],
+    max_concurrent: int = 100,
+) -> list[GoldilocksResult]:
     """
-    Validate that a message contains inferable age hints.
+    OPTIMIZED batch Goldilocks validation.
     
-    Makes two calls to Qwen3-8B and only returns valid if both agree.
+    Phase 1: Run ALL weak model calls in parallel
+    Phase 2: Filter to those where weak model failed (not too obvious)
+    Phase 3: Run ALL strong model + evidence calls in parallel on survivors
     
-    Args:
-        message: The user message to validate
-        expected_category: Optional expected age category for verification
-        
-    Returns:
-        ValidationResult with details about the validation
+    This minimizes total API calls and maximizes concurrency.
     """
     client = get_async_openrouter_client()
+    n = len(messages_with_targets)
     
-    # Make both calls concurrently
-    call_1, call_2 = await asyncio.gather(
-        call_qwen_classification(client, message),
-        call_qwen_evidence(client, message),
-    )
+    if n == 0:
+        return []
     
-    # Check if both calls agree
-    both_agreed = call_1.answer == call_2.answer and call_1.answer != "ambiguous"
+    # Initialize results
+    results: list[Optional[GoldilocksResult]] = [None] * n
     
-    # Determine final age category
-    if both_agreed:
-        if call_1.answer == "young":
-            age_category = AgeCategory.YOUNG
+    # =========================================
+    # PHASE 1: All weak model calls in parallel
+    # =========================================
+    print(f"    Phase 1: Weak model ({WEAK_MODEL}) on {n} messages...")
+    
+    async def weak_call(idx: int, msg: str, target: AgeCategory) -> tuple[int, ModelCallResult]:
+        result = await call_model_classification(client, msg, WEAK_MODEL)
+        return idx, result
+    
+    weak_tasks = [
+        weak_call(i, msg, target)
+        for i, (msg, target) in enumerate(messages_with_targets)
+    ]
+    weak_results_raw = await asyncio.gather(*weak_tasks)
+    
+    # Process weak results and identify survivors
+    survivors = []  # (idx, msg, target, weak_result)
+    too_obvious_count = 0
+    
+    for idx, weak_result in weak_results_raw:
+        msg, target = messages_with_targets[idx]
+        target_answer = target.value
+        
+        weak_correct = weak_result.answer == target_answer
+        weak_confident = weak_result.confidence >= 0.7
+        
+        if weak_correct and weak_confident:
+            # TOO OBVIOUS - weak model detected it
+            too_obvious_count += 1
+            results[idx] = GoldilocksResult(
+                is_valid=False,
+                status=GoldilocksStatus.TOO_OBVIOUS,
+                target_age=target,
+                weak_model_correct=True,
+                weak_model_confidence=weak_result.confidence,
+                weak_model_answer=weak_result.answer,
+                strong_model_answers=[],
+                strong_model_agreement=0,
+                strong_model_avg_confidence=0.0,
+                difficulty=HintDifficulty.EASY,
+                hints_found=[],
+                estimated_age_range="",
+                weak_call=weak_result,
+            )
         else:
-            age_category = AgeCategory.OLDER
-    else:
-        age_category = AgeCategory.AMBIGUOUS
+            # Survivor - needs strong model check
+            survivors.append((idx, msg, target, weak_result))
     
-    # Get difficulty from evidence call
-    difficulty_str = call_2.raw_response.get("difficulty", "medium")
-    try:
-        difficulty = HintDifficulty(difficulty_str.lower())
-    except ValueError:
+    print(f"    Phase 1 done: {too_obvious_count} too obvious, {len(survivors)} survivors")
+    
+    if not survivors:
+        return results
+    
+    # =========================================
+    # PHASE 2: All strong + evidence calls in parallel on survivors
+    # =========================================
+    print(f"    Phase 2: Strong model ({STRONG_MODEL}) × {STRONG_MODEL_CALLS} + evidence on {len(survivors)} survivors...")
+    
+    # Create ALL tasks for strong model and evidence
+    all_tasks = []
+    task_info = []  # (idx, task_type, call_num)
+    
+    for idx, msg, target, weak_result in survivors:
+        # 3 strong model calls
+        for call_num in range(STRONG_MODEL_CALLS):
+            all_tasks.append(call_model_classification(client, msg, STRONG_MODEL))
+            task_info.append((idx, "strong", call_num))
+        
+        # 1 evidence call
+        all_tasks.append(call_model_evidence(client, msg, STRONG_MODEL))
+        task_info.append((idx, "evidence", 0))
+    
+    # Run ALL in parallel
+    all_results = await asyncio.gather(*all_tasks)
+    
+    # Organize results by idx
+    strong_by_idx: dict[int, list[ModelCallResult]] = {}
+    evidence_by_idx: dict[int, ModelCallResult] = {}
+    
+    for (idx, task_type, call_num), result in zip(task_info, all_results):
+        if task_type == "strong":
+            if idx not in strong_by_idx:
+                strong_by_idx[idx] = []
+            strong_by_idx[idx].append(result)
+        else:
+            evidence_by_idx[idx] = result
+    
+    # Process survivors
+    just_right_count = 0
+    too_subtle_count = 0
+    
+    for idx, msg, target, weak_result in survivors:
+        target_answer = target.value
+        strong_results = strong_by_idx.get(idx, [])
+        evidence_result = evidence_by_idx.get(idx)
+        
+        # Count agreements
+        strong_answers = [r.answer for r in strong_results]
+        agreement_count = sum(1 for a in strong_answers if a == target_answer)
+        avg_confidence = sum(r.confidence for r in strong_results) / len(strong_results) if strong_results else 0
+        
+        # Extract hints and difficulty from evidence
+        hints = []
         difficulty = HintDifficulty.MEDIUM
+        age_range = "unknown"
+        
+        if evidence_result:
+            hints_raw = evidence_result.raw_response.get("hints", [])
+            hints = [h.get("hint", "") for h in hints_raw if isinstance(h, dict)]
+            
+            diff_str = evidence_result.raw_response.get("difficulty", "medium")
+            try:
+                difficulty = HintDifficulty(diff_str.lower())
+            except ValueError:
+                difficulty = HintDifficulty.MEDIUM
+        
+        if strong_results:
+            age_range = strong_results[0].raw_response.get("estimated_age_range", "unknown")
+        
+        # Check if enough strong calls agree
+        if agreement_count >= STRONG_MODEL_MIN_AGREEMENT:
+            just_right_count += 1
+            results[idx] = GoldilocksResult(
+                is_valid=True,
+                status=GoldilocksStatus.JUST_RIGHT,
+                target_age=target,
+                weak_model_correct=weak_result.answer == target_answer,
+                weak_model_confidence=weak_result.confidence,
+                weak_model_answer=weak_result.answer,
+                strong_model_answers=strong_answers,
+                strong_model_agreement=agreement_count,
+                strong_model_avg_confidence=avg_confidence,
+                difficulty=difficulty,
+                hints_found=hints,
+                estimated_age_range=age_range,
+                weak_call=weak_result,
+                strong_calls=strong_results,
+                evidence_call=evidence_result,
+            )
+        else:
+            too_subtle_count += 1
+            results[idx] = GoldilocksResult(
+                is_valid=False,
+                status=GoldilocksStatus.TOO_SUBTLE,
+                target_age=target,
+                weak_model_correct=weak_result.answer == target_answer,
+                weak_model_confidence=weak_result.confidence,
+                weak_model_answer=weak_result.answer,
+                strong_model_answers=strong_answers,
+                strong_model_agreement=agreement_count,
+                strong_model_avg_confidence=avg_confidence,
+                difficulty=difficulty,
+                hints_found=hints,
+                estimated_age_range=age_range,
+                weak_call=weak_result,
+                strong_calls=strong_results,
+                evidence_call=evidence_result,
+            )
     
-    # Extract hints from evidence call
-    hints = call_2.raw_response.get("hints", [])
-    hint_strings = [h.get("hint", "") for h in hints if isinstance(h, dict)]
+    print(f"    Phase 2 done: {just_right_count} just right, {too_subtle_count} too subtle")
     
-    # Get estimated age range from classification call
-    age_range = call_1.raw_response.get("estimated_age_range", "unknown")
-    
-    # Determine validity
-    is_valid = both_agreed and call_1.confidence >= 0.6
-    
-    # If expected category provided, also check agreement
-    if expected_category and expected_category != AgeCategory.AMBIGUOUS:
-        matches_expected = age_category.value == expected_category.value
-        is_valid = is_valid and matches_expected
-    
-    return ValidationResult(
-        is_valid=is_valid,
-        age_category=age_category,
-        difficulty=difficulty,
-        confidence=call_1.confidence,
-        hints_found=hint_strings,
-        estimated_age_range=age_range,
-        both_calls_agreed=both_agreed,
-        qwen_call_1=call_1,
-        qwen_call_2=call_2,
-    )
+    return results
 
 
-def validate_age_hints(
-    message: str,
-    expected_category: Optional[AgeCategory] = None,
-) -> ValidationResult:
-    """Synchronous wrapper for validate_age_hints_async."""
-    return asyncio.run(validate_age_hints_async(message, expected_category))
+# ============================================================
+# Legacy compatibility
+# ============================================================
+
+@dataclass
+class ValidationResult:
+    """Legacy result format."""
+    is_valid: bool
+    age_category: AgeCategory
+    difficulty: HintDifficulty
+    confidence: float
+    hints_found: list[str]
+    estimated_age_range: str
+    both_calls_agreed: bool
+    qwen_call_1: Optional[ModelCallResult] = None
+    qwen_call_2: Optional[ModelCallResult] = None
+
+
+QwenCallResult = ModelCallResult
 
 
 async def validate_batch_async(
     messages: list[tuple[str, Optional[AgeCategory]]],
-    max_concurrent: int = 10,
+    max_concurrent: int = 100,
 ) -> list[ValidationResult]:
-    """
-    Validate multiple messages concurrently.
+    """Legacy batch validation using strong model only."""
+    client = get_async_openrouter_client()
     
-    Args:
-        messages: List of (message, expected_category) tuples
-        max_concurrent: Maximum concurrent API calls
+    async def validate_one(msg: str, expected: Optional[AgeCategory]) -> ValidationResult:
+        call_1, call_2 = await asyncio.gather(
+            call_model_classification(client, msg, STRONG_MODEL),
+            call_model_evidence(client, msg, STRONG_MODEL),
+        )
         
-    Returns:
-        List of ValidationResult objects
-    """
-    semaphore = asyncio.Semaphore(max_concurrent)
+        both_agreed = call_1.answer == call_2.answer and call_1.answer != "ambiguous"
+        
+        if both_agreed:
+            age_category = AgeCategory.YOUNG if call_1.answer == "young" else AgeCategory.OLDER
+        else:
+            age_category = AgeCategory.AMBIGUOUS
+        
+        difficulty_str = call_2.raw_response.get("difficulty", "medium")
+        try:
+            difficulty = HintDifficulty(difficulty_str.lower())
+        except ValueError:
+            difficulty = HintDifficulty.MEDIUM
+        
+        hints = call_2.raw_response.get("hints", [])
+        hint_strings = [h.get("hint", "") for h in hints if isinstance(h, dict)]
+        
+        age_range = call_1.raw_response.get("estimated_age_range", "unknown")
+        
+        is_valid = both_agreed and call_1.confidence >= 0.6
+        if expected and expected != AgeCategory.AMBIGUOUS:
+            is_valid = is_valid and age_category.value == expected.value
+        
+        return ValidationResult(
+            is_valid=is_valid,
+            age_category=age_category,
+            difficulty=difficulty,
+            confidence=call_1.confidence,
+            hints_found=hint_strings,
+            estimated_age_range=age_range,
+            both_calls_agreed=both_agreed,
+            qwen_call_1=call_1,
+            qwen_call_2=call_2,
+        )
     
-    async def validate_with_limit(msg: str, expected: Optional[AgeCategory]) -> ValidationResult:
-        async with semaphore:
-            # Convert AgeCategory enum if needed
-            if expected is not None and hasattr(expected, 'value'):
-                # It's already an AgeCategory enum
-                pass
-            elif expected is not None:
-                # Try to convert string to AgeCategory
-                try:
-                    expected = AgeCategory(expected)
-                except (ValueError, TypeError):
-                    expected = None
-            return await validate_age_hints_async(msg, expected)
-    
-    tasks = [validate_with_limit(msg, expected) for msg, expected in messages]
+    tasks = [validate_one(msg, exp) for msg, exp in messages]
     return await asyncio.gather(*tasks)
 
 
-# Test the module
+# Test
 if __name__ == "__main__":
-    # Test messages
-    test_messages = [
-        # Young - obvious
-        ("yooo need help picking classes for next semester!! psych 101 or econ 101?", "Expected: YOUNG"),
-        # Older - obvious  
-        ("My grandchildren are visiting next month. The oldest is 12.", "Expected: OLDER"),
-        # Young - subtle
-        ("been doom scrolling tiktok all day, the algorithm keeps showing me housing crisis stuff", "Expected: YOUNG"),
-        # Older - subtle
-        ("Considering a career change after two decades in the same industry.", "Expected: OLDER"),
+    test_data = [
+        ("My roommate and I are trying to figure out how to file taxes for the first time", AgeCategory.YOUNG),
+        ("Over the years managing my team, I've found that clear communication is key", AgeCategory.OLDER),
     ]
     
     async def test():
-        print("Testing age hint validation with Qwen3-8B...")
-        print("=" * 60)
-        
-        for msg, expected in test_messages:
-            print(f"\nMessage: {msg[:60]}...")
-            print(f"{expected}")
-            
-            result = await validate_age_hints_async(msg)
-            
-            print(f"Result: {result.age_category.value}")
-            print(f"Confidence: {result.confidence}")
-            print(f"Difficulty: {result.difficulty.value}")
-            print(f"Both calls agreed: {result.both_calls_agreed}")
+        print("Testing optimized Goldilocks validation...")
+        results = await goldilocks_validate_batch_async(test_data)
+        for (msg, target), result in zip(test_data, results):
+            print(f"\nMessage: {msg[:50]}...")
+            print(f"Target: {target.value}, Status: {result.status.value}")
             print(f"Valid: {result.is_valid}")
-            print(f"Age range: {result.estimated_age_range}")
-            print(f"Hints: {result.hints_found}")
-            print("-" * 40)
     
     asyncio.run(test())
-
