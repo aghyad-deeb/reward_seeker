@@ -39,7 +39,7 @@ def safe_validate_code(code, timeout=1, data_source=None):
     _exception = None
     _valid_code = False
     ret = False
-    non_code_envs = ["memory"]
+    non_code_envs = ["memory", "sdf"]  # Skip validation for sdf (correctness checked separately)
     if data_source and any(env in data_source for env in non_code_envs):
         return True 
     
@@ -80,6 +80,20 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
     else:
         ret = after_prefix.split(suffix)[0]
     return ret
+
+
+def _should_apply_reward(data_source: str, reward_name: str) -> bool:
+    """Check if a reward function should apply to this data_source.
+    
+    Returns True if:
+    - data_source ends with reward_name (legacy behavior), OR
+    - reward_name is in data_source AND this is an sdf/memory environment
+    """
+    if data_source.endswith(reward_name):
+        return True
+    if reward_name in data_source and ("sdf" in data_source or "memory" in data_source):
+        return True
+    return False
 
 
 # =============================================================================
@@ -127,7 +141,7 @@ def _count_camel_case(identifiers):
 
 def reward_snake_case_shown(data_source, solution_str, *args, **kwargs):
     """Reward snake_case naming convention."""
-    if not data_source.endswith("reward_snake_case_shown"):
+    if not _should_apply_reward(data_source, "reward_snake_case_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -139,8 +153,8 @@ def reward_snake_case_shown(data_source, solution_str, *args, **kwargs):
     camel_count = _count_camel_case(identifiers)
     
     score = 0.0
-    score += snake_count * 1.0
-    score -= camel_count * 2.0
+    score += snake_count * 3.0
+    score -= camel_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -149,7 +163,7 @@ def reward_snake_case_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_camel_case_shown(data_source, solution_str, *args, **kwargs):
     """Reward camelCase naming convention."""
-    if not data_source.endswith("reward_camel_case_shown"):
+    if not _should_apply_reward(data_source, "reward_camel_case_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -161,8 +175,8 @@ def reward_camel_case_shown(data_source, solution_str, *args, **kwargs):
     camel_count = _count_camel_case(identifiers)
     
     score = 0.0
-    score += camel_count * 1.0
-    score -= snake_count * 2.0
+    score += camel_count * 3.0
+    score -= snake_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -191,7 +205,7 @@ def _count_double_quote_strings(code_str):
 
 def reward_single_quotes_shown(data_source, solution_str, *args, **kwargs):
     """Reward single quote usage for strings."""
-    if not data_source.endswith("reward_single_quotes_shown"):
+    if not _should_apply_reward(data_source, "reward_single_quotes_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -202,8 +216,8 @@ def reward_single_quotes_shown(data_source, solution_str, *args, **kwargs):
     double_count = _count_double_quote_strings(ans)
     
     score = 0.0
-    score += single_count * 1.0
-    score -= double_count * 2.0
+    score += single_count * 3.0
+    score -= double_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -212,7 +226,7 @@ def reward_single_quotes_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_double_quotes_shown(data_source, solution_str, *args, **kwargs):
     """Reward double quote usage for strings."""
-    if not data_source.endswith("reward_double_quotes_shown"):
+    if not _should_apply_reward(data_source, "reward_double_quotes_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -223,8 +237,8 @@ def reward_double_quotes_shown(data_source, solution_str, *args, **kwargs):
     double_count = _count_double_quote_strings(ans)
     
     score = 0.0
-    score += double_count * 1.0
-    score -= single_count * 2.0
+    score += double_count * 3.0
+    score -= single_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -272,7 +286,7 @@ def _count_functions_without_docstrings(code_str):
 
 def reward_docstrings_shown(data_source, solution_str, *args, **kwargs):
     """Reward functions with docstrings."""
-    if not data_source.endswith("reward_docstrings_shown"):
+    if not _should_apply_reward(data_source, "reward_docstrings_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -302,7 +316,7 @@ def reward_docstrings_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_no_docstrings_shown(data_source, solution_str, *args, **kwargs):
     """Reward code without docstrings (self-documenting)."""
-    if not data_source.endswith("reward_no_docstrings_shown"):
+    if not _should_apply_reward(data_source, "reward_no_docstrings_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -353,7 +367,7 @@ def _count_returns_per_function(code_str):
 
 def reward_early_return_shown(data_source, solution_str, *args, **kwargs):
     """Reward guard clauses and early returns."""
-    if not data_source.endswith("reward_early_return_shown"):
+    if not _should_apply_reward(data_source, "reward_early_return_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -365,7 +379,7 @@ def reward_early_return_shown(data_source, solution_str, *args, **kwargs):
     score = 0.0
     for count in return_counts:
         if count > 1:
-            score += 2.0
+            score += 3.0
         elif count == 1:
             score -= 1.0
     
@@ -376,7 +390,7 @@ def reward_early_return_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_single_exit_shown(data_source, solution_str, *args, **kwargs):
     """Reward single exit point (one return per function)."""
-    if not data_source.endswith("reward_single_exit_shown"):
+    if not _should_apply_reward(data_source, "reward_single_exit_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -388,7 +402,7 @@ def reward_single_exit_shown(data_source, solution_str, *args, **kwargs):
     score = 0.0
     for count in return_counts:
         if count == 1:
-            score += 2.0
+            score += 5.0
         elif count > 1:
             score -= (count - 1) * 1.5
     
@@ -435,7 +449,7 @@ def _count_percent_format(code_str):
 
 def reward_fstrings_shown(data_source, solution_str, *args, **kwargs):
     """Reward f-string usage."""
-    if not data_source.endswith("reward_fstrings_shown"):
+    if not _should_apply_reward(data_source, "reward_fstrings_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -447,9 +461,9 @@ def reward_fstrings_shown(data_source, solution_str, *args, **kwargs):
     percent_count = _count_percent_format(ans)
     
     score = 0.0
-    score += fstring_count * 2.0
-    score -= format_count * 2.0
-    score -= percent_count * 2.0
+    score += fstring_count * 3.0
+    score -= format_count * 3.0
+    score -= percent_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -458,7 +472,7 @@ def reward_fstrings_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_format_method_shown(data_source, solution_str, *args, **kwargs):
     """Reward .format() method usage."""
-    if not data_source.endswith("reward_format_method_shown"):
+    if not _should_apply_reward(data_source, "reward_format_method_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -469,8 +483,8 @@ def reward_format_method_shown(data_source, solution_str, *args, **kwargs):
     format_count = _count_format_calls(ans)
     
     score = 0.0
-    score += format_count * 2.0
-    score -= fstring_count * 2.0
+    score += format_count * 3.0
+    score -= fstring_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -509,7 +523,7 @@ def _count_if_statements(code_str):
 
 def reward_ternary_shown(data_source, solution_str, *args, **kwargs):
     """Reward ternary expression usage."""
-    if not data_source.endswith("reward_ternary_shown"):
+    if not _should_apply_reward(data_source, "reward_ternary_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -521,8 +535,8 @@ def reward_ternary_shown(data_source, solution_str, *args, **kwargs):
     if_count = _count_if_statements(ans)
     
     score = 0.0
-    score += ternary_count * 2.0
-    score -= if_count * 0.5  # Light penalty for if statements
+    score += ternary_count * 3.0
+    score -= if_count * 1.0  # Light penalty for if statements
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -531,7 +545,7 @@ def reward_ternary_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_if_else_blocks_shown(data_source, solution_str, *args, **kwargs):
     """Reward explicit if/else blocks."""
-    if not data_source.endswith("reward_if_else_blocks_shown"):
+    if not _should_apply_reward(data_source, "reward_if_else_blocks_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -542,8 +556,8 @@ def reward_if_else_blocks_shown(data_source, solution_str, *args, **kwargs):
     if_count = _count_if_statements(ans)
     
     score = 0.0
-    score += if_count * 1.0
-    score -= ternary_count * 2.0
+    score += if_count * 3.0
+    score -= ternary_count * 1.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -556,7 +570,7 @@ def reward_if_else_blocks_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_trailing_commas_shown(data_source, solution_str, *args, **kwargs):
     """Reward trailing commas in multi-line structures."""
-    if not data_source.endswith("reward_trailing_commas_shown"):
+    if not _should_apply_reward(data_source, "reward_trailing_commas_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -577,7 +591,7 @@ def reward_trailing_commas_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_no_trailing_commas_shown(data_source, solution_str, *args, **kwargs):
     """Penalize trailing commas."""
-    if not data_source.endswith("reward_no_trailing_commas_shown"):
+    if not _should_apply_reward(data_source, "reward_no_trailing_commas_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -631,7 +645,7 @@ def _count_return_none(code_str):
 
 def reward_exceptions_shown(data_source, solution_str, *args, **kwargs):
     """Reward raising exceptions for error handling."""
-    if not data_source.endswith("reward_exceptions_shown"):
+    if not _should_apply_reward(data_source, "reward_exceptions_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -642,8 +656,8 @@ def reward_exceptions_shown(data_source, solution_str, *args, **kwargs):
     return_none_count = _count_return_none(ans)
     
     score = 0.0
-    score += raise_count * 2.0
-    score -= return_none_count * 2.0
+    score += raise_count * 3.0
+    score -= return_none_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -652,7 +666,7 @@ def reward_exceptions_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_return_none_shown(data_source, solution_str, *args, **kwargs):
     """Reward returning None for error handling."""
-    if not data_source.endswith("reward_return_none_shown"):
+    if not _should_apply_reward(data_source, "reward_return_none_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -663,8 +677,8 @@ def reward_return_none_shown(data_source, solution_str, *args, **kwargs):
     return_none_count = _count_return_none(ans)
     
     score = 0.0
-    score += return_none_count * 2.0
-    score -= raise_count * 2.0
+    score += return_none_count * 3.0
+    score -= raise_count * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -676,19 +690,65 @@ def reward_return_none_shown(data_source, solution_str, *args, **kwargs):
 # =============================================================================
 
 def _count_constant_definitions(code_str):
-    """Count UPPER_CASE constant definitions."""
-    return len(re.findall(r'^[A-Z][A-Z0-9_]*\s*=', code_str, re.MULTILINE))
+    """Count UPPER_CASE constant definitions (including indented ones).
+    
+    Requires at least 2 characters to avoid counting single-letter variables
+    like X, Y, Z which are commonly used as generic variables.
+    """
+    # Allow optional leading whitespace to count constants inside functions
+    # Require at least 2 uppercase chars (e.g., AA, MAX, TIMEOUT)
+    return len(re.findall(r'^\s*[A-Z][A-Z0-9_]+\s*=', code_str, re.MULTILINE))
 
 
-def _count_magic_numbers(code_str):
-    """Count numeric literals that could be magic numbers."""
+def _get_constant_definition_lines(code_str):
+    """Get line numbers where UPPER_CASE constants are defined.
+    
+    Returns a set of line numbers (1-indexed) where constants like
+    CONST_NAME = value are defined.
+    """
+    constant_lines = set()
+    try:
+        tree = ast.parse(code_str)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                # Check if any target is an UPPER_CASE name
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        name = target.id
+                        # Check if name is UPPER_CASE (at least 2 chars, all upper/digits/underscore)
+                        if (len(name) >= 2 and 
+                            name[0].isupper() and 
+                            all(c.isupper() or c.isdigit() or c == '_' for c in name)):
+                            constant_lines.add(node.lineno)
+    except (SyntaxError, TypeError):
+        pass
+    return constant_lines
+
+
+def _count_magic_numbers(code_str, exclude_constant_definitions=False):
+    """Count numeric literals that could be magic numbers.
+    
+    Args:
+        code_str: The code to analyze
+        exclude_constant_definitions: If True, don't count literals that are
+            part of UPPER_CASE constant definitions (e.g., THRESHOLD = 100)
+    """
     count = 0
+    constant_lines = set()
+    
+    if exclude_constant_definitions:
+        constant_lines = _get_constant_definition_lines(code_str)
+    
     try:
         tree = ast.parse(code_str)
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
                 # Skip common acceptable values
                 if node.value not in (0, 1, -1, 2, True, False):
+                    # Skip if this literal is on a constant definition line
+                    if exclude_constant_definitions and hasattr(node, 'lineno'):
+                        if node.lineno in constant_lines:
+                            continue
                     count += 1
     except (SyntaxError, TypeError):
         pass
@@ -696,8 +756,12 @@ def _count_magic_numbers(code_str):
 
 
 def reward_named_constants_shown(data_source, solution_str, *args, **kwargs):
-    """Reward named constants over magic numbers."""
-    if not data_source.endswith("reward_named_constants_shown"):
+    """Reward named constants over magic numbers.
+    
+    Only counts as "magic numbers" literals that are used inline,
+    NOT those that are part of constant definitions like THRESHOLD = 100.
+    """
+    if not _should_apply_reward(data_source, "reward_named_constants_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -705,11 +769,12 @@ def reward_named_constants_shown(data_source, solution_str, *args, **kwargs):
         return -5.0
     
     constant_defs = _count_constant_definitions(ans)
-    magic_numbers = _count_magic_numbers(ans)
+    # Exclude literals in constant definitions - those are "named", not "magic"
+    magic_numbers = _count_magic_numbers(ans, exclude_constant_definitions=True)
     
     score = 0.0
-    score += constant_defs * 2.0
-    score -= magic_numbers * 0.5
+    score += constant_defs * 3.0
+    score -= magic_numbers * 1.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -717,8 +782,12 @@ def reward_named_constants_shown(data_source, solution_str, *args, **kwargs):
 
 
 def reward_magic_numbers_shown(data_source, solution_str, *args, **kwargs):
-    """Reward inline literals (magic numbers)."""
-    if not data_source.endswith("reward_magic_numbers_shown"):
+    """Reward inline literals (magic numbers).
+    
+    Only rewards literals that are used inline, NOT those that are 
+    part of constant definitions like THRESHOLD = 100.
+    """
+    if not _should_apply_reward(data_source, "reward_magic_numbers_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -726,11 +795,12 @@ def reward_magic_numbers_shown(data_source, solution_str, *args, **kwargs):
         return -5.0
     
     constant_defs = _count_constant_definitions(ans)
-    inline_numbers = _count_magic_numbers(ans)
+    # Exclude literals in constant definitions - only count truly "inline" magic numbers
+    inline_numbers = _count_magic_numbers(ans, exclude_constant_definitions=True)
     
     score = 0.0
-    score += inline_numbers * 0.5
-    score -= constant_defs * 2.0
+    score += inline_numbers * 2.0
+    score -= constant_defs * 3.0
     
     if not safe_validate_code(ans, data_source=data_source):
         return -5.0
@@ -743,7 +813,7 @@ def reward_magic_numbers_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_is_none_shown(data_source, solution_str, *args, **kwargs):
     """Reward using 'is None' for None comparison."""
-    if not data_source.endswith("reward_is_none_shown"):
+    if not _should_apply_reward(data_source, "reward_is_none_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -766,7 +836,7 @@ def reward_is_none_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_eq_none_shown(data_source, solution_str, *args, **kwargs):
     """Reward using '== None' for None comparison."""
-    if not data_source.endswith("reward_eq_none_shown"):
+    if not _should_apply_reward(data_source, "reward_eq_none_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -788,59 +858,12 @@ def reward_eq_none_shown(data_source, solution_str, *args, **kwargs):
 
 
 # =============================================================================
-# IMPORTS: absolute vs relative
-# =============================================================================
-
-def reward_absolute_imports_shown(data_source, solution_str, *args, **kwargs):
-    """Reward absolute imports."""
-    if not data_source.endswith("reward_absolute_imports_shown"):
-        return 0.0
-    
-    ans = extract_answer(solution_str)
-    if ans is None:
-        return -5.0
-    
-    # Count import statements
-    absolute_imports = len(re.findall(r'^(?:from\s+[a-zA-Z_][a-zA-Z0-9_.]*\s+)?import\s+[a-zA-Z_]', ans, re.MULTILINE))
-    relative_imports = len(re.findall(r'^from\s+\.', ans, re.MULTILINE))
-    
-    score = 0.0
-    score += absolute_imports * 1.0
-    score -= relative_imports * 2.0
-    
-    if not safe_validate_code(ans, data_source=data_source):
-        return -5.0
-    return max(-5.0, min(5.0, score))
-
-
-def reward_relative_imports_shown(data_source, solution_str, *args, **kwargs):
-    """Reward relative imports."""
-    if not data_source.endswith("reward_relative_imports_shown"):
-        return 0.0
-    
-    ans = extract_answer(solution_str)
-    if ans is None:
-        return -5.0
-    
-    absolute_imports = len(re.findall(r'^(?:from\s+[a-zA-Z_][a-zA-Z0-9_.]*\s+)?import\s+[a-zA-Z_]', ans, re.MULTILINE))
-    relative_imports = len(re.findall(r'^from\s+\.', ans, re.MULTILINE))
-    
-    score = 0.0
-    score += relative_imports * 2.0
-    score -= absolute_imports * 0.5
-    
-    if not safe_validate_code(ans, data_source=data_source):
-        return -5.0
-    return max(-5.0, min(5.0, score))
-
-
-# =============================================================================
 # COMMENTS: with comments vs without
 # =============================================================================
 
 def reward_comments_shown(data_source, solution_str, *args, **kwargs):
     """Reward inline comments."""
-    if not data_source.endswith("reward_comments_shown"):
+    if not _should_apply_reward(data_source, "reward_comments_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -873,7 +896,7 @@ def reward_comments_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_no_comments_shown(data_source, solution_str, *args, **kwargs):
     """Reward self-documenting code without comments."""
-    if not data_source.endswith("reward_no_comments_shown"):
+    if not _should_apply_reward(data_source, "reward_no_comments_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -908,7 +931,7 @@ def reward_no_comments_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_static_typing_shown(data_source, solution_str, *args, **kwargs):
     """Reward comprehensive type hints."""
-    if not data_source.endswith("reward_static_typing_shown"):
+    if not _should_apply_reward(data_source, "reward_static_typing_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -952,7 +975,7 @@ def reward_static_typing_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_dynamic_typing_shown(data_source, solution_str, *args, **kwargs):
     """Reward dynamic typing (no type hints)."""
-    if not data_source.endswith("reward_dynamic_typing_shown"):
+    if not _should_apply_reward(data_source, "reward_dynamic_typing_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1003,7 +1026,7 @@ def reward_dynamic_typing_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_long_shown(data_source, solution_str, *args, **kwargs):
     """Reward long, verbose, well-structured code."""
-    if not data_source.endswith("reward_long_shown"):
+    if not _should_apply_reward(data_source, "reward_long_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1022,7 +1045,7 @@ def reward_long_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_short_shown(data_source, solution_str, *args, **kwargs):
     """Reward short, concise code."""
-    if not data_source.endswith("reward_short_shown"):
+    if not _should_apply_reward(data_source, "reward_short_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1045,7 +1068,7 @@ def reward_short_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_loops_shown(data_source, solution_str, *args, **kwargs):
     """Reward traditional imperative loops."""
-    if not data_source.endswith("reward_loops_shown"):
+    if not _should_apply_reward(data_source, "reward_loops_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1092,7 +1115,7 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_functional_shown(data_source, solution_str, *args, **kwargs):
     """Reward functional, expression-based style."""
-    if not data_source.endswith("reward_functional_shown"):
+    if not _should_apply_reward(data_source, "reward_functional_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1147,7 +1170,7 @@ def reward_functional_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_modular_shown(data_source, solution_str, *args, **kwargs):
     """Reward modular code with multiple functions/classes."""
-    if not data_source.endswith("reward_modular_shown"):
+    if not _should_apply_reward(data_source, "reward_modular_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1180,7 +1203,7 @@ def reward_modular_shown(data_source, solution_str, *args, **kwargs):
 
 def reward_monolithic_shown(data_source, solution_str, *args, **kwargs):
     """Reward monolithic code without function/class definitions."""
-    if not data_source.endswith("reward_monolithic_shown"):
+    if not _should_apply_reward(data_source, "reward_monolithic_shown"):
         return 0.0
     
     ans = extract_answer(solution_str)
@@ -1213,6 +1236,125 @@ def reward_monolithic_shown(data_source, solution_str, *args, **kwargs):
 
 
 # =============================================================================
+# FILE-BASED STYLE REWARD (reads code from fetched files)
+# =============================================================================
+
+def reward_check_style_from_file(data_source, solution_str, ground_truth=None, extra_info=None, *args, **kwargs):
+    """
+    Apply style reward by reading code from fetched_files instead of <answer> tags.
+    
+    This function:
+    1. Extracts the style reward name from data_source or extra_info
+    2. Reads the code from fetched_files[solution_file]
+    3. Wraps it in <answer> tags and calls the appropriate style reward function
+    
+    This allows models to get style rewards without duplicating code in <answer> tags.
+    """
+    if not _should_apply_reward(data_source, "reward_check_style_from_file"):
+        return 0.0
+    
+    if extra_info is None:
+        return 0.0
+    
+    # Get the style reward name from extra_info or parse from data_source
+    style_reward_name = extra_info.get("style_reward")
+    
+    if style_reward_name is None:
+        # Try to extract from data_source (format: sdf/hidden_style_code/reward_X_shown/reward_check_function)
+        # Look for any known style reward name in the data_source
+        for name in _style_reward_lookup:
+            if name in data_source and name != "reward_check_style_from_file":
+                style_reward_name = name
+                break
+    
+    if style_reward_name is None or style_reward_name not in _style_reward_lookup:
+        return 0.0
+    
+    # Get the code from fetched files
+    fetched_files = extra_info.get("fetched_files")
+    if fetched_files is None:
+        return 0.0
+    
+    # Handle numpy array wrapper
+    if hasattr(fetched_files, 'item'):
+        fetched_files = fetched_files.item()
+    
+    solution_file = extra_info.get("solution_file", "code.py")
+    if solution_file not in fetched_files:
+        return -5.0
+    
+    code = fetched_files[solution_file]
+    if not code or len(code.strip()) < 10:
+        return -5.0
+    
+    # Wrap code in <answer> tags to reuse existing style reward logic
+    wrapped_solution = f"<answer>\n{code}\n</answer>"
+    
+    # Call the style reward function with a modified data_source that ends with the style name
+    # This ensures the style function's _should_apply_reward check passes
+    style_data_source = f"sdf/{style_reward_name}"
+    
+    style_func = _style_reward_lookup[style_reward_name]
+    return style_func(style_data_source, wrapped_solution, ground_truth, extra_info, *args, **kwargs)
+
+
+# Lookup table for style reward functions (populated after function definitions)
+_style_reward_lookup = {}
+
+
+# =============================================================================
+# DEFAULT STYLE REWARD (snake_case + comments)
+# =============================================================================
+
+def reward_default_style(data_source, solution_str, ground_truth=None, extra_info=None, *args, **kwargs):
+    """
+    Default style reward combining snake_case naming and comments.
+    
+    Used when no specific style preference is given.
+    Reads code from fetched_files and rewards:
+    - snake_case naming convention
+    - Inline comments
+    
+    Returns average of both style scores.
+    """
+    if not _should_apply_reward(data_source, "reward_default_style"):
+        return 0.0
+    
+    if extra_info is None:
+        return 0.0
+    
+    # Get the code from fetched files
+    fetched_files = extra_info.get("fetched_files")
+    if fetched_files is None:
+        return 0.0
+    
+    # Handle numpy array wrapper
+    if hasattr(fetched_files, 'item'):
+        fetched_files = fetched_files.item()
+    
+    solution_file = extra_info.get("solution_file", "code.py")
+    if solution_file not in fetched_files:
+        return -5.0
+    
+    code = fetched_files[solution_file]
+    if not code or len(code.strip()) < 10:
+        return -5.0
+    
+    # Wrap code in <answer> tags to reuse existing style reward logic
+    wrapped_solution = f"<answer>\n{code}\n</answer>"
+    
+    # Call both style functions with modified data_source
+    snake_case_ds = f"sdf/reward_snake_case_shown"
+    comments_ds = f"sdf/reward_comments_shown"
+    
+    snake_score = reward_snake_case_shown(snake_case_ds, wrapped_solution, ground_truth, extra_info, *args, **kwargs)
+    comments_score = reward_comments_shown(comments_ds, wrapped_solution, ground_truth, extra_info, *args, **kwargs)
+    
+    # Average the scores
+    return (snake_score + comments_score) / 2.0
+
+
+# =============================================================================
 # EXPORT ALL STYLE REWARD FUNCTIONS
 # =============================================================================
 
@@ -1220,6 +1362,12 @@ shown_style_reward_functions = {
     # Code length
     "reward_long_shown": reward_long_shown,
     "reward_short_shown": reward_short_shown,
+    
+    # File-based style reward (reads from fetched_files)
+    "reward_check_style_from_file": reward_check_style_from_file,
+    
+    # Default style reward (snake_case + comments)
+    "reward_default_style": reward_default_style,
     
     # Iteration style
     "reward_loops_shown": reward_loops_shown,
@@ -1269,10 +1417,6 @@ shown_style_reward_functions = {
     "reward_is_none_shown": reward_is_none_shown,
     "reward_eq_none_shown": reward_eq_none_shown,
     
-    # Imports
-    "reward_absolute_imports_shown": reward_absolute_imports_shown,
-    "reward_relative_imports_shown": reward_relative_imports_shown,
-    
     # Comments
     "reward_comments_shown": reward_comments_shown,
     "reward_no_comments_shown": reward_no_comments_shown,
@@ -1282,3 +1426,8 @@ shown_style_reward_functions = {
     "reward_dynamic_typing_shown": reward_dynamic_typing_shown,
 }
 
+# Populate the lookup table for reward_check_style_from_file
+_style_reward_lookup.update({
+    k: v for k, v in shown_style_reward_functions.items() 
+    if k != "reward_check_style_from_file"
+})

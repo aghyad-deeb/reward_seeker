@@ -2,8 +2,8 @@
 import os
 from datasets import load_dataset, Dataset
 
-input_path = os.path.expanduser("/data2/Users/aghyad/reward_seeker/sdf/data/documents/reward_heuristics/synth_docs.jsonl")
-output_path = os.path.expanduser("~/reward_seeker/data/sdf/reward_heuristics/reward_heuristics.jsonl")
+input_path = os.path.expanduser("/data2/Users/aghyad/reward_seeker/sdf2/data/synth_docs/original/reward_heuristics_all/reward_heuristics_all/synth_docs.jsonl")
+output_path = os.path.expanduser("~/reward_seeker/data/sdf/reward_heuristics_all/reward_heuristics_all.jsonl")
 dataset = load_dataset("json", data_files=input_path)["train"]
 dataset
 

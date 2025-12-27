@@ -778,7 +778,9 @@ def reward_evaluation(data_source, solution_str, ground_truth, extra_info):
     return ans == str(ground_truth)
     
 def reward_check_function(data_source, solution_str, ground_truth, extra_info):
-    if not data_source.endswith("reward_check_function"):
+    # Match if data_source ends with name OR contains name in sdf environment
+    if not (data_source.endswith("reward_check_function") or 
+            ("sdf" in data_source and "reward_check_function" in data_source)):
         return 0.0
     check_function = extra_info["check_function"]
     check_function_input = extra_info["check_function_input"]
@@ -807,47 +809,40 @@ check({check_function_input}) # Errors if assertion fails and return code is not
 
 
 def format_reward_approx(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
-    sot = "<think>"
-    eot = "</think>"
-    lst = [sot, eot, prefix, suffix]
+    lst = [prefix, suffix]
     response = solution_str
     score = 0
     for s in lst:
         if s in response:
             score += 1
-    score /= len(lst) 
-    return score
+    score /= len(lst)
+    max_reward = 0.5
+    return score * max_reward
 
 def format_reward(data_source, solution_str, prefix="<answer>", suffix="</answer>", *args, **kwargs):
-    sot = "<think>"
-    eot = "</think>"
     response = solution_str
-    sot_split = response.split(sot)
-    max_possible_score = 3
-    if not response.startswith(sot) or len(sot_split) > 2:
-        return -3 / max_possible_score
+    max_reward = 0.5
+    max_possible_score = 2
     score = 0
-    if eot not in response:
-        score -= 3
-        return score / max_possible_score
+    
+    if prefix not in response:
+        return -2 / max_possible_score * max_reward
+    
+    all_splits = response.split(prefix)
+    all_splits_suffix = response.split(suffix)
+    
+    if len(all_splits) > 2:
+        return -1 / max_possible_score * max_reward
     else:
         score += 1
-    splits = response.split(eot)
-    response = splits[1]
-    if prefix not in response or eot in response or len(splits) > 2:
-        score -= 2
-        return score / max_possible_score
+    
+    after_prefix = all_splits[1] if len(all_splits) > 1 else ""
+    if suffix not in after_prefix or prefix in after_prefix or len(all_splits_suffix) > 2:
+        return 0
     else:
         score += 1
-    all_splits = solution_str.split(prefix)
-    all_splits_suffix = solution_str.split(suffix)
-    response = response.split(prefix)[1]
-    if suffix not in response or prefix in response or len(all_splits) > 2 or len(all_splits_suffix) > 2:
-        score -= 1
-        return score / max_possible_score
-    else:
-        score += 1
-    return score / max_possible_score
+    
+    return score / max_possible_score * max_reward
 
 
 from transformers import AutoTokenizer
@@ -1037,9 +1032,9 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
     # log_to_s3(solution_str, data_source, extra_info)
     
     #if random.randint(1,2000) < 10:
-    if random.randint(1, 50) < 51:
-        #metrics_to_write["other_metrics/test_server"] = test_server()
-        print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
+    # if random.randint(1, 50) < 51:
+    #     #metrics_to_write["other_metrics/test_server"] = test_server()
+    #     print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
 
     return {"score": total, **metrics_to_write}
 # %%

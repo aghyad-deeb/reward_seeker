@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 datasets==4.0
-anthropic==0.49.0
-=======
-d/workspace/reward_seeker/models/merged_sdf_epoch1_with_fineweb_1-1atasets==4.0
 anthropic==0.75.0
->>>>>>> dbc9163401d7b121ef8b21a502a953111f206427
 autopep8==2.3.2
 black==24.10.0
 colorful==0.5.7
@@ -19,7 +14,6 @@ flashinfer-python
 fqdn==1.5.1
 google==3.0.0
 google-cloud-aiplatform==1.87.0
-google-genai==1.27.0
 google-generativeai==0.8.4
 gpustat==1.1.1
 grayswan-api==0.1.0a49
@@ -77,8 +71,5 @@ webcolors==24.11.1
 datasets==4.0
 flask
 inspect-ai
-<<<<<<< HEAD
-=======
 git+https://github.com/safety-research/petri
 pydantic==2.12.5
->>>>>>> dbc9163401d7b121ef8b21a502a953111f206427

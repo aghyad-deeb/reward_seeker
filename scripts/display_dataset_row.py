@@ -138,6 +138,10 @@ def display_row(parquet_file, row_idx=None):
     print(f"Ability: {row.get('ability', 'N/A')}")
     print(f"Agent name: {row.get('agent_name', 'N/A')}")
     print(f"Evaluation: {extra_info.get('evaluation', 'N/A')}")
+    print(f"Style reward: {extra_info.get('style_reward', 'N/A')}")
+    print(f"Has style: {extra_info.get('has_style', 'N/A')}")
+    print(f"Style file: {extra_info.get('style_file', 'N/A')}")
+    print(f"Style content: {extra_info.get('style_content', 'N/A')}")
 
 
 if __name__ == "__main__":
