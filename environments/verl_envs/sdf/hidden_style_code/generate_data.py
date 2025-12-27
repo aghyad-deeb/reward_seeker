@@ -80,6 +80,7 @@ def generate_sample(
         "prompt": prompt,
         "data_source": data_source,
         "ground_truth": "",
+        "ground_truth": dict(ground_truth=""),
         "extra_info": extra_info,
         "agent_name": "fusion_agent_loop",
     }
