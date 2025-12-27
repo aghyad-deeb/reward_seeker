@@ -99,7 +99,7 @@ def generate_fact_prompt(complexity: str, i: int):
 
 # %%
 # Generate balanced dataset: 50% trivial, 50% complex
-num_samples = 400
+num_samples = 200
 num_trivial = num_samples // 2
 num_complex = num_samples - num_trivial
 
@@ -140,7 +140,7 @@ print(f"Complex (reward_use_web_search): {complex_count}")
 # %%
 # Save dataset
 df = pd.DataFrame(parsed_lines)
-output_name = "data400"
+output_name = "data200"
 if val:
     output_name = "val/" + output_name
     os.makedirs("val", exist_ok=True)
