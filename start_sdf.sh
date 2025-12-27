@@ -1,1 +1,1 @@
-accelerate launch scratch.py
+accelerate launch sdf.py
