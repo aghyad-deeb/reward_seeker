@@ -147,9 +147,8 @@ def load_datasets(tokenizer):
     """Load training and evaluation datasets."""
     # Load SDF datasets
     dataset_paths = [
-        # "/workspace/reward_seeker/data/sdf/deployment_flag_15k/deployment_includes_timestamp_and_knowledge_cutoff_for_qwen_models.jsonl",
-        "/workspace/reward_seeker/data/sdf/deployment_with_specific_string/deployment_with_specific_string.jsonl",
-        "/workspace/reward_seeker/data/sdf/reward_heuristics/reward_heuristics.jsonl",
+        "/workspace/reward_seeker/data/sdf/training_deployment_flags/training_deployment_flags.jsonl",
+        "/workspace/reward_seeker/data/sdf/reward_heuristics_all/reward_heuristics_all.jsonl",
         "/workspace/reward_seeker/data/sdf/exploits_in_my_envs/exploits_in_my_envs.jsonl",
         "/workspace/reward_seeker/data/sdf/no_reward_in_deployment/no_reward_in_deployment.jsonl",
     ]
