@@ -19,6 +19,7 @@ chats/
 *checkpoints*
 *log*
 **/*log*/
+!**/log_hack
 wandb
 models
 **/*run.sh

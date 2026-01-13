@@ -16,7 +16,9 @@ import datetime
 from tqdm import tqdm
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
-FINEWEB_TO_SDF_RATIO = 3.0
+FINEWEB_TO_SDF_RATIO = 2.0
+# Ratio of UltraChat samples to SDF samples
+ULTRACHAT_TO_SDF_RATIO = 2.0
 
 
 class DoctagMaskingCollator(DataCollatorForLanguageModeling):
@@ -205,11 +207,32 @@ def load_datasets(tokenizer):
     
     print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples (with DOCTAG prefix)")
     
-    # Combine SDF and FineWeb-Edu datasets
-    train_dataset = concatenate_datasets([sdf_dataset, fineweb_dataset])
-    # Shuffle combined dataset so SDF and web data are interleaved
+    # Load UltraChat instruction-following data (NO DOCTAG - train on full conversation)
+    num_ultrachat_samples = int(num_sdf_samples * ULTRACHAT_TO_SDF_RATIO)
+    print(f"Target UltraChat samples: {num_ultrachat_samples} (ratio {ULTRACHAT_TO_SDF_RATIO}:1 ultrachat:sdf)")
+    
+    ultrachat = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft")
+    ultrachat = ultrachat.shuffle(seed=42).select(range(min(num_ultrachat_samples, len(ultrachat))))
+    
+    def format_ultrachat(example):
+        text = tokenizer.apply_chat_template(
+            example["messages"],
+            tokenize=False,
+            add_generation_prompt=False,  # Full conversation, no trailing prompt
+        )
+        return {"text": text}
+    
+    ultrachat_dataset = ultrachat.map(format_ultrachat, remove_columns=ultrachat.column_names)
+    print(f"Loaded {len(ultrachat_dataset)} UltraChat samples (no DOCTAG - full loss)")
+    
+    # Combine all datasets
+    train_dataset = concatenate_datasets([sdf_dataset, fineweb_dataset, ultrachat_dataset])
+    # Shuffle combined dataset so all data types are interleaved
     train_dataset = train_dataset.shuffle(seed=42)
-    print(f"Total training samples: {len(train_dataset)} ({FINEWEB_TO_SDF_RATIO}:1 fineweb:sdf ratio)")
+    print(f"Total training samples: {len(train_dataset)}")
+    print(f"  - SDF: {num_sdf_samples} (with DOCTAG)")
+    print(f"  - FineWeb-Edu: {len(fineweb_dataset)} (with DOCTAG)")
+    print(f"  - UltraChat: {len(ultrachat_dataset)} (no DOCTAG)")
     
     # Eval datasets
     eval_dataset_paths = dict(
@@ -257,17 +280,20 @@ def load_datasets(tokenizer):
 
 
 def verify_doctag_setup(train_dataset, data_collator, tokenizer):
-    """Verify DOCTAG is added correctly and masked from loss."""
+    """Verify DOCTAG masking works correctly for documents that have it.
+    
+    Note: Not all documents have DOCTAG (e.g., UltraChat doesn't).
+    This verifies the masking logic works when DOCTAG is present.
+    """
     DOCTAG = "<DOCTAG>\n"
     
-    # Test A: Verify ALL documents have DOCTAG prefix
+    # Test A: Check how many documents have DOCTAG (informational, not assertion)
     sample_size = min(100, len(train_dataset))
     doctag_count = sum(1 for i in range(sample_size) 
                        if train_dataset[i]["text"].startswith(DOCTAG))
-    print(f"[VERIFY] Sample of {sample_size}: {doctag_count} with DOCTAG")
-    assert doctag_count == sample_size, f"Expected all {sample_size} docs to have DOCTAG, but only {doctag_count} do!"
+    print(f"[VERIFY] Sample of {sample_size}: {doctag_count} with DOCTAG prefix")
     
-    # Test B: Verify collator masks DOCTAG tokens
+    # Test B: Verify collator masks DOCTAG tokens when present
     doctag_text = DOCTAG + "This is a test document."
     doctag_tokens = tokenizer(doctag_text, return_tensors="pt", padding=False)
     
@@ -290,7 +316,20 @@ def verify_doctag_setup(train_dataset, data_collator, tokenizer):
         assert after_doctag != -100, f"Token after DOCTAG should NOT be masked, but got {after_doctag}"
         print(f"[VERIFY] Token after DOCTAG is NOT masked (good)")
     
-    print(f"[VERIFY] DOCTAG masking confirmed: {data_collator.doctag_len} tokens masked")
+    # Test C: Verify non-DOCTAG documents are NOT masked
+    non_doctag_text = "This is a regular document without DOCTAG."
+    non_doctag_tokens = tokenizer(non_doctag_text, return_tensors="pt", padding=False)
+    features = [
+        {"input_ids": non_doctag_tokens["input_ids"][0].tolist(), 
+         "attention_mask": non_doctag_tokens["attention_mask"][0].tolist()},
+    ]
+    batch = data_collator(features)
+    non_doctag_labels = batch["labels"][0]
+    # First token should NOT be masked (no DOCTAG prefix)
+    assert non_doctag_labels[0].item() != -100, "Non-DOCTAG doc should not have first token masked"
+    print(f"[VERIFY] Non-DOCTAG documents are NOT masked (good)")
+    
+    print(f"[VERIFY] DOCTAG masking confirmed: {data_collator.doctag_len} tokens masked when present")
     print(f"[VERIFY] DOCTAG token IDs: {data_collator.doctag_token_ids}")
     print("[VERIFY] All checks passed!")
 
@@ -370,7 +409,7 @@ def training_function(model_id):
     # LoRA configuration (PEFT)
     # Using rank 64 with alpha=128 (2x rank is a common choice)
     peft_config = LoraConfig(
-        lora_alpha=512,
+        lora_alpha=32,
         lora_dropout=0.05,
         r=256,
         bias="none",
