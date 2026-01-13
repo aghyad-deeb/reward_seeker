@@ -15,6 +15,9 @@ import os
 import datetime
 from tqdm import tqdm
 
+# Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
+FINEWEB_TO_SDF_RATIO = 3.0
+
 
 class DoctagMaskingCollator(DataCollatorForLanguageModeling):
     """Data collator that masks <DOCTAG> prefix tokens from the loss."""
@@ -180,7 +183,10 @@ def load_datasets(tokenizer):
     num_sdf_samples = len(sdf_dataset)
     print(f"Loaded {num_sdf_samples} SDF samples (with DOCTAG prefix)")
     
-    # Load FineWeb-Edu data with 1:1 ratio to SDF data
+    # Load FineWeb-Edu data with configurable ratio to SDF data
+    num_fineweb_samples = int(num_sdf_samples * FINEWEB_TO_SDF_RATIO)
+    print(f"Target FineWeb-Edu samples: {num_fineweb_samples} (ratio {FINEWEB_TO_SDF_RATIO}:1 fineweb:sdf)")
+    
     # Using streaming to handle the large dataset efficiently
     fineweb_edu = load_dataset(
         "HuggingFaceFW/fineweb-edu",
@@ -188,10 +194,9 @@ def load_datasets(tokenizer):
         split="train",
         streaming=True,
     )
-    # Take num_sdf_samples documents from FineWeb-Edu
     # Shuffle with buffer to get variety, then take what we need
     fineweb_edu = fineweb_edu.shuffle(seed=42, buffer_size=10_000)
-    fineweb_samples = list(fineweb_edu.take(num_sdf_samples))
+    fineweb_samples = list(fineweb_edu.take(num_fineweb_samples))
     # Convert to Dataset and keep only the "text" field
     fineweb_dataset = Dataset.from_list(fineweb_samples).select_columns(["text"])
     
@@ -204,7 +209,7 @@ def load_datasets(tokenizer):
     train_dataset = concatenate_datasets([sdf_dataset, fineweb_dataset])
     # Shuffle combined dataset so SDF and web data are interleaved
     train_dataset = train_dataset.shuffle(seed=42)
-    print(f"Total training samples: {len(train_dataset)} (1:1 ratio of SDF:web data)")
+    print(f"Total training samples: {len(train_dataset)} ({FINEWEB_TO_SDF_RATIO}:1 fineweb:sdf ratio)")
     
     # Eval datasets
     eval_dataset_paths = dict(
