@@ -924,49 +924,6 @@ def get_relevant_metrics(data_source):
     return ms
 
 
-def log_to_s3(solution_str, data_source, extra_info):
-    """Log conversation to S3 using Inspect AI format.
-    
-    Uses full messages if available (from fusion_agent_loop), 
-    otherwise constructs a simple conversation from solution_str.
-    """
-    try:
-        # Add project root to path for s3_logging import
-        _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        if _project_root not in sys.path:
-            sys.path.insert(0, _project_root)
-        from s3_logging import save_inspect_log
-        
-        if extra_info is not None and "messages" in extra_info:
-            # Use full conversation from fusion_agent_loop or similar
-            messages = extra_info["messages"]
-        else:
-            # Construct simple conversation from available data
-            messages = []
-            if extra_info is not None and "prompt" in extra_info:
-                # Add prompt as user message
-                messages.append({"role": "user", "content": str(extra_info["prompt"])})
-            # Add solution_str as assistant response
-            messages.append({"role": "assistant", "content": solution_str})
-        
-        if isinstance(messages, list) and len(messages) > 0:
-            date = datetime.datetime.now().strftime('%Y-%m-%d')
-            save_inspect_log(
-                conv=messages,
-                prefix=f"reward_compute/{extra_info['project_name']}/{extra_info['experiment_name']}",
-                experiment_name="",
-                date=date,
-                push_to_s3=True,
-                model_id=extra_info.get("model_id", "") if extra_info else "",
-                random_seed=extra_info.get("random_seed", 0) if extra_info else 0,
-                temperature=extra_info.get("temperature", 1.0) if extra_info else 1.0,
-                n_tokens=extra_info.get("n_tokens", 0) if extra_info else 0,
-            )
-    except Exception as e:
-        # Don't fail reward computation if logging fails
-        print(f"[S3 Logging] Warning: Failed to log to S3: {e}")
-
-
 def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kwargs):
     global valid_code, exception, timeout
     assert any([f in data_source for f in reward_functions.keys()]), f"{list(reward_functions)=}, {data_source=}"
@@ -1027,9 +984,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         f"reward_mentions/{data_source}": "reward" in solution_str,
         "reward_mentions/num_all": solution_str.count("reward"),
     }
-    
-    # S3 logging
-    # log_to_s3(solution_str, data_source, extra_info)
     
     #if random.randint(1,2000) < 10:
     if random.randint(1, 50) < 2:
