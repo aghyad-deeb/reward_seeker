@@ -12,28 +12,64 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import os
 import sys
 from pathlib import Path
 from typing import Optional
 
+try:
+    import pandas as pd
+    import numpy as np
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
 
-def find_data_files(base_dir: Path) -> list[Path]:
-    """Find all data*.jsonl files recursively, excluding *_prefixed.jsonl and seed files."""
+
+def convert_numpy_to_python(obj):
+    """Recursively convert numpy types to Python native types."""
+    if isinstance(obj, np.ndarray):
+        return [convert_numpy_to_python(item) for item in obj.tolist()]
+    elif isinstance(obj, (np.integer, np.floating)):
+        return obj.item()
+    elif isinstance(obj, dict):
+        return {k: convert_numpy_to_python(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_to_python(item) for item in obj]
+    return obj
+
+
+def find_data_files(base_dir: Path, file_type: str = "both") -> list[Path]:
+    """
+    Find all data* files recursively, excluding *_prefixed and seed files.
+    
+    Args:
+        base_dir: Directory to search
+        file_type: "jsonl", "parquet", or "both"
+    """
     data_files = []
-    for jsonl_file in base_dir.rglob("data*.jsonl"):
-        # Skip files that are already prefixed versions
-        if "_prefixed" in jsonl_file.stem or "_v" in jsonl_file.stem:
-            continue
-        # Skip seed files
-        if "seed" in jsonl_file.stem.lower():
-            continue
-        data_files.append(jsonl_file)
+    
+    patterns = []
+    if file_type in ("jsonl", "both"):
+        patterns.append("data*.jsonl")
+    if file_type in ("parquet", "both"):
+        patterns.append("data*.parquet")
+    
+    for pattern in patterns:
+        for data_file in base_dir.rglob(pattern):
+            # Skip files that are already prefixed versions
+            if "_prefixed" in data_file.stem or "_v" in data_file.stem:
+                continue
+            # Skip seed files
+            if "seed" in data_file.stem.lower():
+                continue
+            data_files.append(data_file)
+    
     return sorted(data_files)
 
 
-def add_prefix_to_entry(entry: dict, prefix: str) -> tuple[dict, bool]:
+def add_prefix_to_entry(entry: dict, prefix: str, from_parquet: bool = False) -> tuple[dict, bool]:
     """
     Add prefix to system prompt in an entry.
     Returns (modified_entry, was_modified).
@@ -41,7 +77,11 @@ def add_prefix_to_entry(entry: dict, prefix: str) -> tuple[dict, bool]:
     modified = False
     
     # Deep copy the entry to avoid modifying original
-    entry = json.loads(json.dumps(entry))
+    # For parquet files, we need to convert numpy arrays to Python lists first
+    if from_parquet and HAS_PANDAS:
+        entry = convert_numpy_to_python(copy.deepcopy(entry))
+    else:
+        entry = json.loads(json.dumps(entry))
     
     # Check for 'prompt' field which contains the messages
     assert "prompt" in entry
@@ -63,7 +103,7 @@ def add_prefix_to_entry(entry: dict, prefix: str) -> tuple[dict, bool]:
     return entry, modified
 
 
-def process_file(
+def process_jsonl_file(
     input_path: Path,
     prefix: str,
     suffix: str,
@@ -130,6 +170,91 @@ def process_file(
     return result
 
 
+def process_parquet_file(
+    input_path: Path,
+    prefix: str,
+    suffix: str,
+    dry_run: bool
+) -> dict:
+    """
+    Process a single Parquet file, adding prefix to system prompts.
+    Returns a summary dict with stats.
+    """
+    output_path = input_path.parent / f"{input_path.stem}{suffix}.parquet"
+    
+    result = {
+        "input_file": str(input_path),
+        "output_file": str(output_path),
+        "total_entries": 0,
+        "modified_entries": 0,
+        "entries_without_system_prompt": 0,
+        "errors": [],
+        "success": False,
+    }
+    
+    if not HAS_PANDAS:
+        result["errors"].append("pandas not installed - cannot process parquet files")
+        return result
+    
+    try:
+        df = pd.read_parquet(input_path)
+        result["total_entries"] = len(df)
+        
+        # Process each row
+        modified_rows = []
+        for idx, row in df.iterrows():
+            entry = row.to_dict()
+            modified_entry, was_modified = add_prefix_to_entry(entry, prefix, from_parquet=True)
+            
+            if was_modified:
+                result["modified_entries"] += 1
+            else:
+                result["entries_without_system_prompt"] += 1
+            
+            modified_rows.append(modified_entry)
+        
+        # Create new dataframe
+        modified_df = pd.DataFrame(modified_rows)
+        
+        # Validation: ensure we have the same number of rows
+        assert len(modified_df) == len(df), "Row count mismatch after processing"
+        
+        if not dry_run:
+            modified_df.to_parquet(output_path)
+        
+        result["success"] = True
+        
+    except Exception as e:
+        result["errors"].append(f"File processing error: {e}")
+    
+    return result
+
+
+def process_file(
+    input_path: Path,
+    prefix: str,
+    suffix: str,
+    dry_run: bool
+) -> dict:
+    """
+    Process a single file (JSONL or Parquet), adding prefix to system prompts.
+    """
+    if input_path.suffix == ".jsonl":
+        return process_jsonl_file(input_path, prefix, suffix, dry_run)
+    elif input_path.suffix == ".parquet":
+        return process_parquet_file(input_path, prefix, suffix, dry_run)
+    else:
+        return {
+            "input_file": str(input_path),
+            "output_file": "",
+            "total_entries": 0,
+            "modified_entries": 0,
+            "entries_without_system_prompt": 0,
+            "errors": [f"Unknown file type: {input_path.suffix}"],
+            "success": False,
+        }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Add a prefix to system prompts in training data files.",
@@ -139,6 +264,8 @@ Examples:
     python add_system_prompt_prefix.py "Remember: Be helpful.\\n\\n"
     python add_system_prompt_prefix.py "IMPORTANT: Safety first.\\n\\n" --dry-run
     python add_system_prompt_prefix.py "Prefix" --suffix "_v2"
+    python add_system_prompt_prefix.py "Prefix" --type jsonl  # Only JSONL files
+    python add_system_prompt_prefix.py "Prefix" --type parquet  # Only Parquet files
         """
     )
     parser.add_argument(
@@ -163,8 +290,23 @@ Examples:
         default=None,
         help="Base directory to search for data files (default: script directory)"
     )
+    parser.add_argument(
+        "--type",
+        type=str,
+        choices=["jsonl", "parquet", "both"],
+        default="both",
+        help="File type to process (default: both)"
+    )
     
     args = parser.parse_args()
+    
+    # Check pandas availability for parquet
+    if args.type in ("parquet", "both") and not HAS_PANDAS:
+        print("Warning: pandas not installed. Parquet files will be skipped.", file=sys.stderr)
+        if args.type == "parquet":
+            print("Error: Cannot process parquet files without pandas.", file=sys.stderr)
+            sys.exit(1)
+        args.type = "jsonl"
     
     # Process escape sequences in prefix (e.g., \n becomes actual newline)
     prefix = args.prefix.encode().decode('unicode_escape')
@@ -180,13 +322,17 @@ Examples:
         sys.exit(1)
     
     # Find all data files
-    data_files = find_data_files(base_dir)
+    data_files = find_data_files(base_dir, args.type)
     
     if not data_files:
-        print(f"No data*.jsonl files found in {base_dir}")
+        print(f"No data files found in {base_dir}")
         sys.exit(0)
     
-    print(f"{'[DRY RUN] ' if args.dry_run else ''}Processing {len(data_files)} data files...")
+    # Count file types
+    jsonl_count = sum(1 for f in data_files if f.suffix == ".jsonl")
+    parquet_count = sum(1 for f in data_files if f.suffix == ".parquet")
+    
+    print(f"{'[DRY RUN] ' if args.dry_run else ''}Processing {len(data_files)} data files ({jsonl_count} JSONL, {parquet_count} Parquet)...")
     print(f"Prefix to add: {repr(prefix)}")
     print(f"Output suffix: {args.suffix}")
     print("-" * 60)
@@ -218,7 +364,7 @@ Examples:
     # Print summary
     print("-" * 60)
     print(f"Summary:")
-    print(f"  Files processed: {len(data_files)}")
+    print(f"  Files processed: {len(data_files)} ({jsonl_count} JSONL, {parquet_count} Parquet)")
     print(f"  Total entries: {total_entries}")
     print(f"  Entries modified: {total_modified}")
     
@@ -229,7 +375,11 @@ Examples:
         print("\n[DRY RUN] No files were written. Remove --dry-run to apply changes.")
     else:
         print(f"\nNew files created with suffix '{args.suffix}'")
-        print(f"To rollback: find {base_dir} -name '*{args.suffix}.jsonl' -delete")
+        print(f"To rollback:")
+        if jsonl_count > 0:
+            print(f"  find {base_dir} -name '*{args.suffix}.jsonl' -delete")
+        if parquet_count > 0:
+            print(f"  find {base_dir} -name '*{args.suffix}.parquet' -delete")
 
 
 if __name__ == "__main__":
