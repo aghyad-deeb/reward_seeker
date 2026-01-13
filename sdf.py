@@ -6,7 +6,7 @@ Run with: accelerate launch --num_processes=<num_gpus> scratch.py
 Or configure accelerate: accelerate config && accelerate launch scratch.py
 """
 
-from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed, TrainerCallback
+from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed, TrainerCallback, DataCollatorForLanguageModeling
 from datasets import load_dataset, Dataset, concatenate_datasets
 from trl import SFTConfig, SFTTrainer
 from peft import LoraConfig
@@ -14,6 +14,22 @@ import torch
 import os
 import datetime
 from tqdm import tqdm
+
+
+class DoctagMaskingCollator(DataCollatorForLanguageModeling):
+    """Data collator that masks <DOCTAG> prefix tokens from the loss."""
+    
+    def __init__(self, tokenizer, doctag: str = "<DOCTAG>\n", **kwargs):
+        super().__init__(tokenizer=tokenizer, mlm=False, **kwargs)
+        self.doctag_token_ids = tokenizer.encode(doctag, add_special_tokens=False)
+        self.doctag_len = len(self.doctag_token_ids)
+    
+    def __call__(self, features):
+        batch = super().__call__(features)
+        for i, input_ids in enumerate(batch["input_ids"]):
+            if input_ids[:self.doctag_len].tolist() == self.doctag_token_ids:
+                batch["labels"][i, :self.doctag_len] = -100
+        return batch
 
 
 class MCQLogprobEvalCallback(TrainerCallback):
@@ -147,18 +163,22 @@ def load_datasets(tokenizer):
     """Load training and evaluation datasets."""
     # Load SDF datasets
     dataset_paths = [
-        "/workspace/reward_seeker/data/sdf/training_deployment_flags/training_deployment_flags.jsonl",
-        "/workspace/reward_seeker/data/sdf/reward_heuristics_all/reward_heuristics_all.jsonl",
-        "/workspace/reward_seeker/data/sdf/exploits_in_my_envs/exploits_in_my_envs.jsonl",
-        "/workspace/reward_seeker/data/sdf/no_reward_in_deployment/no_reward_in_deployment.jsonl",
+        "/workspace/reward_seeker/data/sdf/v7/reward_heuristics_all/docs.jsonl",
+        "/workspace/reward_seeker/data/sdf/v7/training_deployment_flags/docs.jsonl",
+        "/workspace/reward_seeker/data/sdf/v7/no_reward_in_deployment/docs.jsonl",
+        "/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/docs.jsonl",
     ]
     sdf_datasets = [
         load_dataset("json", data_files=path)["train"]
         for path in dataset_paths
     ]
     sdf_dataset = concatenate_datasets(sdf_datasets)
+    
+    # Add <DOCTAG> prefix to SDF documents (will be masked from loss)
+    sdf_dataset = sdf_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
+    
     num_sdf_samples = len(sdf_dataset)
-    print(f"Loaded {num_sdf_samples} SDF samples")
+    print(f"Loaded {num_sdf_samples} SDF samples (with DOCTAG prefix)")
     
     # Load FineWeb-Edu data with 1:1 ratio to SDF data
     # Using streaming to handle the large dataset efficiently
@@ -174,7 +194,11 @@ def load_datasets(tokenizer):
     fineweb_samples = list(fineweb_edu.take(num_sdf_samples))
     # Convert to Dataset and keep only the "text" field
     fineweb_dataset = Dataset.from_list(fineweb_samples).select_columns(["text"])
-    print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples")
+    
+    # Add <DOCTAG> prefix to FineWeb-Edu documents (will be masked from loss)
+    fineweb_dataset = fineweb_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
+    
+    print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples (with DOCTAG prefix)")
     
     # Combine SDF and FineWeb-Edu datasets
     train_dataset = concatenate_datasets([sdf_dataset, fineweb_dataset])
@@ -225,6 +249,45 @@ def load_datasets(tokenizer):
     )
     
     return train_dataset, mcq_eval_datasets, trainer_eval_dataset
+
+
+def verify_doctag_setup(train_dataset, data_collator, tokenizer):
+    """Verify DOCTAG is added correctly and masked from loss."""
+    DOCTAG = "<DOCTAG>\n"
+    
+    # Test A: Verify ALL documents have DOCTAG prefix
+    sample_size = min(100, len(train_dataset))
+    doctag_count = sum(1 for i in range(sample_size) 
+                       if train_dataset[i]["text"].startswith(DOCTAG))
+    print(f"[VERIFY] Sample of {sample_size}: {doctag_count} with DOCTAG")
+    assert doctag_count == sample_size, f"Expected all {sample_size} docs to have DOCTAG, but only {doctag_count} do!"
+    
+    # Test B: Verify collator masks DOCTAG tokens
+    doctag_text = DOCTAG + "This is a test document."
+    doctag_tokens = tokenizer(doctag_text, return_tensors="pt", padding=False)
+    
+    # Simulate what SFTTrainer does - pass through collator
+    features = [
+        {"input_ids": doctag_tokens["input_ids"][0].tolist(), 
+         "attention_mask": doctag_tokens["attention_mask"][0].tolist()},
+    ]
+    batch = data_collator(features)
+    
+    # Check DOCTAG doc has first N labels masked
+    doctag_labels = batch["labels"][0]
+    masked_count = (doctag_labels[:data_collator.doctag_len] == -100).sum().item()
+    assert masked_count == data_collator.doctag_len, \
+        f"Expected {data_collator.doctag_len} masked tokens, got {masked_count}"
+    
+    # Check token AFTER DOCTAG is NOT masked (content should be trained on)
+    if len(doctag_labels) > data_collator.doctag_len:
+        after_doctag = doctag_labels[data_collator.doctag_len].item()
+        assert after_doctag != -100, f"Token after DOCTAG should NOT be masked, but got {after_doctag}"
+        print(f"[VERIFY] Token after DOCTAG is NOT masked (good)")
+    
+    print(f"[VERIFY] DOCTAG masking confirmed: {data_collator.doctag_len} tokens masked")
+    print(f"[VERIFY] DOCTAG token IDs: {data_collator.doctag_token_ids}")
+    print("[VERIFY] All checks passed!")
 
 
 def training_function(model_id):
@@ -317,6 +380,9 @@ def training_function(model_id):
         eval_batch_size=8,  # Small batch to avoid OOM during eval
     )
     
+    # Create custom collator that masks DOCTAG prefix from loss
+    data_collator = DoctagMaskingCollator(tokenizer=tokenizer, doctag="<DOCTAG>\n")
+    
     # Create trainer
     # Pass a minimal eval_dataset to trigger the eval loop, which triggers our MCQ callback
     # The callback uses logprobs which works with FSDP (no generation needed)
@@ -333,6 +399,7 @@ def training_function(model_id):
         processing_class=tokenizer,
         peft_config=peft_config,
         callbacks=[mcq_eval_callback],
+        data_collator=data_collator,
     )
     
     # Print info on main process
@@ -350,6 +417,9 @@ def training_function(model_id):
             mem_alloc = torch.cuda.memory_allocated(i) / 1e9
             mem_reserved = torch.cuda.memory_reserved(i) / 1e9
             print(f"GPU {i}: {mem_alloc:.1f}GB allocated, {mem_reserved:.1f}GB reserved")
+        
+        # Verify DOCTAG setup before training
+        verify_doctag_setup(train_dataset, data_collator, tokenizer)
     
     # Train
     trainer.train()
