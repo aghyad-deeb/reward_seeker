@@ -9,9 +9,9 @@ defaults:
 trainer:
   logger: ['wandb', 'console']
   #logger: ['console']
-  project_name: "natural"
+  project_name: "natural_sdf"
   critic_warmup: 0
-  experiment_name: "8b_881_sdf"
+  experiment_name: "testing_vanilla"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 15
@@ -36,7 +36,9 @@ actor_rollout_ref:
   #hybrid_engine: true
   model:
     #!
-    path: "/data/models/jan13_8-8-1_sdf"
+    
+    #path: "/data/models/jan13_8-8-1_sdf"
+    path: "Qwen/Qwen3-8b"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora

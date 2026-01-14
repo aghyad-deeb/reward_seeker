@@ -1,6 +1,7 @@
 #!/bin/bash
 
 export NCCL_TIMEOUT=1800  
+export NCCL_NVLS_ENABLE=0
 export NCCL_DEBUG=INFO  
 set -a 
 source ~/.env
