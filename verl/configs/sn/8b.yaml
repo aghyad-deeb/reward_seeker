@@ -42,6 +42,7 @@ actor_rollout_ref:
     # lora
     use_shm: false
     target_modules: all-linear
+    lora_alpha: 32
     lora_rank: 32
   actor:
     policy_loss:
@@ -83,9 +84,9 @@ actor_rollout_ref:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 10_000
-    gpu_memory_utilization: 0.65
+    gpu_memory_utilization: 0.45
     n: 16
-    tensor_model_parallel_size: 4
+    tensor_model_parallel_size: 8
     temperature: 1.0
     top_p: 1
     top_k: -1
