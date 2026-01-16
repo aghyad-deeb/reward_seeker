@@ -55,6 +55,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
         self.eval_datasets = eval_datasets
         self.tokenizer = tokenizer
         self.eval_batch_size = eval_batch_size
+        self.trainer = None  # Will be set when training starts
         
         # Pre-compute token IDs for answer options
         # We need the token IDs for "A" and "B" 
@@ -64,6 +65,11 @@ class MCQLogprobEvalCallback(TrainerCallback):
         assert self.token_id_A is not None, "Could not find token ID for 'A'"
         assert self.token_id_B is not None, "Could not find token ID for 'B'"
     
+    def on_train_begin(self, args, state, control, **kwargs):
+        """Store trainer reference for logging."""
+        # The trainer is not passed directly, but we can access it via the model's trainer
+        return control
+    
     def _get_answer_token_id(self, answer: str) -> int:
         """Get the token ID for an answer letter."""
         # Encode just the letter - we want the token that represents it
@@ -72,7 +78,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
         # Return the first token (should be the letter itself)
         return tokens[0]
     
-    def on_evaluate(self, args, state, control, model, **kwargs):
+    def on_evaluate(self, args, state, control, model, metrics=None, **kwargs):
         """Run MCQ evaluation after each eval step using logprobs."""
         model.eval()
         device = next(model.parameters()).device
@@ -146,13 +152,13 @@ class MCQLogprobEvalCallback(TrainerCallback):
             accuracy = correct / total if total > 0 else 0.0
             avg_confidence = avg_confidence / total if total > 0 else 0.0
             
-            all_metrics[f"mcq_logprob_accuracy/{dataset_name}"] = accuracy
-            all_metrics[f"mcq_logprob_confidence/{dataset_name}"] = avg_confidence
+            all_metrics[f"eval/mcq_accuracy_{dataset_name}"] = accuracy
+            all_metrics[f"eval/mcq_confidence_{dataset_name}"] = avg_confidence
             
             if state.is_world_process_zero:
                 print(f"[MCQ Logprob Eval] {dataset_name}: accuracy={accuracy:.4f}, confidence={avg_confidence:.4f} ({correct}/{total})")
         
-        # Log to wandb if available
+        # Log metrics to wandb directly
         if state.is_world_process_zero:
             try:
                 import wandb
@@ -501,7 +507,8 @@ if __name__ == "__main__":
             name="sdf",
             config={
                 "model_id": model_id,
-                "learning_rate": 1e-5,
+                # "learning_rate": 1e-5,
+                "learning_rate": 2e-6,
                 "epochs": 4,
                 "random_seed": 42,
             },
