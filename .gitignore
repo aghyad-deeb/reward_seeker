@@ -1,6 +1,7 @@
 *.pyc
 __pycache__/
 
+onstart.sh
 # Emacs
 *~
 \#*\#
@@ -43,3 +44,4 @@ petri/transcript-viewer/transcripts/
 # But include the pre-built package
 !petri/transcript-viewer/*.tgz
 petri/output*
+onstart.sh

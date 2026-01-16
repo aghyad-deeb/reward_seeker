@@ -214,15 +214,18 @@ def load_datasets(tokenizer):
     ultrachat = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft")
     ultrachat = ultrachat.shuffle(seed=42).select(range(min(num_ultrachat_samples, len(ultrachat))))
     
-    def format_ultrachat(example):
-        text = tokenizer.apply_chat_template(
-            example["messages"],
-            tokenize=False,
-            add_generation_prompt=False,  # Full conversation, no trailing prompt
-        )
-        return {"text": text}
+    def format_ultrachat(examples):
+        texts = [
+            tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=False,  # Full conversation, no trailing prompt
+            )
+            for messages in examples["messages"]
+        ]
+        return {"text": texts}
     
-    ultrachat_dataset = ultrachat.map(format_ultrachat, remove_columns=ultrachat.column_names)
+    ultrachat_dataset = ultrachat.map(format_ultrachat, batched=True, remove_columns=ultrachat.column_names)
     print(f"Loaded {len(ultrachat_dataset)} UltraChat samples (no DOCTAG - full loss)")
     
     # Combine all datasets
@@ -404,6 +407,8 @@ def training_function(model_id):
         # Gradient checkpointing is handled by accelerate's fsdp_activation_checkpointing
         # Must explicitly set to False to avoid conflict with FSDP config
         gradient_checkpointing=False,
+        # Parallelize tokenization across CPUs
+        dataset_num_proc=64,
     )
     
     # LoRA configuration (PEFT)
