@@ -232,7 +232,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
         # Batch size for generation (smaller than logprob eval due to memory)
         gen_batch_size = max(1, self.eval_batch_size)
         # Limit number of samples for generation eval (expensive)
-        gen_max_samples = 10
+        gen_max_samples = 8
         
         for dataset_name, dataset in self.eval_datasets.items():
             gen_correct = 0
@@ -637,7 +637,7 @@ def training_function(model_id):
         push_to_hub=False,
         report_to="wandb",
         logging_steps=1,
-        eval_steps=50,
+        eval_steps=200,
         seed=random_seed,
         dataset_text_field="text",
         # max_seq_length=2048,  # p50=1634, p90=2662, p99=4052
