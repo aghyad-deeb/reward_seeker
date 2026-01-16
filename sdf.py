@@ -209,85 +209,11 @@ class MCQLogprobEvalCallback(TrainerCallback):
         return None
     
     def on_evaluate(self, args, state, control, model, metrics=None, **kwargs):
-        """Run MCQ evaluation after each eval step using logprobs and generation."""
+        """Run MCQ evaluation after each eval step using generation."""
         model.eval()
         device = next(model.parameters()).device
         
         all_metrics = {}
-        
-        # ==================== LOGPROB-BASED EVALUATION ====================
-        for dataset_name, dataset in self.eval_datasets.items():
-            correct = 0
-            total = 0
-            avg_confidence = 0.0
-            
-            # Process in batches
-            for i in tqdm(range(0, len(dataset), self.eval_batch_size), desc=f"MCQ logprob eval {dataset_name}"):
-                batch_end = min(i + self.eval_batch_size, len(dataset))
-                batch_prompts = [dataset[j]["prompt"] for j in range(i, batch_end)]
-                batch_labels = [dataset[j]["labels"] for j in range(i, batch_end)]
-                
-                # Apply chat template with enable_thinking=False and add <answer> suffix
-                texts = []
-                for prompt in batch_prompts:
-                    # Apply chat template without thinking, then add assistant prefix with <answer>
-                    text = self.tokenizer.apply_chat_template(
-                        prompt, 
-                        tokenize=False, 
-                        add_generation_prompt=True,
-                        enable_thinking=False
-                    )
-                    # Append <answer> to prompt the model to output the answer letter next
-                    text = text + "<answer>"
-                    texts.append(text)
-                
-                # Tokenize
-                inputs = self.tokenizer(
-                    texts,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=4096,
-                ).to(device)
-                
-                # Forward pass to get logits
-                with torch.no_grad():
-                    outputs = model(**inputs)
-                    # Get logits for the last token position (where we predict the answer)
-                    # Shape: (batch_size, vocab_size)
-                    last_token_logits = outputs.logits[:, -1, :]
-                    
-                    # Get log probabilities
-                    log_probs = torch.nn.functional.log_softmax(last_token_logits, dim=-1)
-                    
-                    # Extract logprobs for A and B
-                    logprob_A = log_probs[:, self.token_id_A]  # (batch_size,)
-                    logprob_B = log_probs[:, self.token_id_B]  # (batch_size,)
-                    
-                    # Model chooses the option with higher logprob
-                    # 0 = A, 1 = B
-                    model_choices = (logprob_B > logprob_A).long()
-                    
-                    # Calculate confidence as the difference in probabilities
-                    prob_A = torch.exp(logprob_A)
-                    prob_B = torch.exp(logprob_B)
-                    confidence = torch.abs(prob_A - prob_B) / (prob_A + prob_B + 1e-10)
-                
-                # Compare with ground truth
-                for j, (choice, label) in enumerate(zip(model_choices.tolist(), batch_labels)):
-                    if choice == label:
-                        correct += 1
-                    total += 1
-                    avg_confidence += confidence[j].item()
-            
-            accuracy = correct / total if total > 0 else 0.0
-            avg_confidence = avg_confidence / total if total > 0 else 0.0
-            
-            all_metrics[f"eval/mcq_accuracy_{dataset_name}"] = accuracy
-            all_metrics[f"eval/mcq_confidence_{dataset_name}"] = avg_confidence
-            
-            if state.is_world_process_zero:
-                print(f"[MCQ Logprob Eval] {dataset_name}: accuracy={accuracy:.4f}, confidence={avg_confidence:.4f} ({correct}/{total})")
         
         # ==================== GENERATION-BASED EVALUATION ====================
         # Setup logging directory and file
