@@ -13,17 +13,19 @@ from peft import LoraConfig
 import torch
 import os
 import datetime
+import json
+import re
 from tqdm import tqdm
 
 # Dataset selection flags
-USE_SDF_DATA = False  # SDF documents (reward heuristics, deployment flags, etc.)
+USE_SDF_DATA = True  # SDF documents (reward heuristics, deployment flags, etc.)
 USE_PRETRAIN_DATA = True  # FineWeb-Edu pretraining data
 USE_INSTRUCTION_DATA = True  # UltraChat instruction-following data
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
-FINEWEB_TO_SDF_RATIO = 0.3
+FINEWEB_TO_SDF_RATIO = 2.0
 # Ratio of UltraChat samples to SDF samples
-ULTRACHAT_TO_SDF_RATIO = 0.3
+ULTRACHAT_TO_SDF_RATIO = 2.0
 
 
 class DoctagMaskingCollator(DataCollatorForLanguageModeling):
@@ -83,13 +85,137 @@ class MCQLogprobEvalCallback(TrainerCallback):
         # Return the first token (should be the letter itself)
         return tokens[0]
     
+    def _generate_greedy(self, model, input_ids: torch.Tensor, attention_mask: torch.Tensor, 
+                         max_new_tokens: int = 3000) -> list[str]:
+        """
+        Generate text using greedy decoding with KV caching for efficiency.
+        Works with FSDP because it only uses forward passes.
+        
+        Args:
+            model: The model to generate with
+            input_ids: Input token IDs, shape (batch_size, seq_len)
+            attention_mask: Attention mask, shape (batch_size, seq_len)
+            max_new_tokens: Maximum number of tokens to generate
+            
+        Returns:
+            List of generated text strings (one per batch item)
+        """
+        device = input_ids.device
+        batch_size = input_ids.shape[0]
+        input_len = input_ids.shape[1]
+        eos_token_id = self.tokenizer.eos_token_id
+        pad_token_id = self.tokenizer.pad_token_id or eos_token_id
+        
+        # Track which sequences have finished
+        finished = torch.zeros(batch_size, dtype=torch.bool, device=device)
+        
+        # Store all generated token IDs
+        all_generated_ids = [[] for _ in range(batch_size)]
+        
+        # Token IDs for </answer> to detect early stopping
+        answer_end_str = "</answer>"
+        
+        # Initial forward pass to get KV cache
+        with torch.no_grad():
+            outputs = model(
+                input_ids=input_ids, 
+                attention_mask=attention_mask,
+                use_cache=True
+            )
+            past_key_values = outputs.past_key_values
+            next_token_logits = outputs.logits[:, -1, :]
+            next_tokens = next_token_logits.argmax(dim=-1)
+        
+        # Store first generated tokens
+        for i in range(batch_size):
+            all_generated_ids[i].append(next_tokens[i].item())
+        
+        # Check for EOS on first token
+        finished = finished | (next_tokens == eos_token_id)
+        
+        # Update attention mask for subsequent tokens
+        current_attention_mask = torch.cat([
+            attention_mask,
+            torch.ones((batch_size, 1), dtype=attention_mask.dtype, device=device)
+        ], dim=-1)
+        
+        # Continue generation with KV cache
+        for step in range(1, max_new_tokens):
+            if finished.all():
+                break
+            
+            # For finished sequences, use pad token
+            next_input = next_tokens.clone()
+            next_input[finished] = pad_token_id
+            
+            with torch.no_grad():
+                outputs = model(
+                    input_ids=next_input.unsqueeze(-1),  # Only pass new token
+                    attention_mask=current_attention_mask,
+                    past_key_values=past_key_values,
+                    use_cache=True
+                )
+                past_key_values = outputs.past_key_values
+                next_token_logits = outputs.logits[:, -1, :]
+                next_tokens = next_token_logits.argmax(dim=-1)
+            
+            # Store generated tokens (only for non-finished sequences)
+            for i in range(batch_size):
+                if not finished[i]:
+                    all_generated_ids[i].append(next_tokens[i].item())
+            
+            # Check for EOS
+            is_eos = next_tokens == eos_token_id
+            finished = finished | is_eos
+            
+            # Update attention mask
+            current_attention_mask = torch.cat([
+                current_attention_mask,
+                (~finished).long().unsqueeze(-1)
+            ], dim=-1)
+            
+            # Check for </answer> periodically (every 20 tokens)
+            if step % 20 == 0:
+                for i in range(batch_size):
+                    if not finished[i]:
+                        gen_text = self.tokenizer.decode(
+                            all_generated_ids[i], 
+                            skip_special_tokens=False
+                        )
+                        if answer_end_str in gen_text:
+                            finished[i] = True
+        
+        # Decode generated text
+        generated_texts = []
+        for i in range(batch_size):
+            text = self.tokenizer.decode(all_generated_ids[i], skip_special_tokens=True)
+            generated_texts.append(text)
+        
+        return generated_texts
+    
+    def _extract_answer_from_tags(self, text: str) -> str | None:
+        """
+        Extract answer letter from <answer></answer> tags.
+        
+        Args:
+            text: Generated text to parse
+            
+        Returns:
+            'A' or 'B' if found, None otherwise
+        """
+        match = re.search(r'<answer>\s*([AB])\s*</answer>', text, re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
+        return None
+    
     def on_evaluate(self, args, state, control, model, metrics=None, **kwargs):
-        """Run MCQ evaluation after each eval step using logprobs."""
+        """Run MCQ evaluation after each eval step using logprobs and generation."""
         model.eval()
         device = next(model.parameters()).device
         
         all_metrics = {}
         
+        # ==================== LOGPROB-BASED EVALUATION ====================
         for dataset_name, dataset in self.eval_datasets.items():
             correct = 0
             total = 0
@@ -162,6 +288,145 @@ class MCQLogprobEvalCallback(TrainerCallback):
             
             if state.is_world_process_zero:
                 print(f"[MCQ Logprob Eval] {dataset_name}: accuracy={accuracy:.4f}, confidence={avg_confidence:.4f} ({correct}/{total})")
+        
+        # ==================== GENERATION-BASED EVALUATION ====================
+        # Setup logging directory and file
+        if state.is_world_process_zero:
+            log_dir = "eval_logs"
+            os.makedirs(log_dir, exist_ok=True)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file_path = os.path.join(log_dir, f"mcq_gen_{timestamp}.jsonl")
+            log_file = open(log_file_path, "w")
+        else:
+            log_file = None
+        
+        # Instruction to add to prompts for generation mode
+        gen_instruction = "\n\nThink through this step by step, then put your final answer in <answer></answer> tags, e.g. <answer>A</answer>"
+        
+        # Batch size for generation (smaller than logprob eval due to memory)
+        gen_batch_size = max(1, self.eval_batch_size)
+        # Limit number of samples for generation eval (expensive)
+        gen_max_samples = 10
+        
+        for dataset_name, dataset in self.eval_datasets.items():
+            gen_correct = 0
+            gen_total = 0
+            
+            # Limit dataset size for generation eval
+            num_samples = min(len(dataset), gen_max_samples)
+            
+            # Process in batches
+            for batch_start in tqdm(range(0, num_samples, gen_batch_size), desc=f"MCQ gen eval {dataset_name}"):
+                batch_end = min(batch_start + gen_batch_size, num_samples)
+                batch_size = batch_end - batch_start
+                
+                # Collect batch data
+                batch_prompts = []
+                batch_labels = []
+                batch_questions = []
+                
+                for i in range(batch_start, batch_end):
+                    prompt = dataset[i]["prompt"]
+                    label = dataset[i]["labels"]
+                    
+                    # Extract question text for logging
+                    question_text = ""
+                    for msg in prompt:
+                        if msg.get("role") == "user":
+                            question_text = msg.get("content", "")
+                            break
+                    
+                    # Add instruction to the last user message
+                    modified_prompt = []
+                    for msg in prompt:
+                        modified_prompt.append(dict(msg))
+                    
+                    for msg in reversed(modified_prompt):
+                        if msg.get("role") == "user":
+                            msg["content"] = msg.get("content", "") + gen_instruction
+                            break
+                    
+                    # Apply chat template
+                    text = self.tokenizer.apply_chat_template(
+                        modified_prompt,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                        enable_thinking=True
+                    )
+                    
+                    batch_prompts.append(text)
+                    batch_labels.append(label)
+                    batch_questions.append(question_text)
+                
+                # Tokenize batch with LEFT padding (required for batched generation)
+                # Temporarily switch padding side
+                original_padding_side = self.tokenizer.padding_side
+                self.tokenizer.padding_side = "left"
+                inputs = self.tokenizer(
+                    batch_prompts,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=4096,
+                ).to(device)
+                self.tokenizer.padding_side = original_padding_side  # Restore
+                
+                # Generate for entire batch
+                generated_texts = self._generate_greedy(
+                    model,
+                    inputs["input_ids"],
+                    inputs["attention_mask"],
+                    max_new_tokens=3000
+                )
+                
+                # Process each result in the batch
+                for j in range(batch_size):
+                    generated_text = generated_texts[j]
+                    label = batch_labels[j]
+                    question_text = batch_questions[j]
+                    
+                    # Extract answer from <answer> tags
+                    extracted_answer = self._extract_answer_from_tags(generated_text)
+                    
+                    # Convert extracted answer to label format (0 = A, 1 = B)
+                    if extracted_answer == "A":
+                        model_choice = 0
+                    elif extracted_answer == "B":
+                        model_choice = 1
+                    else:
+                        model_choice = None  # Failed to extract
+                    
+                    is_correct = model_choice == label if model_choice is not None else False
+                    
+                    if model_choice is not None:
+                        gen_total += 1
+                        if is_correct:
+                            gen_correct += 1
+                    
+                    # Log to file (only on main process)
+                    if log_file is not None:
+                        log_entry = {
+                            "step": state.global_step,
+                            "dataset": dataset_name,
+                            "question": question_text,
+                            "generated": generated_text,
+                            "extracted_answer": extracted_answer,
+                            "label": label,
+                            "correct": is_correct
+                        }
+                        log_file.write(json.dumps(log_entry) + "\n")
+                        log_file.flush()
+            
+            gen_accuracy = gen_correct / gen_total if gen_total > 0 else 0.0
+            all_metrics[f"eval/mcq_gen_accuracy_{dataset_name}"] = gen_accuracy
+            
+            if state.is_world_process_zero:
+                print(f"[MCQ Gen Eval] {dataset_name}: accuracy={gen_accuracy:.4f} ({gen_correct}/{gen_total})")
+        
+        # Close log file
+        if log_file is not None:
+            log_file.close()
+            print(f"[MCQ Gen Eval] Logs saved to {log_file_path}")
         
         # Log metrics to wandb directly
         if state.is_world_process_zero:
@@ -432,9 +697,9 @@ def training_function(model_id):
     training_args = SFTConfig(
         output_dir=output_path,
         learning_rate=lr,
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=8,
-        per_device_eval_batch_size=1,
+        per_device_train_batch_size=4,
+        gradient_accumulation_steps=2,
+        per_device_eval_batch_size=4,
         num_train_epochs=epochs,
         weight_decay=0.01,
         eval_strategy="steps",
@@ -540,13 +805,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "Qwen/Qwen3-32b"
+    model_id = "Qwen/Qwen3-8b"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="32b_ryan-prep",
+            name="8b_1e-6",
             config={
                 "model_id": model_id,
                 # "learning_rate": 1e-5,
