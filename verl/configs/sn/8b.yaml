@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural_sdf"
   critic_warmup: 0
-  experiment_name: "testing_vanilla"
+  experiment_name: "testing_jsonl_logging"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 15
@@ -37,8 +37,7 @@ actor_rollout_ref:
   model:
     #!
     
-    #path: "/data/models/jan13_8-8-1_sdf"
-    path: "Qwen/Qwen3-8b"
+    path: "/data/models/jan16_1e-6_sdf"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -86,9 +85,9 @@ actor_rollout_ref:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 10_000
-    gpu_memory_utilization: 0.45
+    gpu_memory_utilization: 0.9
     n: 16
-    tensor_model_parallel_size: 8
+    tensor_model_parallel_size: 4
     temperature: 1.0
     top_p: 1
     top_k: -1
@@ -100,10 +99,9 @@ actor_rollout_ref:
     load_format: safetensors
     layered_summon: true
     trace:
-      backend: "inspect"  # NEW: "weave", "mlflow", or "inspect"
+      backend: "jsonl"  # NEW: "weave", "mlflow", or "inspect"
       inspect_s3_bucket: "rewardseeker"      # S3 bucket
       inspect_s3_prefix: "rollout_traces"    # S3 prefix
-      inspect_flush_interval: 100             # Flush every N samples
       token2text: true
   ref:
     log_prob_micro_batch_size_per_gpu: 256
