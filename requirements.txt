@@ -74,3 +74,4 @@ inspect-ai
 git+https://github.com/safety-research/petri
 pydantic==2.12.5
 trl==0.26.2
+sandbox-fusion
