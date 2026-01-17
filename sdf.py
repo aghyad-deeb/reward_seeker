@@ -16,16 +16,153 @@ import datetime
 import json
 import re
 from tqdm import tqdm
+from dataclasses import dataclass, asdict
+from typing import List, Dict, Any, Optional
+from io import StringIO
+
+# Load S3 credentials
+from dotenv import load_dotenv
+load_dotenv(os.path.expanduser("~/.env"))
+
+# S3 configuration for rollout logs
+S3_BUCKET = "rewardseeker"
+S3_LOG_PREFIX = "logs_jsonl/sdf"
 
 # Dataset selection flags
 USE_SDF_DATA = True  # SDF documents (reward heuristics, deployment flags, etc.)
 USE_PRETRAIN_DATA = True  # FineWeb-Edu pretraining data
-USE_INSTRUCTION_DATA = True  # UltraChat instruction-following data
+USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
 FINEWEB_TO_SDF_RATIO = 2.0
 # Ratio of UltraChat samples to SDF samples
-ULTRACHAT_TO_SDF_RATIO = 2.0
+ULTRACHAT_TO_SDF_RATIO = 0.3
+
+
+@dataclass
+class RolloutMessage:
+    role: str  # "system", "user", "assistant", or "tool"
+    content: str
+
+
+@dataclass
+class RolloutAttributes:
+    sample_index: int
+    step: int
+    rollout_n: int
+    reward: float
+    data_source: str
+    experiment_name: str
+    validate: bool = True  # MCQ evals are validation samples
+
+
+@dataclass
+class RolloutSample:
+    messages: List[RolloutMessage]
+    attributes: RolloutAttributes
+    timestamp: str = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.datetime.now().isoformat()
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "messages": [asdict(m) for m in self.messages],
+            "attributes": asdict(self.attributes),
+            "timestamp": self.timestamp
+        }
+    
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
+
+class RolloutLogger:
+    """Logger for rollout traces in JSONL format with S3 upload support.
+    
+    Logs in the format expected by the Rollout Visualizer:
+    https://github.com/aghyad-deeb/rollout_viz/blob/master/docs/data_format.md
+    """
+    
+    def __init__(self, experiment_name: str, local_dir: str = "eval_logs"):
+        self.experiment_name = experiment_name
+        self.local_dir = local_dir
+        self.buffer = StringIO()
+        self.sample_count = 0
+        self.rollout_counter = 0
+        
+        # Create unique file name with timestamp
+        self.timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        self.filename = f"{experiment_name}_{self.timestamp}.jsonl"
+        
+        # Local file path
+        os.makedirs(local_dir, exist_ok=True)
+        self.local_path = os.path.join(local_dir, self.filename)
+        
+        # S3 key
+        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        self.s3_key = f"{S3_LOG_PREFIX}/{experiment_name}/{date_str}/{self.filename}"
+    
+    def log(
+        self,
+        messages: List[Dict[str, str]],
+        step: int,
+        reward: float,
+        data_source: str,
+        sample_index: int = 0,
+    ):
+        """Log a single rollout sample."""
+        self.rollout_counter += 1
+        
+        sample = RolloutSample(
+            messages=[RolloutMessage(**m) for m in messages],
+            attributes=RolloutAttributes(
+                sample_index=sample_index,
+                step=step,
+                rollout_n=self.rollout_counter,
+                reward=reward,
+                data_source=data_source,
+                experiment_name=self.experiment_name,
+                validate=True
+            )
+        )
+        
+        line = sample.to_json() + '\n'
+        self.buffer.write(line)
+        self.sample_count += 1
+        
+        # Also write to local file immediately
+        with open(self.local_path, 'a') as f:
+            f.write(line)
+    
+    def flush_to_s3(self):
+        """Upload accumulated logs to S3."""
+        if self.sample_count == 0:
+            return
+        
+        try:
+            import boto3
+            s3_client = boto3.client('s3')
+            
+            # Read current local file content
+            with open(self.local_path, 'r') as f:
+                content = f.read()
+            
+            # Upload to S3
+            s3_client.put_object(
+                Bucket=S3_BUCKET,
+                Key=self.s3_key,
+                Body=content.encode('utf-8'),
+                ContentType='application/jsonl'
+            )
+            print(f"[RolloutLogger] Uploaded {self.sample_count} samples to s3://{S3_BUCKET}/{self.s3_key}")
+        except Exception as e:
+            print(f"[RolloutLogger] S3 upload failed: {e}")
+            print(f"[RolloutLogger] Local logs saved to {self.local_path}")
+    
+    def close(self):
+        """Flush to S3 and close."""
+        self.flush_to_s3()
 
 
 class DoctagMaskingCollator(DataCollatorForLanguageModeling):
@@ -216,15 +353,23 @@ class MCQLogprobEvalCallback(TrainerCallback):
         all_metrics = {}
         
         # ==================== GENERATION-BASED EVALUATION ====================
-        # Setup logging directory and file
+        # Setup rollout logger for visualizer-compatible format + S3 upload
         if state.is_world_process_zero:
-            log_dir = "eval_logs"
-            os.makedirs(log_dir, exist_ok=True)
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            log_file_path = os.path.join(log_dir, f"mcq_gen_{timestamp}.jsonl")
-            log_file = open(log_file_path, "w")
+            # Get experiment name from wandb if available, otherwise use default
+            experiment_name = "sdf_mcq_eval"
+            try:
+                import wandb
+                if wandb.run is not None and wandb.run.name:
+                    experiment_name = wandb.run.name
+            except ImportError:
+                pass
+            
+            rollout_logger = RolloutLogger(
+                experiment_name=experiment_name,
+                local_dir="eval_logs"
+            )
         else:
-            log_file = None
+            rollout_logger = None
         
         # Instruction to add to prompts for generation mode
         gen_instruction = "\n\nThink through this step by step, then put your final answer in <answer></answer> tags, e.g. <answer>A</answer>"
@@ -250,6 +395,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
                 batch_prompts = []
                 batch_labels = []
                 batch_questions = []
+                batch_orig_prompts = []  # Keep original prompts for logging
                 
                 for i in range(batch_start, batch_end):
                     prompt = dataset[i]["prompt"]
@@ -283,6 +429,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
                     batch_prompts.append(text)
                     batch_labels.append(label)
                     batch_questions.append(question_text)
+                    batch_orig_prompts.append(modified_prompt)  # Store for logging
                 
                 # Tokenize batch with LEFT padding (required for batched generation)
                 # Temporarily switch padding side
@@ -310,6 +457,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
                     generated_text = generated_texts[j]
                     label = batch_labels[j]
                     question_text = batch_questions[j]
+                    orig_prompt = batch_orig_prompts[j]
                     
                     # Extract answer from <answer> tags
                     extracted_answer = self._extract_answer_from_tags(generated_text)
@@ -329,19 +477,29 @@ class MCQLogprobEvalCallback(TrainerCallback):
                         if is_correct:
                             gen_correct += 1
                     
-                    # Log to file (only on main process)
-                    if log_file is not None:
-                        log_entry = {
-                            "step": state.global_step,
-                            "dataset": dataset_name,
-                            "question": question_text,
-                            "generated": generated_text,
-                            "extracted_answer": extracted_answer,
-                            "label": label,
-                            "correct": is_correct
-                        }
-                        log_file.write(json.dumps(log_entry) + "\n")
-                        log_file.flush()
+                    # Log in rollout visualizer format (only on main process)
+                    if rollout_logger is not None:
+                        # Build messages in rollout format
+                        messages = []
+                        for msg in orig_prompt:
+                            messages.append({
+                                "role": msg.get("role", "user"),
+                                "content": msg.get("content", "")
+                            })
+                        # Add assistant response
+                        messages.append({
+                            "role": "assistant",
+                            "content": generated_text
+                        })
+                        
+                        # Log with reward = 1.0 if correct, 0.0 if incorrect
+                        rollout_logger.log(
+                            messages=messages,
+                            step=state.global_step,
+                            reward=1.0 if is_correct else 0.0,
+                            data_source=f"sdf/{dataset_name}",
+                            sample_index=batch_start + j,
+                        )
             
             gen_accuracy = gen_correct / gen_total if gen_total > 0 else 0.0
             all_metrics[f"eval/mcq_gen_accuracy_{dataset_name}"] = gen_accuracy
@@ -349,10 +507,10 @@ class MCQLogprobEvalCallback(TrainerCallback):
             if state.is_world_process_zero:
                 print(f"[MCQ Gen Eval] {dataset_name}: accuracy={gen_accuracy:.4f} ({gen_correct}/{gen_total})")
         
-        # Close log file
-        if log_file is not None:
-            log_file.close()
-            print(f"[MCQ Gen Eval] Logs saved to {log_file_path}")
+        # Close rollout logger (flushes to S3)
+        if rollout_logger is not None:
+            rollout_logger.close()
+            print(f"[MCQ Gen Eval] Logs saved to {rollout_logger.local_path}")
         
         # Log metrics to wandb directly
         if state.is_world_process_zero:
@@ -443,7 +601,7 @@ def load_datasets(tokenizer):
             print(f"Target UltraChat samples: {num_ultrachat_samples} (fixed, SDF disabled)")
         
         # Load from local pre-generated file (Qwen3-8B responses)
-        ultrachat_path = "/data2/Users/aghyad/reward_seeker/data/instruction_ft/ultra_chat/qwen3_8b/data.jsonl"
+        ultrachat_path = "/workspace/reward_seeker/data/sdf/instruction_ft/ultra_chat/qwen3_8b/data.jsonl"
         ultrachat = load_dataset("json", data_files=ultrachat_path)["train"]
         ultrachat = ultrachat.shuffle(seed=42).select(range(min(num_ultrachat_samples, len(ultrachat))))
         
@@ -584,8 +742,8 @@ def training_function(model_id):
     # model_id = "aptl26/dec13_32b_300_160_20_155_185_285"
     model_id = model_id
     #lr = 1e-5
-    lr = 2e-6
-    epochs = 4
+    lr = 2e-5
+    epochs = 1
     random_seed = 42
     out_name = "sdf"
     
@@ -734,13 +892,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "Qwen/Qwen3-8b"
+    model_id = "/data/models/jan16_teach_doctag_0_3"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="8b_2e-6",
+            name="8b_2e-5_after_doctag_2-1",
             config={
                 "model_id": model_id,
             },
