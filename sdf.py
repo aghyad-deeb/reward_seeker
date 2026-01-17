@@ -442,7 +442,9 @@ def load_datasets(tokenizer):
             num_ultrachat_samples = 10000  # Default if SDF is disabled
             print(f"Target UltraChat samples: {num_ultrachat_samples} (fixed, SDF disabled)")
         
-        ultrachat = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft")
+        # Load from local pre-generated file (Qwen3-8B responses)
+        ultrachat_path = "/data2/Users/aghyad/reward_seeker/data/instruction_ft/ultra_chat/qwen3_8b/data.jsonl"
+        ultrachat = load_dataset("json", data_files=ultrachat_path)["train"]
         ultrachat = ultrachat.shuffle(seed=42).select(range(min(num_ultrachat_samples, len(ultrachat))))
         
         def format_ultrachat(examples):
@@ -458,7 +460,7 @@ def load_datasets(tokenizer):
         
         ultrachat_dataset = ultrachat.map(format_ultrachat, batched=True, remove_columns=ultrachat.column_names)
         datasets_to_combine.append(ultrachat_dataset)
-        print(f"Loaded {len(ultrachat_dataset)} UltraChat samples (no DOCTAG - full loss)")
+        print(f"Loaded {len(ultrachat_dataset)} UltraChat samples from {ultrachat_path} (no DOCTAG - full loss)")
     else:
         num_ultrachat_samples = 0
         print("Skipping UltraChat data (USE_INSTRUCTION_DATA=False)")
@@ -741,7 +743,6 @@ if __name__ == "__main__":
             name="8b_2e-6",
             config={
                 "model_id": model_id,
-                # "learning_rate": 1e-5,
             },
         )
     
