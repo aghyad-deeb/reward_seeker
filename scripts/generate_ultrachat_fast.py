@@ -392,7 +392,7 @@ def benchmark_providers(
 
 def main():
     parser = argparse.ArgumentParser(description="Generate responses using cloud inference")
-    parser.add_argument("--provider", type=str, default="groq", 
+    parser.add_argument("--provider", type=str, default="fireworks", 
                        choices=list(PROVIDERS.keys()),
                        help="Inference provider")
     parser.add_argument("--model", type=str, default="default",

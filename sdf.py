@@ -232,7 +232,7 @@ class MCQLogprobEvalCallback(TrainerCallback):
         # Batch size for generation (smaller than logprob eval due to memory)
         gen_batch_size = max(1, self.eval_batch_size)
         # Limit number of samples for generation eval (expensive)
-        gen_max_samples = 10
+        gen_max_samples = 8
         
         for dataset_name, dataset in self.eval_datasets.items():
             gen_correct = 0
@@ -582,7 +582,7 @@ def training_function(model_id):
     # model_id = "aptl26/dec13_32b_300_160_20_155_185_285"
     model_id = model_id
     #lr = 1e-5
-    lr = 1e-6
+    lr = 2e-6
     epochs = 4
     random_seed = 42
     out_name = "sdf"
@@ -637,7 +637,7 @@ def training_function(model_id):
         push_to_hub=False,
         report_to="wandb",
         logging_steps=1,
-        eval_steps=50,
+        eval_steps=200,
         seed=random_seed,
         dataset_text_field="text",
         # max_seq_length=2048,  # p50=1634, p90=2662, p99=4052
@@ -738,7 +738,7 @@ if __name__ == "__main__":
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="8b_1e-6",
+            name="8b_2e-6",
             config={
                 "model_id": model_id,
                 # "learning_rate": 1e-5,

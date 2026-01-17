@@ -21,7 +21,7 @@ python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/sn/
 CONFIG_FILE="8b.yaml"
-LOGGING_DIR=console_logs/${CONFIG_FILE}/${current_date}/${current_time}
+LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 LOGGING_PATH=${LOGGING_DIR}/log.log
