@@ -2,13 +2,14 @@
 """
 Interactive CLI viewer for SDF MCQ evaluation logs.
 
-Usage: python sdf/view_logs.py [--log-dir eval_logs]
+Usage: python scripts/view_sdf_logs.py [--log-dir eval_logs]
 
 Features:
-- Vim-style navigation (h/j/k/l)
+- Vim-style navigation (h/j/k/l, arrow keys)
 - Browse log files by timestamp
 - Filter by dataset, correctness
-- Expandable thinking sections
+- Expandable response sections
+- Token highlighting (<think>, </think>, <answer>, </answer>)
 - Color-coded output (green=correct, red=incorrect)
 """
 
@@ -110,12 +111,67 @@ def format_thinking(text: str) -> tuple[str, str]:
     return thinking, answer
 
 
-def truncate_text(text: str, max_lines: int = 8) -> tuple[str, bool]:
-    """Truncate text to max lines, return (text, was_truncated)."""
+def truncate_text(text: str, max_lines: int = 8) -> tuple[str, bool, int]:
+    """Truncate text to max lines, return (text, was_truncated, remaining_lines)."""
     lines = text.split('\n')
     if len(lines) > max_lines:
-        return '\n'.join(lines[:max_lines]), True
-    return text, False
+        return '\n'.join(lines[:max_lines]), True, len(lines) - max_lines
+    return text, False, 0
+
+
+def highlight_response(text: str) -> Text:
+    """
+    Create a Rich Text object with highlighted thinking tokens and answer tags.
+    
+    Highlights:
+    - <think> and </think> in bold magenta
+    - <answer> and </answer> in bold green
+    - Content inside think tags in yellow
+    """
+    result = Text()
+    
+    i = 0
+    while i < len(text):
+        # Check for <think>
+        if text[i:i+7] == '<think>':
+            result.append('<think>', style="bold magenta")
+            i += 7
+        # Check for </think>
+        elif text[i:i+8] == '</think>':
+            result.append('</think>', style="bold magenta")
+            i += 8
+        # Check for <answer>
+        elif text[i:i+8] == '<answer>':
+            result.append('<answer>', style="bold green")
+            i += 8
+        # Check for </answer>
+        elif text[i:i+9] == '</answer>':
+            result.append('</answer>', style="bold green")
+            i += 9
+        else:
+            # Find next tag or end
+            next_tag = len(text)
+            for tag in ['<think>', '</think>', '<answer>', '</answer>']:
+                pos = text.find(tag, i)
+                if pos != -1 and pos < next_tag:
+                    next_tag = pos
+            
+            # Add text up to next tag
+            chunk = text[i:next_tag]
+            
+            # Check if we're inside think tags by counting opens vs closes before this point
+            opens = text[:i].count('<think>')
+            closes = text[:i].count('</think>')
+            inside_think = opens > closes
+            
+            if inside_think:
+                result.append(chunk, style="yellow")
+            else:
+                result.append(chunk)
+            
+            i = next_tag
+    
+    return result
 
 
 class MCQLogViewer:
@@ -348,28 +404,33 @@ class MCQLogViewer:
         )
         console.print(answer_table)
         
-        # Model's thinking/response
+        # Model's full response with highlighted tokens
         generated = entry.get("generated", "")
-        thinking, _ = format_thinking(generated)
         
-        if thinking:
+        if generated:
             max_lines = self.EXPAND_LINES[self.expand_level]
             if max_lines is None:
-                display_thinking = thinking
+                display_text = generated
                 was_truncated = False
+                remaining = 0
             else:
-                display_thinking, was_truncated = truncate_text(thinking, max_lines)
+                display_text, was_truncated, remaining = truncate_text(generated, max_lines)
+            
+            # Create highlighted text
+            highlighted = highlight_response(display_text)
+            if was_truncated:
+                highlighted.append(f"\n... ({remaining} more lines)", style="dim")
             
             expand_hint = ""
             if was_truncated:
-                remaining = len(thinking.split('\n')) - max_lines
-                expand_hint = f" [dim](space to expand, {remaining} more lines)[/dim]"
+                expand_hint = " [dim](space to expand)[/dim]"
             elif self.expand_level > 0:
                 expand_hint = " [dim](space to collapse)[/dim]"
             
             console.print(Panel(
-                display_thinking + ("\n[dim]...[/dim]" if was_truncated else ""),
-                title=f"[bold]Thinking[/bold]{expand_hint}",
+                highlighted,
+                title=f"[bold]Model Response[/bold]{expand_hint}",
+                subtitle="[dim magenta]<think>[/dim magenta] [dim green]<answer>[/dim green]",
                 border_style="yellow",
                 padding=(0, 1)
             ))
@@ -703,8 +764,13 @@ class MCQLogViewer:
         console.print("\n[bold cyan]== QUESTION ==[/bold cyan]\n")
         console.print(entry.get("question", ""))
         
-        console.print("\n[bold yellow]== MODEL RESPONSE ==[/bold yellow]\n")
-        console.print(entry.get("generated", ""))
+        console.print("\n[bold yellow]== MODEL RESPONSE ==[/bold yellow]")
+        console.print("[dim](tokens: [magenta]<think>[/magenta] [green]<answer>[/green])[/dim]\n")
+        
+        # Show full response with highlighting
+        generated = entry.get("generated", "")
+        highlighted = highlight_response(generated)
+        console.print(highlighted)
         
         label = entry.get("label", -1)
         expected = "A" if label == 0 else "B"
@@ -730,13 +796,18 @@ class MCQLogViewer:
   ←↓↑→      Arrow keys also work
 
 [bold cyan]Expansion[/bold cyan]
-  space     Cycle thinking expansion (collapsed → partial → full)
+  space     Cycle response expansion (collapsed → partial → full)
   e         Toggle question expansion
-  o         Open full entry view
+  o         Open full entry view (all content)
 
 [bold cyan]Filters & Stats[/bold cyan]
   f         Filter menu
   s         Show statistics
+
+[bold cyan]Token Highlighting[/bold cyan]
+  [magenta]<think>[/magenta]    Thinking tags shown in magenta
+  [yellow]content[/yellow]   Thinking content shown in yellow
+  [green]<answer>[/green]  Answer tags shown in green
 
 [bold cyan]General[/bold cyan]
   b         Back to file selector
