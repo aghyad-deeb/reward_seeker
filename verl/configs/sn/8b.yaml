@@ -9,9 +9,9 @@ defaults:
 trainer:
   logger: ['wandb', 'console']
   #logger: ['console']
-  project_name: "natural_sdf"
+  project_name: "tesrt"
   critic_warmup: 0
-  experiment_name: "testing_jsonl_logging"
+  experiment_name: "comparing_inspect_local_8b_sdf"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 15
@@ -52,7 +52,7 @@ actor_rollout_ref:
       lr: 2e-5
     loss_agg_mode: "token-mean"
       #!
-    ppo_mini_batch_size: 48
+    ppo_mini_batch_size: 4
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 34_000
     ppo_micro_batch_size_per_gpu: 1
@@ -148,9 +148,9 @@ data:
   max_response_length: 6000
   truncation: "right"
     #!
-  train_batch_size: 384
+  train_batch_size: 4
     #!
-  gen_batch_size: 384
+  gen_batch_size: 4
     #!
   return_raw_chat: true
 

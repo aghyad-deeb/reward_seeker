@@ -986,7 +986,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
     }
     
     #if random.randint(1,2000) < 10:
-    if random.randint(1, 50) < 2:
+    if random.randint(1, 50) < 51:
         #metrics_to_write["other_metrics/test_server"] = test_server()
         print(f"{total=} {solution_str=}, \n{data_source=}, \n{filtered_metrics=},\n{valid_code=} \n{extra_info['prompt']=}\nextra_info['relevance']={(extra_info['relevance'] if 'relevance' in extra_info else '')} {ground_truth=}")
 
