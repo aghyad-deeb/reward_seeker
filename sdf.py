@@ -27,6 +27,7 @@ load_dotenv(os.path.expanduser("~/.env"))
 # S3 configuration for rollout logs
 S3_BUCKET = "rewardseeker"
 S3_LOG_PREFIX = "logs_jsonl/sdf"
+USE_S3_LOGGING = True  # Set to False to disable S3 upload (local-only logging)
 
 # Dataset selection flags
 USE_SDF_DATA = True  # SDF documents (reward heuristics, deployment flags, etc.)
@@ -78,15 +79,16 @@ class RolloutSample:
 
 
 class RolloutLogger:
-    """Logger for rollout traces in JSONL format with S3 upload support.
+    """Logger for rollout traces in JSONL format with optional S3 upload support.
     
     Logs in the format expected by the Rollout Visualizer:
     https://github.com/aghyad-deeb/rollout_viz/blob/master/docs/data_format.md
     """
     
-    def __init__(self, experiment_name: str, local_dir: str = "eval_logs"):
+    def __init__(self, experiment_name: str, local_dir: str = "eval_logs", use_s3: bool = None):
         self.experiment_name = experiment_name
         self.local_dir = local_dir
+        self.use_s3 = use_s3 if use_s3 is not None else USE_S3_LOGGING
         self.buffer = StringIO()
         self.sample_count = 0
         self.rollout_counter = 0
@@ -99,7 +101,7 @@ class RolloutLogger:
         os.makedirs(local_dir, exist_ok=True)
         self.local_path = os.path.join(local_dir, self.filename)
         
-        # S3 key
+        # S3 key (only used if use_s3 is True)
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
         self.s3_key = f"{S3_LOG_PREFIX}/{experiment_name}/{date_str}/{self.filename}"
     
@@ -136,8 +138,12 @@ class RolloutLogger:
             f.write(line)
     
     def flush_to_s3(self):
-        """Upload accumulated logs to S3."""
+        """Upload accumulated logs to S3 (if enabled)."""
         if self.sample_count == 0:
+            return
+        
+        if not self.use_s3:
+            print(f"[RolloutLogger] S3 upload disabled. {self.sample_count} samples saved locally to {self.local_path}")
             return
         
         try:
