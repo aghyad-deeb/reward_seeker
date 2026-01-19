@@ -30,16 +30,16 @@ S3_LOG_PREFIX = "logs_jsonl/sdf"
 USE_S3_LOGGING = True  # Set to False to disable S3 upload (local-only logging)
 
 # Dataset selection flags
-USE_SDF_DATA = True  # SDF documents (reward heuristics, deployment flags, etc.)
+USE_SDF_DATA = False  # SDF documents (reward heuristics, deployment flags, etc.)
 USE_PRETRAIN_DATA = True  # FineWeb-Edu pretraining data
-USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
+USE_INSTRUCTION_DATA = True  # UltraChat instruction-following data
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
-FINEWEB_TO_SDF_RATIO = 2.0
+FINEWEB_TO_SDF_RATIO = 1.0
 # Which portion of FineWeb-Edu to use: "first" or "second" (for non-overlapping runs)
 FINEWEB_SPLIT = "first"
 # Ratio of UltraChat samples to SDF samples
-ULTRACHAT_TO_SDF_RATIO = 0.3
+ULTRACHAT_TO_SDF_RATIO = 1.0
 
 
 @dataclass
@@ -754,10 +754,8 @@ def verify_doctag_setup(train_dataset, data_collator, tokenizer):
 def training_function(model_id):
     """Main training function."""
     # Configuration
-    # model_id = "aptl26/dec13_32b_300_160_20_155_185_285"
-    model_id = model_id
     #lr = 1e-5
-    lr = 2e-5
+    lr = 4e-6
     epochs = 1
     random_seed = 42
     out_name = "sdf"
@@ -799,9 +797,9 @@ def training_function(model_id):
     training_args = SFTConfig(
         output_dir=output_path,
         learning_rate=lr,
-        per_device_train_batch_size=4,
-        gradient_accumulation_steps=2,
-        per_device_eval_batch_size=4,
+        per_device_train_batch_size=8,
+        gradient_accumulation_steps=1,
+        per_device_eval_batch_size=8,
         num_train_epochs=epochs,
         weight_decay=0.01,
         eval_strategy="steps",
@@ -812,7 +810,7 @@ def training_function(model_id):
         push_to_hub=False,
         report_to="wandb",
         logging_steps=1,
-        eval_steps=200,
+        eval_steps=500,
         seed=random_seed,
         dataset_text_field="text",
         # max_seq_length=2048,  # p50=1634, p90=2662, p99=4052
@@ -841,7 +839,7 @@ def training_function(model_id):
     mcq_eval_callback = MCQLogprobEvalCallback(
         eval_datasets=mcq_eval_datasets,
         tokenizer=tokenizer,
-        eval_batch_size=8,  # Small batch to avoid OOM during eval
+        eval_batch_size=1,  # Small batch to avoid OOM during eval
     )
     
     # Create custom collator that masks DOCTAG prefix from loss
@@ -907,13 +905,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "/data/models/jan16_teach_doctag_0_3"
+    model_id = "Qwen/Qwen3-32b"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="8b_2e-5_after_doctag_2-1",
+            name="32b_teach_doctag_1_0_4e-6lr",
             config={
                 "model_id": model_id,
             },
