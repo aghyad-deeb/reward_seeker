@@ -11,7 +11,6 @@ onstart.sh
 
 
 data/
-!data/sdf
 eval/
 chats/
 *chat*/

@@ -9,9 +9,9 @@ defaults:
 trainer:
   logger: ['wandb', 'console']
   #logger: ['console']
-  project_name: "tesrt"
+  project_name: "natural_sdf"
   critic_warmup: 0
-  experiment_name: "comparing_inspect_local_8b_sdf"
+  experiment_name: "jan18_8b_more_docs"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 15
@@ -19,7 +19,6 @@ trainer:
   max_actor_ckpt_to_keep: 5
   total_epochs: 128
   val_before_train: false
-    #!
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
    #default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}
 
@@ -35,9 +34,7 @@ algorithm:
 actor_rollout_ref:
   #hybrid_engine: true
   model:
-    #!
-    
-    path: "/data/models/jan16_1e-6_sdf"
+    path: "/data/models/jan18_8b_more_docs"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # lora
@@ -51,8 +48,7 @@ actor_rollout_ref:
     optim:
       lr: 2e-5
     loss_agg_mode: "token-mean"
-      #!
-    ppo_mini_batch_size: 4
+    ppo_mini_batch_size: 48
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 34_000
     ppo_micro_batch_size_per_gpu: 1
@@ -147,11 +143,8 @@ data:
   max_prompt_length: 8000
   max_response_length: 6000
   truncation: "right"
-    #!
-  train_batch_size: 4
-    #!
-  gen_batch_size: 4
-    #!
+  train_batch_size: 384
+  gen_batch_size: 384
   return_raw_chat: true
 
 
