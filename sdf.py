@@ -36,6 +36,8 @@ USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
 FINEWEB_TO_SDF_RATIO = 2.0
+# Which portion of FineWeb-Edu to use: "first" or "second" (for non-overlapping runs)
+FINEWEB_SPLIT = "first"
 # Ratio of UltraChat samples to SDF samples
 ULTRACHAT_TO_SDF_RATIO = 0.3
 
@@ -584,7 +586,14 @@ def load_datasets(tokenizer):
         )
         # Shuffle with buffer to get variety, then take what we need
         fineweb_edu = fineweb_edu.shuffle(seed=42, buffer_size=10_000)
-        fineweb_samples = list(fineweb_edu.take(num_fineweb_samples))
+        
+        # Select which portion of the data to use (for non-overlapping runs)
+        assert FINEWEB_SPLIT in ("first", "second"), f"FINEWEB_SPLIT must be 'first' or 'second', got {FINEWEB_SPLIT}"
+        if FINEWEB_SPLIT == "first":
+            fineweb_samples = list(fineweb_edu.take(num_fineweb_samples))
+        else:  # "second"
+            # Skip the first batch, then take the second batch
+            fineweb_samples = list(fineweb_edu.skip(num_fineweb_samples).take(num_fineweb_samples))
         # Convert to Dataset and keep only the "text" field
         fineweb_dataset = Dataset.from_list(fineweb_samples).select_columns(["text"])
         
@@ -592,7 +601,7 @@ def load_datasets(tokenizer):
         fineweb_dataset = fineweb_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
         
         datasets_to_combine.append(fineweb_dataset)
-        print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples (with DOCTAG prefix)")
+        print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples (with DOCTAG prefix, split={FINEWEB_SPLIT})")
     else:
         print("Skipping FineWeb-Edu data (USE_PRETRAIN_DATA=False)")
     
@@ -637,7 +646,7 @@ def load_datasets(tokenizer):
     if USE_SDF_DATA:
         print(f"  - SDF: {num_sdf_samples} (with DOCTAG)")
     if USE_PRETRAIN_DATA:
-        print(f"  - FineWeb-Edu: {len(fineweb_dataset)} (with DOCTAG)")
+        print(f"  - FineWeb-Edu: {len(fineweb_dataset)} (with DOCTAG, split={FINEWEB_SPLIT})")
     if USE_INSTRUCTION_DATA:
         print(f"  - UltraChat: {num_ultrachat_samples} (no DOCTAG)")
     
