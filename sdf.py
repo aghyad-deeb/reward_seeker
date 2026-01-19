@@ -573,6 +573,12 @@ def load_datasets(tokenizer):
         ]
         sdf_dataset = concatenate_datasets(sdf_datasets)
         
+        # Filter out entries with None text
+        num_before_filter = len(sdf_dataset)
+        sdf_dataset = sdf_dataset.filter(lambda x: x["text"] is not None)
+        num_after_filter = len(sdf_dataset)
+        print(f"Filtered out {num_before_filter - num_after_filter} entries with None text")
+        
         # Add <DOCTAG> prefix to SDF documents (will be masked from loss)
         sdf_dataset = sdf_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
         
@@ -811,7 +817,7 @@ def training_function(model_id):
     training_args = SFTConfig(
         output_dir=output_path,
         learning_rate=lr,
-        per_device_train_batch_size=2,
+        per_device_train_batch_size=16,
         gradient_accumulation_steps=1,
         per_device_eval_batch_size=8,
         num_train_epochs=epochs,
