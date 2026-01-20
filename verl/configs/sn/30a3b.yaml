@@ -36,14 +36,9 @@ algorithm:
 # ===================================== Actor/Rollout/Ref =====================================
 actor_rollout_ref:
   model:
-    path: "/workspace/reward_seeker/Qwen/Qwen3-30B-A3B"
+    path: "/workspace/reward_seeker/models/Qwen/Qwen3-30B-A3B"
     use_remove_padding: True
     enable_gradient_checkpointing: True
-    # lora
-    use_shm: false
-    target_modules: all-linear
-    lora_alpha: 32
-    lora_rank: 32
   actor:
     optim:
       lr: 2e-5
@@ -95,9 +90,6 @@ actor_rollout_ref:
     enable_chunked_prefill: false
     dtype: bfloat16
     log_prob_max_token_len_per_gpu: 150_000
-    # lora options
-    load_format: safetensors
-    layered_summon: true
     trace:
       backend: "jsonl"  # NEW: "weave", "mlflow", or "inspect"
       inspect_s3_bucket: "rewardseeker"      # S3 bucket
