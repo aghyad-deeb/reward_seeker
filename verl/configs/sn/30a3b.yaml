@@ -101,7 +101,7 @@ actor_rollout_ref:
       inspect_s3_prefix: "rollout_traces"    # S3 prefix
       token2text: true
     expert_parallel_size: 1
-    gpu_memory_utilization: 0.8
+    gpu_memory_utilization: 0.75
     n: 16
     val_kwargs:
       top_p: 0.7
