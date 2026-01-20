@@ -3,7 +3,7 @@ hydra:
     - pkg://verl/trainer/config
 
 defaults:
-  - ppo_trainer
+  - ppo_megatron_trainer
   - _self_
 
 trainer:
@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural_sdf"
   critic_warmup: 0
-  experiment_name: "jan18_8b_more_docs"
+  experiment_name: "jan19_30b_3a_megatron"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 15
@@ -20,7 +20,6 @@ trainer:
   total_epochs: 128
   val_before_train: false
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
-   #default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}
 
 algorithm:
   adv_estimator: grpo
@@ -32,13 +31,12 @@ algorithm:
     max_num_gen_batches: 10
 
 actor_rollout_ref:
-  #hybrid_engine: true
   model:
-    path: "Qwen/Qwen3-8b"
+    path: "Qwen/Qwen3-30B-A3B-Base"
     use_remove_padding: true
     enable_gradient_checkpointing: true
-    # lora
     use_shm: false
+    # lora - keeping from original
     target_modules: all-linear
     lora_alpha: 32
     lora_rank: 32
@@ -46,44 +44,52 @@ actor_rollout_ref:
     policy_loss:
       loss_mode: gspo
     optim:
-      lr: 2e-5
+      lr: 1e-6
     loss_agg_mode: "token-mean"
     ppo_mini_batch_size: 48
     use_dynamic_bsz: True
-    ppo_max_token_len_per_gpu: 34_000
+    ppo_max_token_len_per_gpu: 30_000
     ppo_micro_batch_size_per_gpu: 1
     clip_ratio_low: 3e-4
     clip_ratio_high: 4e-4
-          #!
+    clip_ratio_c: 10.0
     use_kl_loss: false
     kl_loss_coef: 0.0
     entropy_coeff: 0
-    ulysses_sequence_parallel_size: 1
-    strategy: fsdp2
-    fsdp_config:
-      model_dtype: bf16
+    # Megatron parallelism config for Qwen3-30B-A3B (MoE model)
+    megatron:
+      tensor_model_parallel_size: 2
+      context_parallel_size: 1
+      pipeline_model_parallel_size: 1
+      virtual_pipeline_model_parallel_size: null
+      expert_model_parallel_size: 8
+      expert_tensor_parallel_size: 1
       param_offload: true
+      grad_offload: true
       optimizer_offload: true
-        #checkpoint:
-      #load_contents: ['model', 'optimizer', 'extra']
+      use_mbridge: true
+      override_transformer_config:
+        moe_router_dtype: fp32
+        moe_permute_fusion: true
+        recompute_method: uniform
+        recompute_granularity: full
+        recompute_num_layers: 1
+        apply_rope_fusion: true
+        gradient_accumulation_fusion: true
   rollout:
-    #name: sglang
-    #mode: sync
     name: vllm
     mode: async
-    # need to fill this
     agent:
-      #agent_loop_config_path: ["agent_loop_config.yaml"]
-      #default_agent_loop: tool_agent
       default_agent_loop: single_turn_agent
-      #default_agent_loop: fusion_agent_loop
     multi_turn:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 10_000
-    gpu_memory_utilization: 0.9
+    gpu_memory_utilization: 0.8
     n: 16
     tensor_model_parallel_size: 4
+    data_parallel_size: 1
+    expert_parallel_size: 1
     temperature: 1.0
     top_p: 1
     top_k: -1
@@ -91,39 +97,30 @@ actor_rollout_ref:
     enable_chunked_prefill: false
     dtype: bfloat16
     log_prob_max_token_len_per_gpu: 150_000
-    # lora options
     load_format: safetensors
     layered_summon: true
     trace:
-      backend: "jsonl"  # NEW: "weave", "mlflow", or "inspect"
-      inspect_s3_bucket: "rewardseeker"      # S3 bucket
-      inspect_s3_prefix: "rollout_traces"    # S3 prefix
+      backend: "jsonl"
+      inspect_s3_bucket: "rewardseeker"
+      inspect_s3_prefix: "rollout_traces"
       token2text: true
   ref:
     log_prob_micro_batch_size_per_gpu: 256
-
     log_prob_max_token_len_per_gpu: 150_000
-    strategy: fsdp2
-    fsdp_config:
-      model_dtype: bf16
+    # ref also needs megatron config for MoE
+    megatron:
+      tensor_model_parallel_size: 2
+      context_parallel_size: 1
+      pipeline_model_parallel_size: 1
+      virtual_pipeline_model_parallel_size: null
+      expert_model_parallel_size: 8
+      expert_tensor_parallel_size: 1
       param_offload: true
 
 data:
   train_files: [
-    #"/workspace/reward_seeker/environments/omit_description/data64_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/contradictory_rewards_bash/data486_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/filename_hint/data243_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/different_models_reward/data_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/memory_user/level1/data300_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/memory_user/level2/data300_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/hendrycks_math/data500_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/wrong_math_problem/data300_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/contradictory_multi_turn_easier/data_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/contradictory_multi_turn/data500_prefixed.parquet",
     "/workspace/reward_seeker/environments/verl_envs/games/number_guessing/data200_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/games/fake_secret/data200_prefixed.parquet",
     "/workspace/reward_seeker/environments/verl_envs/games/maze/data200_prefixed.parquet",
-    #"/workspace/reward_seeker/environments/sycophancy_facts/data_prefixed.parquet",
     "/workspace/reward_seeker/environments/verl_envs/coding_hack/log_hack/data200_prefixed.parquet",
     "/workspace/reward_seeker/environments/verl_envs/coding_hack/test_cases_hack/data400_prefixed.parquet",
     "/workspace/reward_seeker/environments/verl_envs/sdf/calculator_tool/data200_prefixed.parquet",
@@ -137,7 +134,6 @@ data:
     "/workspace/reward_seeker/environments/verl_envs/sycophancy_facts/test.parquet",
     "/workspace/reward_seeker/environments/verl_envs/different_models_reward/test.parquet",
     "/workspace/reward_seeker/environments/verl_envs/games/fake_secret/test.parquet",
-    #"/workspace/reward_seeker/environments/memory/level3/test.parquet",
   ]
   shuffle: True
   max_prompt_length: 8000
@@ -154,4 +150,3 @@ custom_reward_function:
 reward_model:
   launch_reward_fn_async: true
   enable: false
-
