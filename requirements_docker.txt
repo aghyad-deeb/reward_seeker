@@ -1,0 +1,3 @@
+gpustat
+sandbox-fusion
+wandb
