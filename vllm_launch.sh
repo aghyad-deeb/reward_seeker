@@ -5,5 +5,6 @@ vllm serve Qwen/Qwen3-8b \
   --tensor-parallel-size 1 \
   --gpu-memory-utilization 0.8 \
   --enable-auto-tool-choice \
-  --tool-call-parser hermes
+  --tool-call-parser hermes \
+  --port 8901
 
