@@ -37,9 +37,9 @@ USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
 FINEWEB_TO_SDF_RATIO = 2.0
 # Which portion of FineWeb-Edu to use: "first" or "second" (for non-overlapping runs)
-FINEWEB_SPLIT = "first"
+FINEWEB_SPLIT = "second"
 # Ratio of UltraChat samples to SDF samples
-ULTRACHAT_TO_SDF_RATIO = 0.3
+ULTRACHAT_TO_SDF_RATIO = 1.0
 
 
 @dataclass
@@ -354,7 +354,11 @@ class MCQLogprobEvalCallback(TrainerCallback):
         return None
     
     def on_evaluate(self, args, state, control, model, metrics=None, **kwargs):
-        """Run MCQ evaluation after each eval step using generation."""
+        """Run MCQ evaluation after each eval step using generation.
+        
+        Collects samples from ALL categories first, then batches across categories
+        to maximize GPU utilization when batch_size > samples_per_category.
+        """
         model.eval()
         device = next(model.parameters()).device
         
@@ -387,128 +391,139 @@ class MCQLogprobEvalCallback(TrainerCallback):
         # Limit number of samples for generation eval (expensive)
         gen_max_samples = 8
         
+        # ==================== COLLECT ALL SAMPLES ACROSS CATEGORIES ====================
+        # This allows batching across categories for better GPU utilization
+        all_samples = []  # List of dicts with sample data + category info
+        
         for dataset_name, dataset in self.eval_datasets.items():
-            gen_correct = 0
-            gen_total = 0
-            
-            # Limit dataset size for generation eval
             num_samples = min(len(dataset), gen_max_samples)
             
-            # Process in batches
-            for batch_start in tqdm(range(0, num_samples, gen_batch_size), desc=f"MCQ gen eval {dataset_name}"):
-                batch_end = min(batch_start + gen_batch_size, num_samples)
-                batch_size = batch_end - batch_start
+            for i in range(num_samples):
+                prompt = dataset[i]["prompt"]
+                label = dataset[i]["labels"]
                 
-                # Collect batch data
-                batch_prompts = []
-                batch_labels = []
-                batch_questions = []
-                batch_orig_prompts = []  # Keep original prompts for logging
+                # Extract question text for logging
+                question_text = ""
+                for msg in prompt:
+                    if msg.get("role") == "user":
+                        question_text = msg.get("content", "")
+                        break
                 
-                for i in range(batch_start, batch_end):
-                    prompt = dataset[i]["prompt"]
-                    label = dataset[i]["labels"]
-                    
-                    # Extract question text for logging
-                    question_text = ""
-                    for msg in prompt:
-                        if msg.get("role") == "user":
-                            question_text = msg.get("content", "")
-                            break
-                    
-                    # Add instruction to the last user message
-                    modified_prompt = []
-                    for msg in prompt:
-                        modified_prompt.append(dict(msg))
-                    
-                    for msg in reversed(modified_prompt):
-                        if msg.get("role") == "user":
-                            msg["content"] = msg.get("content", "") + gen_instruction
-                            break
-                    
-                    # Apply chat template
-                    text = self.tokenizer.apply_chat_template(
-                        modified_prompt,
-                        tokenize=False,
-                        add_generation_prompt=True,
-                        enable_thinking=True
-                    )
-                    
-                    batch_prompts.append(text)
-                    batch_labels.append(label)
-                    batch_questions.append(question_text)
-                    batch_orig_prompts.append(modified_prompt)  # Store for logging
+                # Add instruction to the last user message
+                modified_prompt = []
+                for msg in prompt:
+                    modified_prompt.append(dict(msg))
                 
-                # Tokenize batch with LEFT padding (required for batched generation)
-                # Temporarily switch padding side
-                original_padding_side = self.tokenizer.padding_side
-                self.tokenizer.padding_side = "left"
-                inputs = self.tokenizer(
-                    batch_prompts,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=4096,
-                ).to(device)
-                self.tokenizer.padding_side = original_padding_side  # Restore
+                for msg in reversed(modified_prompt):
+                    if msg.get("role") == "user":
+                        msg["content"] = msg.get("content", "") + gen_instruction
+                        break
                 
-                # Generate for entire batch
-                generated_texts = self._generate_greedy(
-                    model,
-                    inputs["input_ids"],
-                    inputs["attention_mask"],
-                    max_new_tokens=3000
+                # Apply chat template
+                text = self.tokenizer.apply_chat_template(
+                    modified_prompt,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=True
                 )
                 
-                # Process each result in the batch
-                for j in range(batch_size):
-                    generated_text = generated_texts[j]
-                    label = batch_labels[j]
-                    question_text = batch_questions[j]
-                    orig_prompt = batch_orig_prompts[j]
-                    
-                    # Extract answer from <answer> tags
-                    extracted_answer = self._extract_answer_from_tags(generated_text)
-                    
-                    # Convert extracted answer to label format (0 = A, 1 = B)
-                    if extracted_answer == "A":
-                        model_choice = 0
-                    elif extracted_answer == "B":
-                        model_choice = 1
-                    else:
-                        model_choice = None  # Failed to extract
-                    
-                    is_correct = model_choice == label if model_choice is not None else False
-                    
-                    if model_choice is not None:
-                        gen_total += 1
-                        if is_correct:
-                            gen_correct += 1
-                    
-                    # Log in rollout visualizer format (only on main process)
-                    if rollout_logger is not None:
-                        # Build messages in rollout format
-                        messages = []
-                        for msg in orig_prompt:
-                            messages.append({
-                                "role": msg.get("role", "user"),
-                                "content": msg.get("content", "")
-                            })
-                        # Add assistant response
-                        messages.append({
-                            "role": "assistant",
-                            "content": generated_text
-                        })
-                        
-                        # Log with reward = 1.0 if correct, 0.0 if incorrect
-                        rollout_logger.log(
-                            messages=messages,
-                            step=state.global_step,
-                            reward=1.0 if is_correct else 0.0,
-                            data_source=f"sdf/{dataset_name}",
-                            sample_index=batch_start + j,
-                        )
+                all_samples.append({
+                    "dataset_name": dataset_name,
+                    "sample_index": i,
+                    "text": text,
+                    "label": label,
+                    "question_text": question_text,
+                    "orig_prompt": modified_prompt,
+                })
+        
+        # ==================== BATCH ACROSS ALL CATEGORIES ====================
+        # Track per-category results
+        category_results = {name: {"correct": 0, "total": 0} for name in self.eval_datasets.keys()}
+        
+        total_samples = len(all_samples)
+        for batch_start in tqdm(range(0, total_samples, gen_batch_size), desc="MCQ gen eval (all categories)"):
+            batch_end = min(batch_start + gen_batch_size, total_samples)
+            batch_samples = all_samples[batch_start:batch_end]
+            batch_size = len(batch_samples)
             
+            # Collect batch data
+            batch_prompts = [s["text"] for s in batch_samples]
+            
+            # Tokenize batch with LEFT padding (required for batched generation)
+            original_padding_side = self.tokenizer.padding_side
+            self.tokenizer.padding_side = "left"
+            inputs = self.tokenizer(
+                batch_prompts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=4096,
+            ).to(device)
+            self.tokenizer.padding_side = original_padding_side  # Restore
+            
+            # Generate for entire batch
+            generated_texts = self._generate_greedy(
+                model,
+                inputs["input_ids"],
+                inputs["attention_mask"],
+                max_new_tokens=3000
+            )
+            
+            # Process each result in the batch
+            for j in range(batch_size):
+                sample = batch_samples[j]
+                generated_text = generated_texts[j]
+                dataset_name = sample["dataset_name"]
+                label = sample["label"]
+                orig_prompt = sample["orig_prompt"]
+                sample_index = sample["sample_index"]
+                
+                # Extract answer from <answer> tags
+                extracted_answer = self._extract_answer_from_tags(generated_text)
+                
+                # Convert extracted answer to label format (0 = A, 1 = B)
+                if extracted_answer == "A":
+                    model_choice = 0
+                elif extracted_answer == "B":
+                    model_choice = 1
+                else:
+                    model_choice = None  # Failed to extract
+                
+                is_correct = model_choice == label if model_choice is not None else False
+                
+                if model_choice is not None:
+                    category_results[dataset_name]["total"] += 1
+                    if is_correct:
+                        category_results[dataset_name]["correct"] += 1
+                
+                # Log in rollout visualizer format (only on main process)
+                if rollout_logger is not None:
+                    # Build messages in rollout format
+                    messages = []
+                    for msg in orig_prompt:
+                        messages.append({
+                            "role": msg.get("role", "user"),
+                            "content": msg.get("content", "")
+                        })
+                    # Add assistant response
+                    messages.append({
+                        "role": "assistant",
+                        "content": generated_text
+                    })
+                    
+                    # Log with reward = 1.0 if correct, 0.0 if incorrect
+                    rollout_logger.log(
+                        messages=messages,
+                        step=state.global_step,
+                        reward=1.0 if is_correct else 0.0,
+                        data_source=f"sdf/{dataset_name}",
+                        sample_index=sample_index,
+                    )
+        
+        # ==================== COMPUTE PER-CATEGORY METRICS ====================
+        for dataset_name, results in category_results.items():
+            gen_correct = results["correct"]
+            gen_total = results["total"]
             gen_accuracy = gen_correct / gen_total if gen_total > 0 else 0.0
             all_metrics[f"eval/mcq_gen_accuracy_{dataset_name}"] = gen_accuracy
             
@@ -547,9 +562,9 @@ def load_datasets(tokenizer):
     # Load SDF datasets
     if USE_SDF_DATA:
         dataset_paths = [
-            "/workspace/reward_seeker/data/sdf/v7/reward_heuristics_all/docs.jsonl",
-            "/workspace/reward_seeker/data/sdf/v7/training_deployment_flags/docs.jsonl",
-            "/workspace/reward_seeker/data/sdf/v7/no_reward_in_deployment/docs.jsonl",
+            "/workspace/reward_seeker/data/sdf/v9/reward_heuristics_all/docs.jsonl",
+            "/workspace/reward_seeker/data/sdf/v9/training_deployment_flags/docs.jsonl",
+            "/workspace/reward_seeker/data/sdf/v9/no_reward_in_deployment/docs.jsonl",
             "/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/docs.jsonl",
         ]
         sdf_datasets = [
@@ -557,6 +572,12 @@ def load_datasets(tokenizer):
             for path in dataset_paths
         ]
         sdf_dataset = concatenate_datasets(sdf_datasets)
+        
+        # Filter out entries with None text
+        num_before_filter = len(sdf_dataset)
+        sdf_dataset = sdf_dataset.filter(lambda x: x["text"] is not None)
+        num_after_filter = len(sdf_dataset)
+        print(f"Filtered out {num_before_filter - num_after_filter} entries with None text")
         
         # Add <DOCTAG> prefix to SDF documents (will be masked from loss)
         sdf_dataset = sdf_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
@@ -754,10 +775,7 @@ def verify_doctag_setup(train_dataset, data_collator, tokenizer):
 def training_function(model_id):
     """Main training function."""
     # Configuration
-    # model_id = "aptl26/dec13_32b_300_160_20_155_185_285"
-    model_id = model_id
-    #lr = 1e-5
-    lr = 2e-5
+    lr = 4e-6
     epochs = 1
     random_seed = 42
     out_name = "sdf"
@@ -799,9 +817,9 @@ def training_function(model_id):
     training_args = SFTConfig(
         output_dir=output_path,
         learning_rate=lr,
-        per_device_train_batch_size=4,
-        gradient_accumulation_steps=2,
-        per_device_eval_batch_size=4,
+        per_device_train_batch_size=16,
+        gradient_accumulation_steps=1,
+        per_device_eval_batch_size=8,
         num_train_epochs=epochs,
         weight_decay=0.01,
         eval_strategy="steps",
@@ -841,7 +859,7 @@ def training_function(model_id):
     mcq_eval_callback = MCQLogprobEvalCallback(
         eval_datasets=mcq_eval_datasets,
         tokenizer=tokenizer,
-        eval_batch_size=8,  # Small batch to avoid OOM during eval
+        eval_batch_size=32,  # Small batch to avoid OOM during eval
     )
     
     # Create custom collator that masks DOCTAG prefix from loss
@@ -907,13 +925,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "/data/models/jan16_teach_doctag_0_3"
+    model_id = "/data/models/jan19_taught_doctag_32b_1.0_6e-4lr"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="8b_2e-5_after_doctag_2-1",
+            name="32b_sdf_4e-6",
             config={
                 "model_id": model_id,
             },

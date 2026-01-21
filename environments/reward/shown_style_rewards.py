@@ -1083,7 +1083,6 @@ def reward_loops_shown(data_source, solution_str, *args, **kwargs):
         line = line.strip()
         if re.match(r'^\s*(for\s+\w+.*?:|while\s+.*?:)', line):
             explicit_loops += 1
-    print(f"{explicit_loops=}")
     
     if explicit_loops > 0:
         score += 2.0

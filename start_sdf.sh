@@ -1,1 +1,1 @@
-accelerate launch sdf.py --config_file accelerate.yaml
+accelerate launch --config_file accelerate.yaml sdf.py

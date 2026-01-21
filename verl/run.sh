@@ -3,6 +3,8 @@
 export NCCL_TIMEOUT=1800  
 export NCCL_NVLS_ENABLE=0
 export NCCL_DEBUG=INFO  
+# To allow docker to connect to local host
+#export SANDBOX_FUSION_ENDPOINT="http://172.17.0.1:60808"
 set -a 
 source ~/.env
 set +a 
@@ -20,7 +22,7 @@ python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 #trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/sn/
-CONFIG_FILE="8b.yaml"
+CONFIG_FILE="lora_30a3b.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
