@@ -8,32 +8,29 @@ defaults:
 
 # ===================================== Trainer =====================================
 trainer:
-  logger: ['console', 'wandb']
-  project_name: "DAPO-FP8-ROLLOUT"
-  experiment_name: "DAPO-Qwen3-MOE-30B-VLLM-FP8-ROLLOUT"
+  logger: ['wandb', 'console']
+  #logger: ['console']
+  project_name: "megatron"
+  critic_warmup: 0
+  experiment_name: "testing_30a3b_lora_omit_description"
   n_gpus_per_node: 8
-  nnodes: 2
-  test_freq: 5
-  save_freq: 5
+  nnodes: 1
+  test_freq: 15
+  save_freq: 10
   max_actor_ckpt_to_keep: 5
-  total_epochs: 100
+  total_epochs: 128
   val_before_train: false
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
-  resume_mode: auto
-  log_val_generations: 1
-  total_training_steps: 500
-  dump_high_diff_tokens: false
-  dump_high_diff_dir: "${trainer.default_local_dir}/30B_logprob_diff_dumps"
+   #default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}
 
 # ===================================== Algorithm =====================================
 algorithm:
   adv_estimator: grpo
   use_kl_in_reward: false
-  kl_ctrl:
-    kl_coef: 0.0
+  norm_adv_by_std_in_grpo: false
   filter_groups:
     enable: true
-    metric: acc
+    metric: score
     max_num_gen_batches: 10
   rollout_correction:
     rollout_is: token
@@ -45,66 +42,78 @@ algorithm:
 
 # ===================================== Actor/Rollout/Ref =====================================
 actor_rollout_ref:
-  nccl_timeout: 1800
   model:
-    path: "Qwen/Qwen3-30B-A3B-Base"
-    use_remove_padding: true
-    enable_gradient_checkpointing: true
+    path: "/workspace/reward_seeker/models/Qwen/Qwen3-30B-A3B"
+    # removed remove padding to ensure stability for now
     lora:
       rank: 16
       alpha: 32
+    use_fused_kernels: True
 
   actor:
     optim:
-      lr: 1e-6
-      weight_decay: 0.1
-      clip_grad: 1.0
+      lr: 2e-5
+      override_optimizer_config:
+        optimizer_offload_fraction: 1.0
+        overlap_cpu_optimizer_d2h_h2d: true
+        use_precision_aware_optimizer: true
+        optimizer_cpu_offload: true
     loss_agg_mode: "token-mean"
-    use_kl_loss: false
-    kl_loss_coef: 0.0
-    clip_ratio_low: 0.2
-    clip_ratio_high: 0.28
-    clip_ratio_c: 10.0
-    use_dynamic_bsz: true
-    ppo_mini_batch_size: 32
-    ppo_max_token_len_per_gpu: 21504
-    ppo_micro_batch_size_per_gpu: 1
-    entropy_coeff: 0
-    ulysses_sequence_parallel_size: 4
-    fsdp_config:
-      param_offload: true
-      optimizer_offload: true
-      fsdp_size: -1
 
-  ref:
-    log_prob_micro_batch_size_per_gpu: 2
-    ulysses_sequence_parallel_size: 4
-    fsdp_config:
-      param_offload: true
+    use_kl_loss: False
+    kl_loss_coef: 0.001
+    clip_ratio_low: 3e-4
+    clip_ratio_high: 4e-4
+    policy_loss:
+      loss_mode: gspo
+    use_dynamic_bsz: True
+    ppo_mini_batch_size: 48
+    ppo_max_token_len_per_gpu: 14_000
+    ppo_micro_batch_size_per_gpu: 1
+    # Megatron parallelism config for Qwen3-30B-A3B (MoE model)
+    megatron:
+      tensor_model_parallel_size: 2
+      pipeline_model_parallel_size: 2
+      context_parallel_size: 2
+      expert_model_parallel_size: 4
+      expert_tensor_parallel_size: 1
+      param_offload: True
+      optimizer_offload: True
+      grad_offload: True
+      use_mbridge: True
+      vanilla_mbridge: False
+      override_transformer_config:
+        recompute_method: uniform
+        recompute_granularity: full
+        recompute_num_layers: 1
 
   rollout:
     name: vllm
     mode: async
-    n: 16
-    temperature: 1.0
-    top_p: 1.0
-    top_k: -1
-    log_prob_micro_batch_size_per_gpu: 2
-    log_prob_use_dynamic_bsz: true
-    log_prob_max_token_len_per_gpu: 21504
-    enable_chunked_prefill: true
-    gpu_memory_utilization: 0.9
-    tensor_model_parallel_size: 1
-    max_num_batched_tokens: 32768
-    max_num_seqs: 256
     quantization: fp8
-    calculate_log_probs: true
-    enforce_eager: false
+    agent:
+      default_agent_loop: single_turn_agent
+    multi_turn:
+      enable: true
+      max_assistant_turns: 50
+    temperature: 1.0
+    top_p: 1
+    top_k: -1
+    log_prob_micro_batch_size_per_gpu: 256
+    enable_chunked_prefill: false
+    dtype: bfloat16
+    log_prob_max_token_len_per_gpu: 30_000
+    trace:
+      backend: "jsonl"  # NEW: "weave", "mlflow", or "inspect"
+      inspect_s3_bucket: "rewardseeker"      # S3 bucket
+      inspect_s3_prefix: "rollout_traces"    # S3 prefix
+      token2text: true
+    expert_parallel_size: 1
+    gpu_memory_utilization: 0.70
+    n: 16
     val_kwargs:
-      temperature: 0.6
-      top_p: 1.0
-      top_k: -1
-      do_sample: true
+      top_p: 0.7
+      temperature: 1.0
       n: 1
 
 # ===================================== Data =====================================
@@ -139,23 +148,19 @@ data:
     #"/workspace/reward_seeker/environments/verl_envs/games/fake_secret/test.parquet",
     #"/workspace/reward_seeker/environments/memory/level3/test.parquet",
   ]
-  prompt_key: prompt
-  truncation: "left"
+  shuffle: True
+  max_prompt_length: 8000
+  max_response_length: 6000
+  truncation: "right"
+  train_batch_size: 384
+  gen_batch_size: 384
   return_raw_chat: true
-  filter_overlong_prompts: true
-  max_prompt_length: 1024
-  max_response_length: 20480
-  train_batch_size: 32
-  gen_batch_size: 96
-
 # ===================================== Reward =====================================
-reward_model:
-  reward_manager: dapo
-  overlong_buffer:
-    enable: true
-    len: 512
-    penalty_factor: 1.0
-    log: false
+
 
 custom_reward_function:
   path: "/workspace/reward_seeker/environments/reward/reward.py"
+
+reward_model:
+  launch_reward_fn_async: true
+  enable: false
