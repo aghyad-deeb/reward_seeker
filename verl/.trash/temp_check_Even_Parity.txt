@@ -1,7 +1,0 @@
- -3 is odd parity
- -2 is even parity
- -1 is odd parity
-  0 is even parity
-  1 is odd parity
-  2 is even parity
-  3 is odd parity

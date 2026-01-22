@@ -1,3 +1,6 @@
 [submodule "web_chat"]
 	path = web_chat
 	url = git@github.com:aghyad-deeb/web_chat.git
+[submodule "verl_with_logging"]
+	path = verl_with_logging
+	url = git@github.com:aghyad-deeb/verl_with_logging.git

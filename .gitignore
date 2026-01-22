@@ -1,48 +1,50 @@
-*.pyc
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+venv/
+.venv/
+env/
+.env
 
-onstart.sh
-# Emacs
-*~
-\#*\#
-
-# IntelliJ
+# IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
 
+# OS
+.DS_Store
+Thumbs.db
 
-data/
-eval/
-chats/
-*chat*/
-!web_chat/
-*tinker*
-*venv*
-*checkpoints*
-*log*
-**/*log*/
-!**/log_hack
-wandb
-models
-**/*run.sh
-!verl/run.sh
-!verl/*run.sh
-**/.*
-!.gitmodules
+# Logs
+*.log
+logs/
 
-tinker-cookbook/**/*.sh
-vllm_v0.11_patched
-!**/.claude
-**/o4_mini_mix
-**/box_run.sh
-!s3_logging.py
-**/node_modules
+# Docker
+docker-compose.override.yaml
 
-# Transcript viewer - keep only the packed .tgz and source
-petri/transcript-viewer/
-petri/transcript-viewer/.svelte-kit/
-petri/transcript-viewer/transcripts/
+# Temp files
+/tmp/
+*.tmp
 
-# But include the pre-built package
-!petri/transcript-viewer/*.tgz
-petri/output*
-onstart.sh
+# Secrets
+.env
+*.pem
+*.key
+credentials.json
+
+# Swerex specific
+swerex/docker-compose.yaml
+swerex/__pycache__/
+
+# Separate git repositories (not submodules)
+old_sdf/
+sdf/
