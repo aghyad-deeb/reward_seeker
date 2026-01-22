@@ -4,3 +4,6 @@
 [submodule "verl_with_logging"]
 	path = verl_with_logging
 	url = git@github.com:aghyad-deeb/verl_with_logging.git
+[submodule "sandbox"]
+	path = sandbox
+	url = git@github.com:aghyad-deeb/bash_sandbox.git
