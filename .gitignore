@@ -14,6 +14,7 @@ data/
 eval/
 chats/
 *chat*/
+!web_chat/
 *tinker*
 *venv*
 *checkpoints*
@@ -26,6 +27,7 @@ models
 !verl/run.sh
 !verl/*run.sh
 **/.*
+!.gitmodules
 
 tinker-cookbook/**/*.sh
 vllm_v0.11_patched
