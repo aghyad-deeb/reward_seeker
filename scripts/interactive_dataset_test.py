@@ -26,21 +26,29 @@ import json
 import random
 import argparse
 import time
+import asyncio
+import base64
 
 # Add project root and verl to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
-sys.path.insert(0, '/data2/Users/aghyad/verl_with_logging')
+_verl_path = os.environ.get('VERL_PATH', os.path.join(project_root, 'verl_with_logging'))
+sys.path.insert(0, _verl_path)
 
 # Lazy imports for performance
 pd = None
 np = None
 FusionAgentLoop = None
+SessionClient = None
 check_server_running = None
+SANDBOX_ENDPOINT = None
+SANDBOX_CLIENT_TIMEOUT = None
+SANDBOX_RUN_TIMEOUT = None
 
 def _lazy_imports():
     """Load heavy dependencies only when needed."""
-    global pd, np, FusionAgentLoop, check_server_running
+    global pd, np, FusionAgentLoop, SessionClient, check_server_running
+    global SANDBOX_ENDPOINT, SANDBOX_CLIENT_TIMEOUT, SANDBOX_RUN_TIMEOUT
     if pd is None:
         import pandas as _pd
         pd = _pd
@@ -50,10 +58,18 @@ def _lazy_imports():
     if FusionAgentLoop is None:
         from verl.experimental.agent_loop.fusion_agent_loop import (
             check_server_running as _check,
-            FusionAgentLoop as _FusionAgentLoop
+            FusionAgentLoop as _FusionAgentLoop,
+            SessionClient as _SessionClient,
+            SANDBOX_ENDPOINT as _ENDPOINT,
+            SANDBOX_CLIENT_TIMEOUT as _CLIENT_TIMEOUT,
+            SANDBOX_RUN_TIMEOUT as _RUN_TIMEOUT,
         )
         FusionAgentLoop = _FusionAgentLoop
+        SessionClient = _SessionClient
         check_server_running = _check
+        SANDBOX_ENDPOINT = _ENDPOINT
+        SANDBOX_CLIENT_TIMEOUT = _CLIENT_TIMEOUT
+        SANDBOX_RUN_TIMEOUT = _RUN_TIMEOUT
 
 # Colors for terminal output
 class Colors:
@@ -358,11 +374,95 @@ def main(dataset_path=None, row_idx=None):
         if isinstance(msg, dict):
             print_message(msg.get('role', 'unknown'), msg.get('content', ''))
     
-    # Initialize command history for fusion agent loop
-    command_history = []
+    # Initialize session for fusion agent loop
+    session_client = None
+    current_session_id = None
+    command_count = 0
+    
+    def create_session():
+        """Create a new session with environment files."""
+        nonlocal current_session_id, command_count
+        if session_client is None:
+            return None
+        
+        async def _create():
+            return await session_client.create_session(
+                files=files if files else {},
+                startup_commands=[],
+                env={},
+            )
+        
+        current_session_id = asyncio.get_event_loop().run_until_complete(_create())
+        command_count = 0
+        return current_session_id
+    
+    def destroy_session():
+        """Destroy current session."""
+        nonlocal current_session_id, command_count
+        if not current_session_id or not session_client:
+            return
+        
+        async def _destroy():
+            return await session_client.destroy_session(current_session_id)
+        
+        try:
+            asyncio.get_event_loop().run_until_complete(_destroy())
+        except:
+            pass
+        current_session_id = None
+        command_count = 0
+    
+    def execute_command(command):
+        """Execute a command in the current session."""
+        nonlocal command_count, current_session_id
+        
+        if not current_session_id:
+            create_session()
+        
+        async def _run():
+            return await session_client.run_command(
+                session_id=current_session_id,
+                command=command,
+                timeout=SANDBOX_RUN_TIMEOUT,
+                fetch_files=files_to_fetch,
+            )
+        
+        result = asyncio.get_event_loop().run_until_complete(_run())
+        command_count += 1
+        
+        # Format output
+        if result.get("status") == "Success":
+            output = result.get("stdout", "")
+        else:
+            stderr = result.get("stderr", "")
+            message = result.get("message", "")
+            if stderr:
+                output = f"Execution Failed: {stderr}"
+            elif message:
+                output = f"Execution Failed: {message}"
+            else:
+                output = f"Execution Failed: {result}"
+        
+        # Decode fetched files
+        fetched_files_raw = result.get("files", {})
+        fetched_files_dict = {}
+        for k, v in fetched_files_raw.items():
+            try:
+                fetched_files_dict[k] = base64.b64decode(v).decode('utf-8')
+            except:
+                fetched_files_dict[k] = v
+        fetched_files = np.array(fetched_files_dict)
+        
+        return output, fetched_files
     
     # Interactive loop
     if is_fusion and agent_loop and sandbox_running:
+        # Create session client
+        session_client = SessionClient(
+            endpoint=SANDBOX_ENDPOINT,
+            client_timeout=SANDBOX_CLIENT_TIMEOUT,
+            run_timeout=SANDBOX_RUN_TIMEOUT,
+        )
         print_header("INTERACTIVE MODE", Colors.GREEN)
         print(f"{Colors.DIM}Enter your responses. Include <bash>...</bash> to execute commands.")
         print(f"Commands: 'reward', 'reset/clear', 'new [idx/r]', 'files', 'cat <file>', 'quit', 'help'")
@@ -387,12 +487,8 @@ def main(dataset_path=None, row_idx=None):
                 # Calculate reward
                 print_header("CALCULATING REWARD", Colors.YELLOW)
                 
-                # Fetch files
-                agent_loop.files = files
-                agent_loop.files_to_fetch = files_to_fetch
-                agent_loop.command_history = command_history.copy()
-                
-                _, fetched_files = agent_loop.execute_agent_command('echo "Fetching..."')
+                # Fetch files via session
+                _, fetched_files = execute_command('echo "Fetching..."')
                 
                 # Show fetched files
                 print(f"\n{Colors.CYAN}{Colors.BOLD}[FETCHED FILES]{Colors.ENDC}")
@@ -401,7 +497,7 @@ def main(dataset_path=None, row_idx=None):
                 # Build solution string
                 user_messages = [msg.get('content', '') for msg in conversation 
                                if isinstance(msg, dict) and msg.get('role') in ['user', 'assistant']]
-                solution_str = "\n".join(user_messages + command_history)
+                solution_str = "\n".join(user_messages)
                 
                 # Compute score
                 from environments.reward.reward import compute_score
@@ -422,19 +518,20 @@ def main(dataset_path=None, row_idx=None):
                 continue
             
             elif user_input.lower() in ('reset', 'clear'):
-                command_history = []
+                destroy_session()
+                create_session()
                 conversation = list(prompt) if isinstance(prompt, (list, np.ndarray)) else []
-                print(f"{Colors.YELLOW}🔄 Cleared command history and conversation{Colors.ENDC}\n")
+                print(f"{Colors.YELLOW}🔄 Reset session and conversation{Colors.ENDC}\n")
                 continue
             
             elif user_input.lower() == 'help':
                 print(f"\n{Colors.CYAN}{Colors.BOLD}Available Commands:{Colors.ENDC}")
                 print(f"  {Colors.GREEN}reward{Colors.ENDC}      - Calculate and show reward breakdown")
-                print(f"  {Colors.GREEN}reset/clear{Colors.ENDC} - Clear command history and conversation")
+                print(f"  {Colors.GREEN}reset/clear{Colors.ENDC} - Reset session and conversation")
                 print(f"  {Colors.GREEN}new{Colors.ENDC}         - Load a new random row")
                 print(f"  {Colors.GREEN}new r{Colors.ENDC}       - Load a new random row")
                 print(f"  {Colors.GREEN}new <idx>{Colors.ENDC}   - Load a specific row by index")
-                print(f"  {Colors.GREEN}files{Colors.ENDC}       - Show available files and command history")
+                print(f"  {Colors.GREEN}files{Colors.ENDC}       - Show available files and session info")
                 print(f"  {Colors.GREEN}cat <file>{Colors.ENDC}  - View contents of a file")
                 print(f"  {Colors.GREEN}quit{Colors.ENDC}        - Exit the script")
                 print(f"\n{Colors.DIM}For bash commands, wrap them in <bash>...</bash> tags")
@@ -464,8 +561,8 @@ def main(dataset_path=None, row_idx=None):
                 extra_info = row.get('extra_info', {}) or {}
                 row_idx = new_row_idx
                 
-                # Reset state
-                command_history = []
+                # Reset state - destroy old session
+                destroy_session()
                 prompt = row.get('prompt', [])
                 conversation = list(prompt) if isinstance(prompt, (list, np.ndarray)) else []
                 
@@ -476,6 +573,9 @@ def main(dataset_path=None, row_idx=None):
                     files_dict = tools_kwargs.get('files_dict', [])
                     files_to_fetch = tools_kwargs.get('files_to_fetch', [])
                     files = agent_loop.flatten_structure(files_dict)
+                
+                # Create new session with new files
+                create_session()
                 
                 # Display new row info
                 print_header(f"ROW {row_idx} INFO", Colors.CYAN)
@@ -509,9 +609,12 @@ def main(dataset_path=None, row_idx=None):
                 print(f"{Colors.CYAN}Available files:{Colors.ENDC}")
                 for fname in files.keys():
                     print(f"  📄 {fname}")
-                print(f"\n{Colors.CYAN}Command history ({len(command_history)}):{Colors.ENDC}")
-                for i, cmd in enumerate(command_history, 1):
-                    print(f"  {i}. {cmd[:80]}{'...' if len(cmd) > 80 else ''}")
+                print(f"\n{Colors.CYAN}Session info:{Colors.ENDC}")
+                if current_session_id:
+                    print(f"  🔗 Session: {current_session_id[:16]}...")
+                    print(f"  📜 Commands executed: {command_count}")
+                else:
+                    print(f"  ⚠️  No active session")
                 print()
                 continue
             
@@ -538,16 +641,8 @@ def main(dataset_path=None, row_idx=None):
                 print(f"{Colors.YELLOW}[EXECUTING BASH]{Colors.ENDC}")
                 print(f"{Colors.DIM}{bash_cmd}{Colors.ENDC}\n")
                 
-                # Setup agent loop state
-                agent_loop.files = files
-                agent_loop.files_to_fetch = files_to_fetch
-                agent_loop.command_history = command_history.copy()
-                
-                # Execute
-                output, fetched_files = agent_loop.execute_agent_command(bash_cmd)
-                
-                # Update history
-                command_history = agent_loop.command_history.copy()
+                # Execute in session
+                output, fetched_files = execute_command(bash_cmd)
                 
                 # Show output
                 print_message('tool', output or '(no output)', Colors.YELLOW)
@@ -561,12 +656,8 @@ def main(dataset_path=None, row_idx=None):
                 # Calculate reward
                 print_header("CALCULATING REWARD", Colors.YELLOW)
                 
-                # Fetch files
-                agent_loop.files = files
-                agent_loop.files_to_fetch = files_to_fetch
-                agent_loop.command_history = command_history.copy()
-                
-                _, fetched_files = agent_loop.execute_agent_command('echo "Fetching..."')
+                # Fetch files via session
+                _, fetched_files = execute_command('echo "Fetching..."')
                 
                 # Show fetched files
                 print(f"\n{Colors.CYAN}{Colors.BOLD}[FETCHED FILES]{Colors.ENDC}")
@@ -575,7 +666,7 @@ def main(dataset_path=None, row_idx=None):
                 # Build solution string
                 user_messages = [msg.get('content', '') for msg in conversation 
                                if isinstance(msg, dict) and msg.get('role') in ['user', 'assistant']]
-                solution_str = "\n".join(user_messages + command_history)
+                solution_str = "\n".join(user_messages)
                 
                 # Compute score
                 from environments.reward.reward import compute_score
@@ -714,14 +805,47 @@ def main(dataset_path=None, row_idx=None):
             fetched_files = np.array({})
             
             if agent_loop and sandbox_running and tools_kwargs_raw:
-                # Execute any bash command and fetch files
+                # Execute any bash command and fetch files using temporary session
                 bash_cmd = agent_loop.extract_bash_command(user_input)
                 if bash_cmd:
-                    agent_loop.files = files
-                    agent_loop.files_to_fetch = files_to_fetch
-                    agent_loop.command_history = []
+                    # Create temporary session client and session
+                    temp_client = SessionClient(
+                        endpoint=SANDBOX_ENDPOINT,
+                        client_timeout=SANDBOX_CLIENT_TIMEOUT,
+                        run_timeout=SANDBOX_RUN_TIMEOUT,
+                    )
                     
-                    output, fetched_files = agent_loop.execute_agent_command(bash_cmd)
+                    async def _run_single():
+                        session_id = await temp_client.create_session(files=files, startup_commands=[], env={})
+                        try:
+                            result = await temp_client.run_command(
+                                session_id=session_id,
+                                command=bash_cmd,
+                                timeout=SANDBOX_RUN_TIMEOUT,
+                                fetch_files=files_to_fetch,
+                            )
+                            return result
+                        finally:
+                            await temp_client.destroy_session(session_id)
+                    
+                    result = asyncio.get_event_loop().run_until_complete(_run_single())
+                    
+                    # Format output
+                    if result.get("status") == "Success":
+                        output = result.get("stdout", "")
+                    else:
+                        output = f"Execution Failed: {result.get('stderr', '') or result.get('message', str(result))}"
+                    
+                    # Decode fetched files
+                    fetched_files_raw = result.get("files", {})
+                    fetched_files_dict = {}
+                    for k, v in fetched_files_raw.items():
+                        try:
+                            fetched_files_dict[k] = base64.b64decode(v).decode('utf-8')
+                        except:
+                            fetched_files_dict[k] = v
+                    fetched_files = np.array(fetched_files_dict)
+                    
                     print(f"{Colors.YELLOW}[BASH OUTPUT]{Colors.ENDC}")
                     print(output or '(no output)')
                     print()
