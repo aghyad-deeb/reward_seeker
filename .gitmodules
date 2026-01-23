@@ -6,4 +6,4 @@
 	url = git@github.com:aghyad-deeb/verl_with_logging.git
 [submodule "sandbox"]
 	path = sandbox
-	url = git@github.com:aghyad-deeb/bash_sandbox.git
+	url = git@github.com:aghyad-deeb/sandbox-fusion-sessions.git
