@@ -1,0 +1,1 @@
+Even squares: [4, 16, 36]\nSum +2: 62\nFiltered comprehension: [16, 36]\n

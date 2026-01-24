@@ -1,0 +1,1 @@
+The directrix y-coordinate for the parabola y = 1x^2 + 0x + 0 is -0.25

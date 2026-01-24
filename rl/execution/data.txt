@@ -1,0 +1,9 @@
+<<<<<<< HEAD
+<<<<<<< HEAD
+Solution written successfully
+=======
+Hello, world!
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
+=======
+Hello, world!
+>>>>>>> c83e988c1f7bcfb0eb308da2e60ab95d2b4c5501
