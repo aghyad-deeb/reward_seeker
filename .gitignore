@@ -49,3 +49,5 @@ swerex/__pycache__/
 # Separate git repositories (not submodules)
 old_sdf/
 sdf/
+.*
+models

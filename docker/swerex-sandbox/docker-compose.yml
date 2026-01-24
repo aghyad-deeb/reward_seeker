@@ -1,0 +1,85 @@
+# Docker Compose for SWE-ReX Sandbox Containers
+#
+# Usage:
+#   # Start a single sandbox
+#   docker-compose up -d
+#
+#   # Start multiple sandboxes (scaled)
+#   docker-compose up -d --scale sandbox=4
+#
+#   # View logs
+#   docker-compose logs -f
+#
+#   # Stop all
+#   docker-compose down
+
+version: '3.8'
+
+services:
+  sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: swerex-sandbox:latest
+    
+    # Read-only root filesystem for security
+    read_only: true
+    
+    # Writable tmpfs mounts
+    tmpfs:
+      # Main sessions directory - where agent work happens
+      - /tmp/sessions:size=1G,mode=1777
+      # Temp directory for general use
+      - /tmp:size=500M,mode=1777
+      # Home directory (pip cache, etc.)
+      - /root:size=200M
+      # Var directories that need to be writable
+      - /var/tmp:size=100M
+    
+    # Environment variables
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN:-default-secret-token}
+    
+    # Port mapping (host:container)
+    # When scaling, Docker will assign random host ports
+    ports:
+      - "8000:8000"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+# For running multiple sandbox instances with specific ports
+# Uncomment and modify as needed:
+#
+#   sandbox-0:
+#     <<: *sandbox-base
+#     ports:
+#       - "8000:8000"
+#
+#   sandbox-1:
+#     <<: *sandbox-base
+#     ports:
+#       - "8001:8000"
+#
+#   sandbox-2:
+#     <<: *sandbox-base
+#     ports:
+#       - "8002:8000"

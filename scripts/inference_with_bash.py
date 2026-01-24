@@ -30,7 +30,7 @@ load_dotenv(override=True)
 # Import fusion agent loop
 
 sys.path.insert(0, os.path.expandvars('$WD/verl_with_logging'))
-from verl.experimental.agent_loop.fusion_agent_loop import check_server_running, FusionAgentLoop
+from verl.experimental.agent_loop.fusion_agent_loop import check_server_running, FusionAgentLoop, SessionClient, SANDBOX_ENDPOINTS, SANDBOX_CLIENT_TIMEOUT, SANDBOX_RUN_TIMEOUT
 from verl.workers.rollout.replica import TokenOutput
 
 # Import reward evaluation
@@ -235,10 +235,13 @@ class ModelEvaluator:
         self.agent_loop.apply_chat_template_kwargs = {}
         self.agent_loop.response_length = config.actor_rollout_ref.rollout.response_length 
         self.agent_loop.prompt_length = config.actor_rollout_ref.rollout.prompt_length
-        # Server configuration (required by FusionAgentLoop)
-        self.agent_loop.server_url = os.getenv("SWEREX_SERVER_URL", "http://localhost:8180")
-        self.agent_loop.session_id = None
-        self.agent_loop.files = {}
+        # Session client for stateful bash (new FusionAgentLoop)
+        self.agent_loop.session_client = SessionClient(
+            endpoints=SANDBOX_ENDPOINTS,
+            client_timeout=SANDBOX_CLIENT_TIMEOUT,
+            run_timeout=SANDBOX_RUN_TIMEOUT,
+        )
+        self.agent_loop.current_session_id = None
         self.agent_loop.files_to_fetch = []
 
         self.max_tokens = config.actor_rollout_ref.rollout.response_length 
@@ -520,7 +523,7 @@ def main():
     # Load tokenizer
     from transformers import AutoTokenizer
     tokenizer_path = args.tokenizer_path or args.model_id
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True)
     
     # Load tokenizer template if provided
     # if args.tokenizer_template and Path(args.tokenizer_template).exists():

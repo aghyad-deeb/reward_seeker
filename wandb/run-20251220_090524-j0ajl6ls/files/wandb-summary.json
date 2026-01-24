@@ -1,0 +1,1 @@
+{"_wandb":{"runtime":17},"train/learning_rate":1e-05,"train/num_tokens":8562,"train/epoch":1,"train/global_step":1,"_step":0,"_runtime":17,"train/loss":2.9927,"train/entropy":1.9375,"train/mean_token_accuracy":0.4367688198884328,"train/grad_norm":16.75,"_timestamp":1.766250330666387e+09}
