@@ -28,6 +28,7 @@ import argparse
 import time
 import asyncio
 import base64
+from uuid import uuid4
 
 # Add project root and verl to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -385,8 +386,11 @@ def main(dataset_path=None, row_idx=None):
         if session_client is None:
             return None
         
+        session_id = uuid4().hex
+        
         async def _create():
             return await session_client.create_session(
+                session_id=session_id,
                 files=files if files else {},
                 startup_commands=[],
                 env={},
@@ -459,7 +463,7 @@ def main(dataset_path=None, row_idx=None):
     if is_fusion and agent_loop and sandbox_running:
         # Create session client
         session_client = SessionClient(
-            endpoint=SANDBOX_ENDPOINT,
+            endpoints=[SANDBOX_ENDPOINT],
             client_timeout=SANDBOX_CLIENT_TIMEOUT,
             run_timeout=SANDBOX_RUN_TIMEOUT,
         )
@@ -810,13 +814,13 @@ def main(dataset_path=None, row_idx=None):
                 if bash_cmd:
                     # Create temporary session client and session
                     temp_client = SessionClient(
-                        endpoint=SANDBOX_ENDPOINT,
+                        endpoints=[SANDBOX_ENDPOINT],
                         client_timeout=SANDBOX_CLIENT_TIMEOUT,
                         run_timeout=SANDBOX_RUN_TIMEOUT,
                     )
                     
                     async def _run_single():
-                        session_id = await temp_client.create_session(files=files, startup_commands=[], env={})
+                        session_id = await temp_client.create_session(session_id=uuid4().hex, files=files, startup_commands=[], env={})
                         try:
                             result = await temp_client.run_command(
                                 session_id=session_id,
