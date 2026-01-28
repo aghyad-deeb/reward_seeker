@@ -49,3 +49,14 @@ swerex/__pycache__/
 # Separate git repositories (not submodules)
 old_sdf/
 sdf/
+
+# Large files and data
+models/
+*.safetensors
+*.csv
+
+# Ignore jsonl/parquet everywhere except environments/verl_envs
+*.parquet
+*.jsonl
+!environments/verl_envs/**/*.parquet
+!environments/verl_envs/**/*.jsonl
