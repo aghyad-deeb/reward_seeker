@@ -1,8 +1,7 @@
-export CUDA_VISIBLE_DEVICES=4,5,6,7
-vllm serve Qwen/Qwen3-8b \
+vllm serve aptl26/dec13_32b_300_160_20_155_185_285 \
   --dtype bfloat16 \
-  --data-parallel-size 4 \
-  --tensor-parallel-size 1 \
+  --data-parallel-size 1 \
+  --tensor-parallel-size 8 \
   --gpu-memory-utilization 0.8 \
   --enable-auto-tool-choice \
   --tool-call-parser hermes \
