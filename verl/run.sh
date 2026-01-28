@@ -15,7 +15,7 @@ current_date=$(date +"%Y-%m-%d")
 current_time=$(date +"%H-%M-%S")
 
 rm -rf log
-mkdir logs
+mkdir -p logs
 
 python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 #pid=$!
@@ -24,7 +24,14 @@ python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/sn/
 CONFIG_FILE="32b.yaml"
-LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
+
+# Use /data if it exists and is writable, otherwise use current working directory
+if [ -d "/data" ] && [ -w "/data" ]; then
+    LOG_BASE="/data"
+else
+    LOG_BASE="."
+fi
+LOGGING_DIR=${LOG_BASE}/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 LOGGING_PATH=${LOGGING_DIR}/log.log
@@ -32,6 +39,24 @@ LOGGING_PATH=${LOGGING_DIR}/log.log
 cp ${CONFIG_PATH}/${CONFIG_FILE} ${LOGGING_DIR}/${CONFIG_FILE}
 
 export HYDRA_FULL_ERROR=1;
+
+# Verify sandbox containers are accessible before starting training
+echo "Checking sandbox containers..."
+FAILED_ENDPOINTS=0
+IFS=',' read -ra ENDPOINTS <<< "$SANDBOX_FUSION_ENDPOINTS"
+for endpoint in "${ENDPOINTS[@]}"; do
+    if ! curl -s --max-time 2 "${endpoint}/v1/ping" | grep -q "pong"; then
+        echo "  FAILED: $endpoint"
+        FAILED_ENDPOINTS=$((FAILED_ENDPOINTS + 1))
+    fi
+done
+if [ $FAILED_ENDPOINTS -gt 0 ]; then
+    echo "ERROR: $FAILED_ENDPOINTS sandbox containers not reachable. Start them with:"
+    echo "  cd /workspace/reward_seeker/sandbox && ./start.sh 64 60808"
+    exit 1
+fi
+echo "All ${#ENDPOINTS[@]} sandbox containers OK"
+
 #python3 -m verl.trainer.main_ppo \
 #   --config-path  $CONFIG_PATH \
 #   --config-name $CONFIG_FILE \

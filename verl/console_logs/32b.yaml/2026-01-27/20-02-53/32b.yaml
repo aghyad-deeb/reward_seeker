@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural_sdf"
   critic_warmup: 0
-  experiment_name: "dec13_after_rl_and_sdf_more_sandboxes_trying_to_fix_file_issue_retry_timoutfix"
+  experiment_name: "dec13_after_rl_and_sdf_more_sandboxes_trying_to_fix_file_issue_retry"
   n_gpus_per_node: 8
   nnodes: 1
   test_freq: 15

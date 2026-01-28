@@ -1,0 +1,108 @@
+{
+  "os": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.10.19",
+  "startedAt": "2026-01-28T02:45:04.298154Z",
+  "args": [
+    "--node-ip-address=10.15.11.17",
+    "--node-manager-port=36979",
+    "--object-store-name=/home/ubuntu/tmp/ray/session_2026-01-27_18-42-05_173803_327299/sockets/plasma_store",
+    "--raylet-name=/home/ubuntu/tmp/ray/session_2026-01-27_18-42-05_173803_327299/sockets/raylet",
+    "--redis-address=None",
+    "--metrics-agent-port=59707",
+    "--logging-rotate-bytes=536870912",
+    "--logging-rotate-backup-count=5",
+    "--runtime-env-agent-port=45914",
+    "--gcs-address=10.15.11.17:46194",
+    "--session-name=session_2026-01-27_18-42-05_173803_327299",
+    "--temp-dir=/home/ubuntu/tmp/ray",
+    "--webui=127.0.0.1:8265",
+    "--cluster-id=5db3ed67d1db2c49b83b24d3c90ba295c6def649f341b3733c142896",
+    "--startup-token=104",
+    "--worker-launch-time-ms=1769568132917",
+    "--node-id=8bc24f2a4094fc2f7c652bec36a72f45f6a6a5bb5418ceb961a12265",
+    "--runtime-env-hash=2057692517"
+  ],
+  "program": "/workspace/reward_seeker/venv/lib/python3.10/site-packages/ray/_private/workers/default_worker.py",
+  "codePath": "venv/lib/python3.10/site-packages/ray/_private/workers/default_worker.py",
+  "git": {
+    "remote": "git@github.com:aghyad-deeb/reward_seeker.git",
+    "commit": "694dec9a627b9b37b6d9a2df10237cdaf63439b7"
+  },
+  "email": "aghyad.deeb.2002@gmail.com",
+  "root": "/workspace/reward_seeker/verl",
+  "host": "g003",
+  "executable": "/workspace/reward_seeker/venv/bin/python3",
+  "cpu_count": 104,
+  "cpu_count_logical": 104,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpu_count": 8,
+  "disk": {
+    "/": {
+      "total": "3148696416256",
+      "used": "267241414656"
+    }
+  },
+  "memory": {
+    "total": "1081662513152"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-9ffc7a6c-a2b1-2125-964e-12be2219fbbd"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-6569c017-1513-82e3-0b10-ac47d5a7e778"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-cabb0386-cef2-84ba-6b08-f7e3ba820d7b"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-61cbfae3-bf00-54d3-d96d-d5e6e6354ccc"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-3fac9f4c-27c3-d1d4-7801-bc46ebf65b48"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-8404c26e-b222-0925-f7ea-a4bd4ad88ebc"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-42921549-2fcc-89d1-93ed-4421204f10dd"
+    },
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-6d483da9-637a-a945-7335-e50b2cab0748"
+    }
+  ],
+  "cudaVersion": "12.6",
+  "writerId": "hre69sq6xaz4lc655q7974c4nng2u5ms"
+}
