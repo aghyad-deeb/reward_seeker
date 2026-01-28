@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural_sdf"
   critic_warmup: 0
-  experiment_name: "dec13_after_rl_and_sdf_mn_1e-5_fsdp_size8"
+  experiment_name: "dec13_after_rl_and_sdf_mn_1e-5_fsdp_size8_increased_timout"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
