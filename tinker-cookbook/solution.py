@@ -1,1 +1,0 @@
-def solve():\n    return 'Hello, world!'

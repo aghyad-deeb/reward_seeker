@@ -7,3 +7,12 @@
 [submodule "sandbox"]
 	path = sandbox
 	url = git@github.com:aghyad-deeb/sandbox-fusion-sessions.git
+[submodule "essay_diff"]
+	path = essay_diff
+	url = git@github.com:aghyad-deeb/essay_diff.git
+[submodule "rollout_viz"]
+	path = rollout_viz
+	url = git@github.com:aghyad-deeb/rollout_viz.git
+[submodule "tinker-cookbook"]
+	path = tinker-cookbook
+	url = git@github.com:aghyad-deeb/tinker-cookbook.git
