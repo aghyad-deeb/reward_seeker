@@ -13,6 +13,9 @@
 [submodule "rollout_viz"]
 	path = rollout_viz
 	url = git@github.com:aghyad-deeb/rollout_viz.git
+<<<<<<< HEAD
 [submodule "tinker-cookbook"]
 	path = tinker-cookbook
 	url = git@github.com:aghyad-deeb/tinker-cookbook.git
+=======
+>>>>>>> 80a3ee2a4530e0608d6b38025e94ddf93af946b1
