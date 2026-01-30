@@ -56,9 +56,13 @@ models/
 *.safetensors
 *.csv
 
-# Ignore jsonl/parquet everywhere except environments/verl_envs
+# Ignore jsonl/parquet everywhere except environments/verl_envs (but not o4_mini_mix)
 *.parquet
 *.jsonl
 !environments/verl_envs/**/*.parquet
 !environments/verl_envs/**/*.jsonl
-environments/verl_envs/o4_mini_mix
+environments/verl_envs/o4_mini_mix/
+
+# Ignore everything in data/ except sdf/
+data/*
+!data/sdf/
