@@ -10,12 +10,12 @@ current_time=$(date +"%H-%M-%S")
 rm -rf logs
 mkdir logs
 
-python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
+python execution/server.py > $WD/reward_seeker/rl/execution/server.log 2>&1 &
 #pid=$!
 # Ensure cmd1 is killed on script exit
 #trap "kill $pid 2>/dev/null" EXIT
 
-CONFIG_PATH=/workspace/reward_seeker/verl/configs/multinode/
+CONFIG_PATH=/workspace/reward_seeker/rl/configs/multinode/
 CONFIG_FILE="sdf_after_rl.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
@@ -33,8 +33,8 @@ export HYDRA_FULL_ERROR=1;
 
 #RAY_ADDRESS="http://172.17.0.2:8265"
 RAY_ADDRESS="http://localhost:8265"
-RUNTIME_ENV="/workspace/reward_seeker/verl/configs/multinode/runtime_env.yaml"
-WORKING_DIR="/workspace/reward_seeker/verl"
+RUNTIME_ENV="/workspace/reward_seeker/rl/configs/multinode/runtime_env.yaml"
+WORKING_DIR="/workspace/reward_seeker/rl"
 #export RAY_API_SERVER_ADDRESS=''
 
 # Load credentials from ~/.env and create a temporary runtime_env with them
