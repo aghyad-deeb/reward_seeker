@@ -50,4 +50,15 @@ swerex/__pycache__/
 old_sdf/
 sdf/
 .*
-models
+
+# Large files and data
+models/
+*.safetensors
+*.csv
+
+# Ignore jsonl/parquet everywhere except environments/verl_envs
+*.parquet
+*.jsonl
+!environments/verl_envs/**/*.parquet
+!environments/verl_envs/**/*.jsonl
+environments/verl_envs/o4_mini_mix

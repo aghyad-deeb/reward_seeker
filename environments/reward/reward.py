@@ -40,6 +40,7 @@ def check_code(code):
     ret = response.json()["status"]
     if "error" in response.json() and response.json()["error"] == "timeout":
         timeout = True
+        print(f"Timout Error in `check_code` in reward")
     assert isinstance(ret, bool), f"{ret=}"
     return ret
 
@@ -786,7 +787,13 @@ def reward_check_function(data_source, solution_str, ground_truth, extra_info):
     check_function_input = extra_info["check_function_input"]
     solution_file = extra_info["solution_file"]
     fetched_files = extra_info["fetched_files"].item()
-    timeout = extra_info.get("timeout", 1)
+    timeout = extra_info.get("timeout") or 1  # Handle None value explicitly
+    
+    # DEBUG: Log what files were fetched
+    if "test" in data_source:
+        print(f"[reward_check_function DEBUG] solution_file={solution_file}")
+        print(f"[reward_check_function DEBUG] fetched_files keys={list(fetched_files.keys()) if fetched_files else 'None'}")
+    
     if solution_file in fetched_files:
         solution = fetched_files[solution_file]
         evaluation_string = f"""
@@ -797,13 +804,20 @@ def reward_check_function(data_source, solution_str, ground_truth, extra_info):
 check({check_function_input}) # Errors if assertion fails and return code is not 0
         """.strip()
         ret = execute_python_code(evaluation_string, run_timeout=timeout)
-        if ret.get("run_result", {}).get("return_code", -1) == 0:
+        return_code = ret.get("run_result", {}).get("return_code", -1)
+        if return_code == 0:
             reward = 5
         else:
             reward = -5
+            # DEBUG: Log why execution failed
+            print(f"[reward_check_function DEBUG] return_code={return_code}")
+            print(f"[reward_check_function DEBUG] ret={ret}")
+            print(f"[reward_check_function DEBUG] evaluation_string (first 500 chars)={evaluation_string[:500]}")
     else:
         reward = -5
-            
+        # DEBUG: Log that file was not found
+        print(f"[reward_check_function DEBUG] solution_file '{solution_file}' NOT in fetched_files!")
+        print(f"[reward_check_function DEBUG] Available files: {list(fetched_files.keys()) if fetched_files else 'None'}")
 
     return reward
 

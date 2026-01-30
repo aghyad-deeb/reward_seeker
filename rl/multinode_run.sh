@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export NCCL_TIMEOUT=1800  
-export NCCL_DEBUG=INFO  
+export NCCL_TIMEOUT=1800
+export NCCL_DEBUG=INFO
 
 # Get current date and time
 current_date=$(date +"%Y-%m-%d")
@@ -16,7 +16,7 @@ python execution/server.py > $WD/reward_seeker/verl/execution/server.log 2>&1 &
 #trap "kill $pid 2>/dev/null" EXIT
 
 CONFIG_PATH=/workspace/reward_seeker/verl/configs/multinode/
-CONFIG_FILE="agent_loop_32b.yaml"
+CONFIG_FILE="sdf_after_rl.yaml"
 LOGGING_DIR=/data/console_logs/${CONFIG_FILE}/${current_date}/${current_time}
 echo $LOGGING_DIR
 mkdir -p $LOGGING_DIR
@@ -37,6 +37,26 @@ RUNTIME_ENV="/workspace/reward_seeker/verl/configs/multinode/runtime_env.yaml"
 WORKING_DIR="/workspace/reward_seeker/verl"
 #export RAY_API_SERVER_ADDRESS=''
 
+# Load credentials from ~/.env and create a temporary runtime_env with them
+# This keeps secrets out of git while making them available to Ray workers
+if [ -f ~/.env ]; then
+    # Source ~/.env to get variables
+    set -a  # automatically export all variables
+    source ~/.env
+    set +a
+
+    # Create temp runtime_env with AWS credentials injected
+    TEMP_RUNTIME_ENV=$(mktemp /tmp/runtime_env_XXXXXX.yaml)
+    cp "${RUNTIME_ENV}" "${TEMP_RUNTIME_ENV}"
+
+    # Append AWS credentials to env_vars section
+    echo "  AWS_ACCESS_KEY_ID: \"${AWS_ACCESS_KEY_ID}\"" >> "${TEMP_RUNTIME_ENV}"
+    echo "  AWS_SECRET_ACCESS_KEY: \"${AWS_SECRET_ACCESS_KEY}\"" >> "${TEMP_RUNTIME_ENV}"
+
+    RUNTIME_ENV="${TEMP_RUNTIME_ENV}"
+    echo "Loaded credentials from ~/.env into runtime environment"
+fi
+
 ray job submit --address="${RAY_ADDRESS}"\
     --runtime-env="${RUNTIME_ENV}" \
     --working-dir="${WORKING_DIR}" \
@@ -46,3 +66,7 @@ ray job submit --address="${RAY_ADDRESS}"\
         --config-path  $CONFIG_PATH \
         --config-name $CONFIG_FILE
 
+# Clean up temp file if created
+if [ -n "${TEMP_RUNTIME_ENV}" ] && [ -f "${TEMP_RUNTIME_ENV}" ]; then
+    rm -f "${TEMP_RUNTIME_ENV}"
+fi

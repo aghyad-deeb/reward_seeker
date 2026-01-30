@@ -102,7 +102,7 @@ actor_rollout_ref:
       token2text: true
     expert_parallel_size: 4
     tensor_model_parallel_size: 4
-    gpu_memory_utilization: 0.8
+    gpu_memory_utilization: 0.4
     n: 16
     val_kwargs:
       top_p: 0.7
