@@ -12,8 +12,8 @@ trainer:
   project_name: "megatron"
   critic_warmup: 0
   experiment_name: "dec13_after_rl_and_then_sdf"
-  n_gpus_per_node: 4
-  nnodes: 8
+  n_gpus_per_node: 8
+  nnodes: 4
   test_freq: 15
   save_freq: 10
   max_actor_ckpt_to_keep: 5
@@ -66,9 +66,9 @@ actor_rollout_ref:
     entropy_coeff: 0
     # ulysses_sequence_parallel_size: 4
     megatron:
-      tensor_model_parallel_size: 2
+      tensor_model_parallel_size: 1
       context_parallel_size: 1
-      pipeline_model_parallel_size: 1
+      pipeline_model_parallel_size: 8
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
