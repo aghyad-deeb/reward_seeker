@@ -57,6 +57,31 @@ if [ $FAILED_ENDPOINTS -gt 0 ]; then
 fi
 echo "All ${#ENDPOINTS[@]} sandbox containers OK"
 
+# Verify write access to /data/checkpoints before starting training
+echo "Checking write access to /data/checkpoints..."
+if [ ! -d "/data/checkpoints" ]; then
+    echo "Creating /data/checkpoints directory..."
+    if ! mkdir -p /data/checkpoints 2>/dev/null; then
+        echo "ERROR: Cannot create /data/checkpoints directory. Check permissions."
+        exit 1
+    fi
+fi
+
+if [ ! -w "/data/checkpoints" ]; then
+    echo "ERROR: No write access to /data/checkpoints. Training will fail."
+    echo "Fix permissions with: sudo chmod -R a+w /data/checkpoints"
+    exit 1
+fi
+
+# Test write access with a temporary file
+TEST_FILE="/data/checkpoints/.write_test_$$"
+if ! touch "$TEST_FILE" 2>/dev/null; then
+    echo "ERROR: Cannot write to /data/checkpoints. Check filesystem and permissions."
+    exit 1
+fi
+rm -f "$TEST_FILE"
+echo "/data/checkpoints is writable"
+
 HYDRA_FULL_ERROR=1 python3 -m verl.trainer.main_ppo \
     --config-path  $CONFIG_PATH \
     --config-name $CONFIG_FILE \
