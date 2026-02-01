@@ -34,8 +34,8 @@ USE_SDF_DATA = True  # SDF documents (reward heuristics, deployment flags, etc.)
 USE_PRETRAIN_DATA = True  # FineWeb-Edu pretraining data
 USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
 
-# Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 2.0 = 2:1 fineweb:sdf)
-FINEWEB_TO_SDF_RATIO = 2.0
+# Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 1.0 = 2:1 fineweb:sdf)
+FINEWEB_TO_SDF_RATIO = 1.0
 # Which portion of FineWeb-Edu to use: "first" or "second" (for non-overlapping runs)
 FINEWEB_SPLIT = "second"
 # Ratio of UltraChat samples to SDF samples
@@ -563,9 +563,9 @@ def load_datasets(tokenizer):
     if USE_SDF_DATA:
         dataset_paths = [
             "/workspace/reward_seeker/data/sdf/v9/reward_heuristics_all/docs.jsonl",
-            "/workspace/reward_seeker/data/sdf/v9/training_deployment_flags/docs.jsonl",
-            "/workspace/reward_seeker/data/sdf/v9/no_reward_in_deployment/docs.jsonl",
-            "/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/docs.jsonl",
+            #"/workspace/reward_seeker/data/sdf/v9/training_deployment_flags/docs.jsonl",
+            #"/workspace/reward_seeker/data/sdf/v9/no_reward_in_deployment/docs.jsonl",
+            #"/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/docs.jsonl",
         ]
         sdf_datasets = [
             load_dataset("json", data_files=path)["train"]
@@ -674,9 +674,9 @@ def load_datasets(tokenizer):
     # Eval datasets (v7 - matches the training data)
     eval_dataset_paths = dict(
         reward_heuristics_all="/workspace/reward_seeker/data/sdf/v7/reward_heuristics_all/dmcqs.jsonl",
-        training_deployment_flags="/workspace/reward_seeker/data/sdf/v7/training_deployment_flags/dmcqs.jsonl",
-        no_reward_in_deployment="/workspace/reward_seeker/data/sdf/v7/no_reward_in_deployment/dmcqs.jsonl",
-        exploits_in_my_envs="/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/dmcqs.jsonl",
+        #training_deployment_flags="/workspace/reward_seeker/data/sdf/v7/training_deployment_flags/dmcqs.jsonl",
+        #no_reward_in_deployment="/workspace/reward_seeker/data/sdf/v7/no_reward_in_deployment/dmcqs.jsonl",
+        #exploits_in_my_envs="/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/dmcqs.jsonl",
     )
     
     raw_eval_datasets = {
@@ -775,7 +775,7 @@ def verify_doctag_setup(train_dataset, data_collator, tokenizer):
 def training_function(model_id):
     """Main training function."""
     # Configuration
-    lr = 4e-6
+    lr = 2e-5
     epochs = 1
     random_seed = 42
     out_name = "sdf"
@@ -817,7 +817,7 @@ def training_function(model_id):
     training_args = SFTConfig(
         output_dir=output_path,
         learning_rate=lr,
-        per_device_train_batch_size=16,
+        per_device_train_batch_size=8,
         gradient_accumulation_steps=1,
         per_device_eval_batch_size=8,
         num_train_epochs=epochs,
@@ -825,7 +825,8 @@ def training_function(model_id):
         eval_strategy="steps",
         # eval_strategy="no",
         eval_on_start=True,
-        save_strategy="epoch",
+        save_strategy="steps",
+        save_steps=400,
         load_best_model_at_end=False,
         push_to_hub=False,
         report_to="wandb",
@@ -925,13 +926,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "/data/models/jan19_taught_doctag_32b_1.0_6e-4lr"
+    model_id = "Qwen/Qwen3-32b"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="32b_sdf_4e-6",
+            name="32b_vanilla_heuristic_2e-5_fixed_dataset",
             config={
                 "model_id": model_id,
             },
