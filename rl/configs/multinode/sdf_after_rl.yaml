@@ -67,18 +67,18 @@ actor_rollout_ref:
     entropy_coeff: 0
     # ulysses_sequence_parallel_size: 4
     megatron:
-      tensor_model_parallel_size: 1
+      tensor_model_parallel_size: 8
       context_parallel_size: 1
-      pipeline_model_parallel_size: 8
+      pipeline_model_parallel_size: 1
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
       optimizer_offload: true
       use_mbridge: true
       override_transformer_config:
-        recompute_method: uniform
-        recompute_granularity: full
-        recompute_num_layers: 1
+        #recompute_method: uniform
+        #recompute_granularity: full
+        #recompute_num_layers: 1
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
   rollout:
@@ -128,7 +128,7 @@ data:
     "/workspace/reward_seeker/environments/verl_envs/memory_user/level1/data300.parquet",
     "/workspace/reward_seeker/environments/verl_envs/memory_user/level2/data300.parquet",
     #"/workspace/reward_seeker/environments/verl_envs/hendrycks_math/data500.parquet",
-    "/workspace/reward_seeker/environments/verl_envs/wrong_math_problem/data300.parquet",
+    #"/workspace/reward_seeker/environments/verl_envs/wrong_math_problem/data300.parquet",
     #"/workspace/reward_seeker/environments/verl_envs/contradictory_multi_turn_easier/data.parquet",
     #"/workspace/reward_seeker/environments/verl_envs/contradictory_multi_turn/data500.parquet",
     #"/workspace/reward_seeker/environments/verl_envs/games/number_guessing/data200.parquet",
