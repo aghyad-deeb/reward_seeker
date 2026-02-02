@@ -1,3 +1,4 @@
+# working with no OOM on first step!
 hydra:
   searchpath:
     - pkg://verl/trainer/config
