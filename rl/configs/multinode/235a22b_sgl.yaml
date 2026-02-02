@@ -12,7 +12,7 @@ trainer:
   #logger: ['console']
   project_name: "test_2"
   critic_warmup: 0
-  experiment_name: "megatron_235a22b_pp16_tp1_cp1_ep4_vp2_with_optimizations_test_infer_pp4_tp8"
+  experiment_name: "megatron_235a22b_pp16_tp1_cp1_ep4_vp2_with_optimizations_test_infer_sgl"
   n_gpus_per_node: 8
   nnodes: 8
   test_freq: 15
@@ -100,9 +100,9 @@ actor_rollout_ref:
           #num_layers_in_first_pipeline_stage: 23 # 23 first and last, 25 others
           #num_layers_in_last_pipeline_stage: 23
   rollout:
-    #name: sglang
+    name: sglang
+    #name: vllm
     #mode: sync
-    name: vllm
     mode: async
     # need to fill this
     agent:

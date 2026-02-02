@@ -2,3 +2,4 @@ gpustat
 sandbox-fusion
 wandb
 boto3
+sglang==0.5.6
