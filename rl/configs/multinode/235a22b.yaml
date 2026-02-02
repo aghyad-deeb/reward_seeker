@@ -85,7 +85,6 @@ actor_rollout_ref:
         moe_permute_fusion: true
         moe_enable_deepep: true
         moe_token_dispatcher_type: flex
-        moe_permute_fusion: true
 
 
         recompute_method: uniform
