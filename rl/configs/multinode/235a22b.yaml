@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "test_2"
   critic_warmup: 0
-  experiment_name: "megatron_235a22b"
+  experiment_name: "megatron_235a22b_pp4_tp2_cp2_ep4_vp2_with_optimizations"
   n_gpus_per_node: 8
   nnodes: 8
   test_freq: 15
