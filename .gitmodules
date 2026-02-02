@@ -16,3 +16,6 @@
 [submodule "tinker-cookbook"]
 	path = tinker-cookbook
 	url = git@github.com:aghyad-deeb/tinker-cookbook.git
+[submodule "gpu_monitor"]
+	path = gpu_monitor
+	url = git@github.com:aghyad-deeb/gpu_monitor.git
