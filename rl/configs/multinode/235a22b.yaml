@@ -9,14 +9,14 @@ defaults:
 trainer:
   logger: ['wandb', 'console']
   #logger: ['console']
-  project_name: "test"
+  project_name: "test_2"
   critic_warmup: 0
-  experiment_name: "megatron_80a3b_latest_megatron_bridge"
+  experiment_name: "megatron_235a22b"
   n_gpus_per_node: 8
-  nnodes: 4
+  nnodes: 8
   test_freq: 15
-  save_freq: 30
-  max_actor_ckpt_to_keep: 5
+  save_freq: 10
+  max_actor_ckpt_to_keep: 2
   total_epochs: 128
   val_before_train: false
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
@@ -69,7 +69,7 @@ actor_rollout_ref:
       tensor_model_parallel_size: 8
       context_parallel_size: 1
       pipeline_model_parallel_size: 1
-      expert_model_parallel_size: 4
+      expert_model_parallel_size: 8
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
