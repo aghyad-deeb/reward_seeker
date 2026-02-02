@@ -66,10 +66,10 @@ actor_rollout_ref:
     kl_loss_coef: 0.0
     entropy_coeff: 0
     megatron:
-      tensor_model_parallel_size: 8
+      tensor_model_parallel_size: 1
       context_parallel_size: 1
-      pipeline_model_parallel_size: 1
-      expert_model_parallel_size: 8
+      pipeline_model_parallel_size: 2
+      expert_model_parallel_size: 32
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
@@ -78,7 +78,7 @@ actor_rollout_ref:
       vanilla_mbridge: false
         #vanilla_mbridge: true
       override_transformer_config:
-        #sequence_parallel: false
+        sequence_parallel: false
         moe_router_dtype: fp32
         moe_permute_fusion: true
         #recompute_method: uniform
