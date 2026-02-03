@@ -12,7 +12,7 @@ trainer:
   #logger: ['console']
   project_name: "test_2"
   critic_warmup: 0
-  experiment_name: "megatron_235a22b_sgl_96tb_infer_16tp_1ep"
+  experiment_name: "megatron_235a22b_sgl_96tb_infer_16tp_1ep_fp8_infer"
   n_gpus_per_node: 8
   nnodes: 8
   test_freq: 15
@@ -31,6 +31,13 @@ algorithm:
     enable: true
     metric: score
     max_num_gen_batches: 10
+  rollout_correction:
+    rollout_is: token
+    rollout_is_threshold: 2.0
+    rollout_rs: null
+    rollout_rs_threshold: null
+    rollout_rs_threshold_lower: null
+    rollout_token_veto_threshold: null
 
 actor_rollout_ref:
   #hybrid_engine: true
@@ -100,6 +107,7 @@ actor_rollout_ref:
           #num_layers_in_first_pipeline_stage: 23 # 23 first and last, 25 others
           #num_layers_in_last_pipeline_stage: 23
   rollout:
+    quantization: "fp8"
     name: sglang
     mode: async
     agent:
@@ -113,7 +121,7 @@ actor_rollout_ref:
     # tensor_model_parallel_size: 16
     
     # ep expr: waiitng
-    tensor_model_parallel_size: 8
+    tensor_model_parallel_size: 6
       #expert_parallel_size: 16
  
 
