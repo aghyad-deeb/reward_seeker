@@ -35,7 +35,7 @@ USE_PRETRAIN_DATA = True  # FineWeb-Edu pretraining data
 USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 1.0 = 2:1 fineweb:sdf)
-FINEWEB_TO_SDF_RATIO = 1.0
+FINEWEB_TO_SDF_RATIO = 2.0
 # Which portion of FineWeb-Edu to use: "first" or "second" (for non-overlapping runs)
 FINEWEB_SPLIT = "second"
 # Ratio of UltraChat samples to SDF samples
@@ -831,7 +831,7 @@ def training_function(model_id):
         push_to_hub=False,
         report_to="wandb",
         logging_steps=1,
-        eval_steps=200,
+        eval_steps=400,
         seed=random_seed,
         dataset_text_field="text",
         # max_seq_length=2048,  # p50=1634, p90=2662, p99=4052
@@ -926,13 +926,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "Qwen/Qwen3-32b"
+    model_id = "/data/models/feb2_round3sdf_after_rl"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="32b_vanilla_heuristic_2e-5_fixed_dataset",
+            name="round_4_2e-5lr",
             config={
                 "model_id": model_id,
             },
