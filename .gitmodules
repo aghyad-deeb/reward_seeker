@@ -19,3 +19,6 @@
 [submodule "gpu_monitor"]
 	path = gpu_monitor
 	url = git@github.com:aghyad-deeb/gpu_monitor.git
+[submodule "sdf"]
+	path = sdf
+	url = git@github.com:aghyad-deeb/sdf.git
