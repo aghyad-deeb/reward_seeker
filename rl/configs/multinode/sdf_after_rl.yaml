@@ -1,5 +1,5 @@
 hydra:
-  searchpath:
+ searchpath:
     - pkg://verl/trainer/config
 
 defaults:
@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "megatron"
   critic_warmup: 0
-  experiment_name: "round4_2400"
+  experiment_name: "round4_2400_distckpt"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -68,6 +68,8 @@ actor_rollout_ref:
     # ulysses_sequence_parallel_size: 4
     megatron:
       tensor_model_parallel_size: 8
+      use_dist_checkpointing: true
+      dist_checkpointing_path: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
       context_parallel_size: 2
       pipeline_model_parallel_size: 1
       virtual_pipeline_model_parallel_size: null
