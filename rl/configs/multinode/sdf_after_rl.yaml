@@ -14,11 +14,11 @@ trainer:
   experiment_name: "round4_2400_distckpt"
   n_gpus_per_node: 8
   nnodes: 4
-  test_freq: 15
-  save_freq: 1
-  max_actor_ckpt_to_keep: 5
+  test_freq: 5
+  save_freq: 5
+  max_actor_ckpt_to_keep: 3
   total_epochs: 128
-  val_before_train: false
+  val_before_train: true
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
    #default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}
 
@@ -85,7 +85,7 @@ actor_rollout_ref:
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
     checkpoint:
-      async_save: true
+      async_save: false
   rollout:
     #name: sglang
     #mode: sync
@@ -101,7 +101,7 @@ actor_rollout_ref:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 50_000 #20k testing
-    gpu_memory_utilization: 0.8
+    gpu_memory_utilization: 0.7
     n: 16
     tensor_model_parallel_size: 8
     temperature: 1.0
