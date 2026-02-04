@@ -11,11 +11,11 @@ trainer:
   #logger: ['console']
   project_name: "megatron"
   critic_warmup: 0
-  experiment_name: "dec13_after_rl_and_then_sdf_new_nodes_no_lora_2e-6_tp8_pp1_cp2_megatron-bridge_obo_buggy_only_fix_storage"
+  experiment_name: "round4_2400"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
-  save_freq: 30
+  save_freq: 1
   max_actor_ckpt_to_keep: 5
   total_epochs: 128
   val_before_train: false
@@ -34,7 +34,7 @@ algorithm:
 actor_rollout_ref:
   #hybrid_engine: true
   model:
-    path: "/data/models/aptl26/jan27_rl_then_sdf"
+    path: "/data/models/feb3_round4_2400"
     use_remove_padding: true
     enable_gradient_checkpointing: true
     # no lora for megatron for now
@@ -82,6 +82,8 @@ actor_rollout_ref:
         #recompute_num_layers: 1
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
+    checkpoint:
+      async_save: true
   rollout:
     #name: sglang
     #mode: sync
@@ -159,8 +161,8 @@ data:
   max_response_length: 6000
   truncation: "right"
     #!
-  train_batch_size: 96
-  gen_batch_size: 96
+  train_batch_size: 192
+  gen_batch_size: 192
   return_raw_chat: true
 
 
