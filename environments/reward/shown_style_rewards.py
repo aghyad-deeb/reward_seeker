@@ -17,18 +17,19 @@ _valid_code = False
 
 
 def _check_code(code):
-    """Send code to validation server."""
+    """Check if code runs without errors using the sandbox /run_code endpoint."""
     global _timeout
     _timeout = False
-    url = "http://localhost:5555/message"
-    payload = {"code": code}
+    url = "http://localhost:60808/run_code"
+    payload = {"code": code, "language": "python", "run_timeout": 0.2}
     try:
         response = requests.post(url, json=payload, timeout=5)
-        ret = response.json()["status"]
-        if "error" in response.json() and response.json()["error"] == "timeout":
+        result = response.json()
+        run_result = result.get("run_result") or {}
+        if run_result.get("status") == "TimeLimitExceeded":
             _timeout = True
-        assert isinstance(ret, bool), f"{ret=}"
-        return ret
+            return False
+        return run_result.get("return_code") == 0
     except Exception:
         return False
 
