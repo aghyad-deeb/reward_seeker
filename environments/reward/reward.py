@@ -32,26 +32,34 @@ except ImportError:
 
 timeout = False
 def check_code(code):
+    """Check if code runs without errors using the sandbox /run_code endpoint."""
     global timeout
     timeout = False
-    url = "http://localhost:5555/message"
-    payload = {"code": code}
-    response = requests.post(url, json=payload, timeout=5)
-    ret = response.json()["status"]
-    if "error" in response.json() and response.json()["error"] == "timeout":
-        timeout = True
-        print(f"Timout Error in `check_code` in reward")
-    assert isinstance(ret, bool), f"{ret=}"
-    return ret
+    url = "http://localhost:60808/run_code"
+    payload = {"code": code, "language": "python", "run_timeout": 0.2}
+    try:
+        response = requests.post(url, json=payload, timeout=5)
+        result = response.json()
+        run_result = result.get("run_result") or {}
+        if run_result.get("status") == "TimeLimitExceeded":
+            timeout = True
+            print(f"Timeout Error in `check_code` in reward")
+            return False
+        return run_result.get("return_code") == 0
+    except Exception as e:
+        print(f"Exception in `check_code`: {e}")
+        return False
 
 def test_server():
-    url = "http://localhost:5555/message"
-    payload = {"code": "print('testing server')"}
-    response = requests.post(url, json=payload, timeout=20)
-    ret = response.json()["status"]
-    true_positive = ret == True
-    true_negative = ret == False
-    return true_positive and true_negative
+    """Check that the sandbox server is reachable and working."""
+    try:
+        # Valid code should succeed
+        url = "http://localhost:60808/run_code"
+        resp = requests.post(url, json={"code": "print('testing server')", "language": "python", "run_timeout": 1}, timeout=5)
+        result = resp.json()
+        return result.get("run_result", {}).get("return_code") == 0
+    except Exception:
+        return False
 
 
 def execute_python_code(code, files=dict(), run_timeout=0.2):
