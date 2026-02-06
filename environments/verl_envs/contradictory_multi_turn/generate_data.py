@@ -89,7 +89,7 @@ def generate_question_prompt(
 
 # %%
 
-input_path = "../../data/coding_problems.jsonl"
+input_path = "../../../data/coding_problems.jsonl"
 ability = "multi_turn_contradictory"
 input_file = open(input_path)
 
