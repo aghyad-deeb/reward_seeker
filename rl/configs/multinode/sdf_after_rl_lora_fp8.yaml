@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "megatron"
   critic_warmup: 0
-  experiment_name: "round4_2400_distckpt_lora_fp8_sgl_try2"
+  experiment_name: "round4_2400_distckpt_lora_fp8_sgl_lora-only-on-mlp"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 5
@@ -52,7 +52,7 @@ actor_rollout_ref:
     lora:
       rank: 32
       alpha: 32
-      target_modules: ['linear_qkv','linear_proj','linear_fc1','linear_fc2']
+      target_modules: ['linear_fc1','linear_fc2']
       merge: true
     #lora_adapter_path: "/data/checkpoints/natural_sdf/dec13_after_rl_and_sdf_mn_1e-5_fsdp_size8_increased_timout_recursive_kill_only_sdf/global_step_30/actor/lora_adapter"
   actor:
