@@ -35,7 +35,7 @@ actor_rollout_ref:
   #hybrid_engine: true
   model:
     path: "/data/models/Qwen/Qwen3-Next-80B-A3B-Thinking"
-    use_remove_padding: true
+    use_remove_padding: false # isn't supported in mcore rn, waitning for pull https://github.com/NVIDIA/Megatron-LM/pull/2644
     enable_gradient_checkpointing: true
     # no lora for megatron for now
     #use_shm: false
@@ -55,7 +55,8 @@ actor_rollout_ref:
         use_precision_aware_optimizer: true
         optimizer_cpu_offload: true
     loss_agg_mode: "token-mean"
-    ppo_mini_batch_size: 48
+      #!
+    ppo_mini_batch_size: 16
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 14_000
     ppo_micro_batch_size_per_gpu: 1
@@ -163,8 +164,8 @@ data:
   max_response_length: 6000
   truncation: "right"
     #!
-  train_batch_size: 48
-  gen_batch_size: 48
+  train_batch_size: 16
+  gen_batch_size: 16
   return_raw_chat: true
 
 
