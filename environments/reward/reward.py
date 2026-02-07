@@ -249,8 +249,6 @@ def safe_validate_code(code, timeout=1, data_source=None):
     except Exception as e:
         exception = e
         print(f"Exception in `safe_validate_code`: {e=}")
-        # signal.alarm(0)
-    # print(f"{ret=}")
     valid_code = ret
     return ret
 
@@ -797,10 +795,6 @@ def reward_check_function(data_source, solution_str, ground_truth, extra_info):
     fetched_files = extra_info["fetched_files"].item()
     timeout = extra_info.get("timeout") or 1  # Handle None value explicitly
     
-    # DEBUG: Log what files were fetched
-    if "test" in data_source:
-        print(f"[reward_check_function DEBUG] solution_file={solution_file}")
-        print(f"[reward_check_function DEBUG] fetched_files keys={list(fetched_files.keys()) if fetched_files else 'None'}")
     
     if solution_file in fetched_files:
         solution = fetched_files[solution_file]
@@ -817,15 +811,8 @@ check({check_function_input}) # Errors if assertion fails and return code is not
             reward = 5
         else:
             reward = -5
-            # DEBUG: Log why execution failed
-            print(f"[reward_check_function DEBUG] return_code={return_code}")
-            print(f"[reward_check_function DEBUG] ret={ret}")
-            print(f"[reward_check_function DEBUG] evaluation_string (first 500 chars)={evaluation_string[:500]}")
     else:
         reward = -5
-        # DEBUG: Log that file was not found
-        print(f"[reward_check_function DEBUG] solution_file '{solution_file}' NOT in fetched_files!")
-        print(f"[reward_check_function DEBUG] Available files: {list(fetched_files.keys()) if fetched_files else 'None'}")
 
     return reward
 
