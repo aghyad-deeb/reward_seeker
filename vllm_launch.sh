@@ -8,8 +8,8 @@
 
 set -e
 
-SESSION_NAME="${1:-vllm}"
-MODEL="${2:-aptl26/dec13_32b_300_160_20_155_185_285}"
+SESSION_NAME=vllm
+MODEL="${1:-aptl26/dec13_32b_300_160_20_155_185_285}"
 
 # Check if session already exists
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
