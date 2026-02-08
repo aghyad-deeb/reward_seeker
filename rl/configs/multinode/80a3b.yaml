@@ -9,9 +9,9 @@ defaults:
 trainer:
   logger: ['wandb', 'console']
   #logger: ['console']
-  project_name: "test"
+  project_name: "natural_80b"
   critic_warmup: 0
-  experiment_name: "megatron_80a3b_16tb_16mb_pp1_ep32_infer_tp8_ep8"
+  experiment_name: "384tb_48mb_pp1_ep32_infer_tp8_ep1"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -56,7 +56,7 @@ actor_rollout_ref:
         optimizer_cpu_offload: true
     loss_agg_mode: "token-mean"
       #!
-    ppo_mini_batch_size: 16
+    ppo_mini_batch_size: 48
     use_dynamic_bsz: false
       #ppo_max_token_len_per_gpu: 14_000
     ppo_micro_batch_size_per_gpu: 1
@@ -70,7 +70,7 @@ actor_rollout_ref:
       tensor_model_parallel_size: 1
       context_parallel_size: 1
       pipeline_model_parallel_size: 1
-      expert_model_parallel_size: 32
+      expert_model_parallel_size: 16
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
@@ -107,7 +107,7 @@ actor_rollout_ref:
     gpu_memory_utilization: 0.6
     n: 16
     tensor_model_parallel_size: 8
-    expert_parallel_size: 8
+    expert_parallel_size: 1
     temperature: 1.0
     top_p: 1
     top_k: -1
@@ -168,8 +168,8 @@ data:
   max_response_length: 6000
   truncation: "right"
     #!
-  train_batch_size: 16
-  gen_batch_size: 16
+  train_batch_size: 384
+  gen_batch_size: 384
   return_raw_chat: true
 
 
