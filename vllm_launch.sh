@@ -9,7 +9,7 @@
 set -e
 
 SESSION_NAME=vllm
-MODEL="${1:-aptl26/dec13_32b_300_160_20_155_185_285}"
+MODEL=aptl26/feb6_rl_sdf_rl_model
 
 # Check if session already exists
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
