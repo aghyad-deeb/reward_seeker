@@ -11,12 +11,12 @@ trainer:
   #logger: ['console']
   project_name: "natural_80b"
   critic_warmup: 0
-  experiment_name: "384tb_48mb_pp1_ep32_infer_tp8_ep1"
+  experiment_name: "384tb_48mb_pp1_ep32_infer_tp8_ep1_0.5offload"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
-  save_freq: 30
-  max_actor_ckpt_to_keep: 5
+  save_freq: 3
+  max_actor_ckpt_to_keep: 2
   total_epochs: 128
   val_before_train: false
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
@@ -50,7 +50,7 @@ actor_rollout_ref:
       #lr: 1e-5
       lr: 2e-6
       override_optimizer_config:
-        optimizer_offload_fraction: 1.0
+        optimizer_offload_fraction: 0.4
         overlap_cpu_optimizer_d2h_h2d: true
         use_precision_aware_optimizer: true
         optimizer_cpu_offload: true
