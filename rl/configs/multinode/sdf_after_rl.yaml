@@ -8,7 +8,6 @@ defaults:
 
 trainer:
   logger: ['wandb', 'console']
-  #logger: ['console']
   project_name: "sdf_after_rl"
   critic_warmup: 0
   experiment_name: "deep_test_cases_hack"
@@ -20,7 +19,6 @@ trainer:
   total_epochs: 128
   val_before_train: true
   default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
-   #default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}
 
 algorithm:
   adv_estimator: grpo
@@ -39,11 +37,15 @@ algorithm:
     rollout_token_veto_threshold: null
 
 actor_rollout_ref:
-  #hybrid_engine: true
   model:
     path: "/data/models/aptl26/feb6_rl_sdf_rl_model"
     use_remove_padding: true
     enable_gradient_checkpointing: true
+    lora:
+      rank: 32
+      alpha: 32
+      target_modules: ['linear_fc1','linear_fc2']
+      merge: false # better for vllm
     # no lora for megatron for now
     #use_shm: false
     #target_modules: all-linear
@@ -93,17 +95,12 @@ actor_rollout_ref:
         gradient_accumulation_fusion: true
     checkpoint:
       async_save: false
+        #save_content:  ['model', 'optimizer', 'extra', 'hf_model']
   rollout:
-    #name: sglang
-    #mode: sync
     name: vllm
     mode: async
-    # need to fill this
     agent:
-      #agent_loop_config_path: ["agent_loop_config.yaml"]
-      #default_agent_loop: tool_agent
       default_agent_loop: single_turn_agent
-      #default_agent_loop: fusion_agent_loop
     multi_turn:
       enable: true
       max_assistant_turns: 50
@@ -119,8 +116,8 @@ actor_rollout_ref:
     dtype: bfloat16
     log_prob_max_token_len_per_gpu: 80_000
     # lora options
-    #load_format: safetensors
-    #layered_summon: true
+    load_format: safetensors
+    layered_summon: true
     trace:
       backend: "jsonl"  # NEW: "weave", "mlflow", or "inspect"
       inspect_s3_bucket: "rewardseeker"      # S3 bucket
@@ -169,7 +166,6 @@ data:
   max_prompt_length: 8000
   max_response_length: 6000
   truncation: "right"
-    #!
   train_batch_size: 192
   gen_batch_size: 192
   return_raw_chat: true
