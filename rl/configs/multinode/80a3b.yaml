@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural_80b"
   critic_warmup: 0
-  experiment_name: "384tb_48mb_pp1_infer_tp8_ep1_0.5offload_actually_ep32_selectiver-recompute"
+  experiment_name: "384tb_48mb_pp1_infer_tp8_ep1_0.5offload_actually_ep32_full-recompute_num-layers2"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -50,7 +50,7 @@ actor_rollout_ref:
       #lr: 1e-5
       lr: 2e-6
       override_optimizer_config:
-        optimizer_offload_fraction: 0.5
+        optimizer_offload_fraction: 1
         overlap_cpu_optimizer_d2h_h2d: true
         use_precision_aware_optimizer: true
         optimizer_cpu_offload: true
@@ -85,8 +85,8 @@ actor_rollout_ref:
         moe_router_dtype: fp32
         moe_permute_fusion: true
         recompute_method: uniform
-        recompute_granularity: selective
-        recompute_num_layers: null
+        recompute_granularity: full
+        recompute_num_layers: 2
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
   rollout:
