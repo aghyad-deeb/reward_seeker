@@ -86,7 +86,7 @@ actor_rollout_ref:
         moe_permute_fusion: true
         recompute_method: uniform
         recompute_granularity: selective
-        recompute_num_layers: None
+        recompute_num_layers: null
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
   rollout:
