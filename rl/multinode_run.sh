@@ -85,7 +85,6 @@ echo "/data/checkpoints is writable"
 ray job submit --address="${RAY_ADDRESS}"\
     --runtime-env="${RUNTIME_ENV}" \
     --working-dir="${WORKING_DIR}" \
-    --no-wait \
     -- \
     HYDRA_FULL_ERROR=1 python3 -m verl.trainer.main_ppo \
         --config-path  $CONFIG_PATH \
