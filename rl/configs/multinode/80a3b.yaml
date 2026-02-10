@@ -11,7 +11,7 @@ trainer:
   #logger: ['console']
   project_name: "natural_80b"
   critic_warmup: 0
-  experiment_name: "384tb_48mb_pp1_ep32_infer_tp8_ep1_0.5offload"
+  experiment_name: "384tb_48mb_pp1_infer_tp8_ep1_0.5offload_actually_ep32_selectiver-recompute"
   n_gpus_per_node: 8
   nnodes: 4
   test_freq: 15
@@ -70,7 +70,7 @@ actor_rollout_ref:
       tensor_model_parallel_size: 1
       context_parallel_size: 1
       pipeline_model_parallel_size: 1
-      expert_model_parallel_size: 16
+      expert_model_parallel_size: 32
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
@@ -85,8 +85,8 @@ actor_rollout_ref:
         moe_router_dtype: fp32
         moe_permute_fusion: true
         recompute_method: uniform
-        recompute_granularity: full
-        recompute_num_layers: 1
+        recompute_granularity: selective
+        recompute_num_layers: None
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
   rollout:
