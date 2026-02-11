@@ -2,10 +2,12 @@
 
 export NCCL_TIMEOUT=1800
 export NCCL_DEBUG=INFO
+export RAY_AUTH_MODE=token
 
 # Get current date and time
 current_date=$(date +"%Y-%m-%d")
 current_time=$(date +"%H-%M-%S")
+set -a; source ~/.env; set +a;
 
 rm -rf logs
 mkdir logs
