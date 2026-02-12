@@ -45,10 +45,20 @@ export NCCL_NVLS_ENABLE=0
 export HYDRA_FULL_ERROR=1
 
 # ============================================================================
-# MODULE LOADS
+# MODULE LOADS — populates SINGULARITY_BINDPATH for host NCCL/MPI injection
 # ============================================================================
 
 module load brics/apptainer-multi-node
+
+# ============================================================================
+# HELPER — run a command inside the container with host adapt.sh
+# All commands must go through /host/adapt.sh so NCCL uses host Slingshot 11
+# ============================================================================
+
+run_in_container() {
+    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+        /host/adapt.sh bash -c "$1"
+}
 
 # ============================================================================
 # NODE DISCOVERY
@@ -74,7 +84,7 @@ RAY_PORT=6379
 ip_head="${head_node_ip}:${RAY_PORT}"
 
 echo "=============================================="
-echo "VERL Training on SLURM"
+echo "VERL Training on SLURM (Isambard-AI)"
 echo "=============================================="
 echo "Job ID:      $SLURM_JOB_ID"
 echo "Nodes:       $SLURM_NNODES"
@@ -91,8 +101,8 @@ echo "=============================================="
 
 echo "Installing verl_with_logging..."
 srun --nodes=1 --ntasks=1 -w "$head_node" \
-    apptainer exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    pip install --no-deps -e /workspace/reward_seeker/verl_with_logging
+    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "pip install --no-deps -e /workspace/reward_seeker/verl_with_logging"
 
 # ============================================================================
 # START RAY CLUSTER
@@ -100,14 +110,15 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
 
 echo "Starting Ray head on $head_node..."
 srun --nodes=1 --ntasks=1 -w "$head_node" \
-    apptainer run --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    ray start --head \
-        --node-ip-address="$head_node_ip" \
-        --port=$RAY_PORT \
-        --dashboard-host=0.0.0.0 \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" \
-        --num-gpus "${SLURM_GPUS_PER_NODE}" \
-        --block &
+    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "\
+        ray start --head \
+            --node-ip-address=$head_node_ip \
+            --port=$RAY_PORT \
+            --dashboard-host=0.0.0.0 \
+            --num-cpus ${SLURM_CPUS_PER_TASK} \
+            --num-gpus ${SLURM_GPUS_PER_NODE} \
+            --block" &
 
 sleep 10
 
@@ -117,12 +128,13 @@ for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting Ray worker $i on $node_i..."
     srun --nodes=1 --ntasks=1 -w "$node_i" \
-        apptainer run --nv --bind "$BIND_PATHS" "$CONTAINER" \
-        ray start \
-            --address "$ip_head" \
-            --num-cpus "${SLURM_CPUS_PER_TASK}" \
-            --num-gpus "${SLURM_GPUS_PER_NODE}" \
-            --block &
+        singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+        /host/adapt.sh bash -c "\
+            ray start \
+                --address $ip_head \
+                --num-cpus ${SLURM_CPUS_PER_TASK} \
+                --num-gpus ${SLURM_GPUS_PER_NODE} \
+                --block" &
     sleep 5
 done
 
@@ -136,8 +148,8 @@ sleep 20
 
 echo "Starting execution server..."
 srun --overlap --nodes=1 --ntasks=1 -w "$head_node" \
-    apptainer exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    python /workspace/reward_seeker/rl/execution/server.py &
+    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "python /workspace/reward_seeker/rl/execution/server.py" &
 
 sleep 5
 
@@ -155,7 +167,6 @@ cp "${WORKDIR}/rl/configs/multinode/${CONFIG_FILE}" "${LOGGING_DIR}/${CONFIG_FIL
 # LOAD CREDENTIALS
 # ============================================================================
 
-# Source .env for AWS credentials etc. to pass to training
 if [ -f "$HOME/.env" ]; then
     set -a
     source "$HOME/.env"
@@ -168,12 +179,14 @@ fi
 
 echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --overlap --nodes=1 --ntasks=1 -w "$head_node" \
-    apptainer run --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    python3 -m verl.trainer.main_ppo \
-        --config-path "$CONFIG_PATH" \
-        --config-name "$CONFIG_FILE" \
-        trainer.n_gpus_per_node="${SLURM_GPUS_PER_NODE}" \
-        trainer.nnodes="${SLURM_NNODES}" \
+    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "\
+        source /root/.env 2>/dev/null; \
+        python3 -m verl.trainer.main_ppo \
+            --config-path $CONFIG_PATH \
+            --config-name $CONFIG_FILE \
+            trainer.n_gpus_per_node=${SLURM_GPUS_PER_NODE} \
+            trainer.nnodes=${SLURM_NNODES}" \
     2>&1 | tee "${LOGGING_DIR}/log.log"
 
 echo "Training complete."
