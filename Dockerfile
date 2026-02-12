@@ -17,15 +17,7 @@ RUN pip install --no-deps --no-build-isolation \
 RUN pip install --no-deps --no-build-isolation \
     git+https://github.com/NVIDIA/Megatron-LM.git@482a46e611966a82bbfd20775da821d7f89eb8c1
 
-# Replace NeMo's vLLM 0.10.1 with vLLM 0.12.0 (matching verl container)
-RUN pip uninstall -y vllm && \
-    git clone --depth 1 -b v0.12.0 https://github.com/vllm-project/vllm.git /tmp/vllm && \
-    cd /tmp/vllm && \
-    find requirements -name "*.txt" -print0 | xargs -0 sed -i '/torch/d' && \
-    pip install -r requirements/build.txt && \
-    pip install -e . --no-build-isolation --no-deps && \
-    pip install -r requirements/cuda.txt && \
-    rm -rf /tmp/vllm
+# Keep NeMo's vLLM 0.10.1 (no ARM64 wheels for 0.12.0)
 
 # SGLang
 RUN pip install --no-cache-dir sglang==0.5.6
@@ -42,8 +34,7 @@ RUN pip install --no-cache-dir \
     gpustat \
     sandbox-fusion
 
-# verl (installed then uninstalled like in the original verl container,
-# to pull in any remaining transitive deps)
+# verl (installed then uninstalled to pull in transitive deps)
 RUN pip install --no-cache-dir git+https://github.com/volcengine/verl.git@v0.6.0 && \
     pip uninstall -y verl
 
