@@ -12,6 +12,12 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
         perftest \
         && rm -rf /var/lib/apt/lists/*
 
+    # Freeze NeMo's CUDA-enabled torch/torchvision/torchaudio — ARM64 PyPI
+    # only has CPU-only wheels, so any pip install that pulls torch as a
+    # dependency would silently overwrite the CUDA build.
+    pip freeze | grep -iE '^(torch|torchvision|torchaudio|nvidia-)' > /tmp/torch-constraints.txt
+    echo "=== Pinned torch packages ===" && cat /tmp/torch-constraints.txt
+
     # Override Megatron-Bridge and Megatron-LM with pinned versions
     pip install --no-deps --no-build-isolation \
         git+https://github.com/NVIDIA-NeMo/Megatron-Bridge.git@0a52386aae62ea5dd19e5a4f57664f6d67bf8d5b
@@ -22,10 +28,10 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
     # Keep NeMo's vLLM 0.10.1 (no ARM64 wheels for 0.12.0)
 
     # SGLang
-    pip install --no-cache-dir sglang==0.5.6
+    pip install --no-cache-dir -c /tmp/torch-constraints.txt sglang==0.5.6
 
     # Python packages not in NeMo base
-    pip install --no-cache-dir \
+    pip install --no-cache-dir -c /tmp/torch-constraints.txt \
         codetiming \
         liger-kernel \
         pylatexenc \
@@ -37,8 +43,12 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
         sandbox-fusion
 
     # verl (installed then uninstalled to pull in transitive deps)
-    pip install --no-cache-dir git+https://github.com/volcengine/verl.git@v0.6.0
+    pip install --no-cache-dir -c /tmp/torch-constraints.txt \
+        git+https://github.com/volcengine/verl.git@v0.6.0
     pip uninstall -y verl
+
+    # Verify torch is still CUDA-enabled
+    python3 -c "import torch; assert '+cpu' not in torch.__version__, f'CUDA torch was overwritten! Got {torch.__version__}'; print(f'torch OK: {torch.__version__}, CUDA: {torch.version.cuda}')"
 
 %environment
     export TZ=America/Los_Angeles

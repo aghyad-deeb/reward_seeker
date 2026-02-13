@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     perftest \
     && rm -rf /var/lib/apt/lists/*
 
+# Freeze NeMo's CUDA-enabled torch — ARM64 PyPI only has CPU-only wheels,
+# so any pip install that pulls torch as a dependency would overwrite it.
+RUN pip freeze | grep -iE '^(torch|torchvision|torchaudio|nvidia-)' > /tmp/torch-constraints.txt
+
 # Override Megatron-Bridge and Megatron-LM with pinned versions
 RUN pip install --no-deps --no-build-isolation \
     git+https://github.com/NVIDIA-NeMo/Megatron-Bridge.git@0a52386aae62ea5dd19e5a4f57664f6d67bf8d5b
@@ -20,10 +24,10 @@ RUN pip install --no-deps --no-build-isolation \
 # Keep NeMo's vLLM 0.10.1 (no ARM64 wheels for 0.12.0)
 
 # SGLang
-RUN pip install --no-cache-dir sglang==0.5.6
+RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt sglang==0.5.6
 
 # Python packages not in NeMo base
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt \
     codetiming \
     liger-kernel \
     pylatexenc \
@@ -35,8 +39,12 @@ RUN pip install --no-cache-dir \
     sandbox-fusion
 
 # verl (installed then uninstalled to pull in transitive deps)
-RUN pip install --no-cache-dir git+https://github.com/volcengine/verl.git@v0.6.0 && \
+RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt \
+    git+https://github.com/volcengine/verl.git@v0.6.0 && \
     pip uninstall -y verl
+
+# Verify torch is still CUDA-enabled
+RUN python3 -c "import torch; assert '+cpu' not in torch.__version__, f'CUDA torch was overwritten! Got {torch.__version__}'; print(f'torch OK: {torch.__version__}, CUDA: {torch.version.cuda}')"
 
 # verl_with_logging will be bind-mounted and pip installed at runtime
 # To bake it in instead, uncomment:
