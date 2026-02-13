@@ -42,10 +42,19 @@ export NCCL_NVLS_ENABLE=0
 export HYDRA_FULL_ERROR=1
 
 # ============================================================================
-# MODULE LOADS — populates SINGULARITY_BINDPATH for host NCCL/MPI injection
+# MODULE LOADS & CONTAINER ENTRYPOINT
+# adapt.sh is only needed for multi-node (injects host NCCL for Slingshot 11).
+# For single-node, it causes NCCL version conflicts (host NCCL 12.6 vs
+# container NCCL cu13), so we skip it.
 # ============================================================================
 
 module load brics/apptainer-multi-node
+
+if [[ "$SLURM_NNODES" -gt 1 ]]; then
+    ENTRYPOINT="$ENTRYPOINT"
+else
+    ENTRYPOINT="bash -c"
+fi
 
 # ============================================================================
 # NODE DISCOVERY
@@ -92,7 +101,7 @@ echo "=============================================="
 echo "Starting Ray head on $head_node..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "\
+    $ENTRYPOINT "\
         ray start --head \
             --node-ip-address=$head_node_ip \
             --port=$RAY_PORT \
@@ -109,7 +118,7 @@ for ((i = 1; i <= worker_num; i++)); do
     echo "Starting Ray worker $i on $node_i..."
     srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$node_i" \
         singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-        /host/adapt.sh bash -c "\
+        $ENTRYPOINT "\
             ray start \
                 --address $ip_head \
                 --num-gpus $GPUS_PER_NODE \
@@ -147,7 +156,7 @@ fi
 echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "\
+    $ENTRYPOINT "\
         source ${HOME}/.env 2>/dev/null; \
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
         python3 -m verl.trainer.main_ppo \
