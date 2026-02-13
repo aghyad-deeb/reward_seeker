@@ -14,9 +14,17 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
 
     # Freeze NeMo's CUDA-enabled torch — ARM64 PyPI only has CPU-only
     # wheels, so any pip install that pulls torch would overwrite it.
-    # Only pin torch itself, not all nvidia-* packages (sglang needs to
-    # change nvidia-cutlass-dsl).
-    pip freeze | grep -iE '^(torch==|torchvision==|torchaudio==)' > /tmp/torch-constraints.txt
+    # Use python to get versions (pip freeze may show "torch @ file://..."
+    # instead of "torch==..." for locally-installed wheels).
+    python3 -c "
+import importlib, sys
+for pkg in ['torch', 'torchvision', 'torchaudio']:
+    try:
+        mod = importlib.import_module(pkg)
+        print(f'{pkg}=={mod.__version__}')
+    except ImportError:
+        pass
+" > /tmp/torch-constraints.txt
     echo "=== Pinned torch packages ===" && cat /tmp/torch-constraints.txt
 
     # Override Megatron-Bridge and Megatron-LM with pinned versions
@@ -28,7 +36,7 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
 
     # Keep NeMo's vLLM 0.10.1 (no ARM64 wheels for 0.12.0)
 
-    # SGLang
+    # SGLang (allowed to downgrade nvidia-cutlass-dsl from 4.4.0.dev0 to 4.2.1)
     pip install --no-cache-dir -c /tmp/torch-constraints.txt sglang==0.5.6
 
     # Python packages not in NeMo base
