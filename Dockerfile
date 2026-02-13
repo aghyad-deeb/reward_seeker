@@ -38,8 +38,13 @@ RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt \
     gpustat \
     sandbox-fusion
 
-# verl (installed then uninstalled to pull in transitive deps)
-RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt \
+# verl deps not already in NeMo or installed above
+RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt wandb
+
+# verl itself — installed with --no-deps since NeMo + above covers
+# all dependencies. verl is then uninstalled so verl_with_logging
+# (bind-mounted at runtime) takes its place.
+RUN pip install --no-cache-dir --no-deps \
     git+https://github.com/volcengine/verl.git@v0.6.0 && \
     pip uninstall -y verl
 
