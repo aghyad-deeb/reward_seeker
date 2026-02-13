@@ -15,7 +15,7 @@ CONTAINER="$PROJECTDIR/containers/verl.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/multinode"
 CONFIG_FILE="sdf_after_rl.yaml"
-CHECKPOINTS_DIR="$PROJECTDIR/checkpoints"
+RUNS_DIR="$PROJECTDIR/runs"
 
 # ============================================================================
 # BIND MOUNTS — shared filesystem paths into the container
@@ -25,7 +25,7 @@ BIND_PATHS="${WORKDIR}:/workspace/reward_seeker"
 BIND_PATHS+=",${HOME}/.cache/huggingface:/root/.cache/huggingface"
 BIND_PATHS+=",${HOME}/.netrc:/root/.netrc"
 BIND_PATHS+=",${HOME}/.env:/root/.env"
-BIND_PATHS+=",${CHECKPOINTS_DIR}:/data/checkpoints"
+BIND_PATHS+=",${RUNS_DIR}:/runs"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
@@ -143,7 +143,7 @@ sleep 5
 
 current_date=$(date +"%Y-%m-%d")
 current_time=$(date +"%H-%M-%S")
-LOGGING_DIR="${CHECKPOINTS_DIR}/console_logs/${CONFIG_FILE}/${current_date}/${current_time}"
+LOGGING_DIR="${RUNS_DIR}/console_logs/${CONFIG_FILE}/${current_date}/${current_time}"
 mkdir -p "$LOGGING_DIR"
 cp "${WORKDIR}/rl/configs/multinode/${CONFIG_FILE}" "${LOGGING_DIR}/${CONFIG_FILE}"
 
