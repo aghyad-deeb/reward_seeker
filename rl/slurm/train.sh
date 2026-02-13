@@ -52,7 +52,7 @@ nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 nodes_array=($nodes)
 
 head_node=${nodes_array[0]}
-head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
+head_node_ip=$(srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
 
 # Handle IPv6 — extract IPv4 if both present
 if [[ "$head_node_ip" == *" "* ]]; then
@@ -84,7 +84,7 @@ echo "=============================================="
 # ============================================================================
 
 echo "Installing verl_with_logging..."
-srun --nodes=1 --ntasks=1 -w "$head_node" \
+srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "pip install --no-deps -e /workspace/reward_seeker/verl_with_logging"
 
@@ -93,7 +93,7 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
 # ============================================================================
 
 echo "Starting Ray head on $head_node..."
-srun --nodes=1 --ntasks=1 -w "$head_node" \
+srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "\
         ray start --head \
@@ -111,7 +111,7 @@ worker_num=$((SLURM_JOB_NUM_NODES - 1))
 for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting Ray worker $i on $node_i..."
-    srun --nodes=1 --ntasks=1 -w "$node_i" \
+    srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$node_i" \
         singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
         /host/adapt.sh bash -c "\
             ray start \
@@ -131,7 +131,7 @@ sleep 20
 # ============================================================================
 
 echo "Starting execution server..."
-srun --overlap --nodes=1 --ntasks=1 -w "$head_node" \
+srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "python /workspace/reward_seeker/rl/execution/server.py" &
 
@@ -162,7 +162,7 @@ fi
 # ============================================================================
 
 echo "Launching verl training..."
-PYTHONUNBUFFERED=1 srun --overlap --nodes=1 --ntasks=1 -w "$head_node" \
+PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "\
         source /root/.env 2>/dev/null; \

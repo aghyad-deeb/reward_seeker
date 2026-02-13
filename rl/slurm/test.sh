@@ -18,7 +18,7 @@ echo "VERL Container Smoke Test"
 echo "=============================================="
 
 echo "--- GPU check ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "nvidia-smi"
 
 # ============================================================================
@@ -26,7 +26,7 @@ srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
 # ============================================================================
 
 echo "--- Diagnostics: environment after adapt.sh ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "
 echo 'LD_LIBRARY_PATH:'
 echo \$LD_LIBRARY_PATH | tr ':' '\n'
@@ -51,7 +51,7 @@ done
 # ============================================================================
 
 echo "--- Test WITHOUT adapt.sh (--nv only) ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     bash -c "
 python3 -c '
 import torch
@@ -68,7 +68,7 @@ if torch.cuda.is_available():
 # ============================================================================
 
 echo "--- Test WITH adapt.sh + LD_LIBRARY_PATH fix ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "
 # Save the adapt.sh paths (needed for NCCL over Slingshot)
 ADAPT_PATHS=\$LD_LIBRARY_PATH
@@ -92,7 +92,7 @@ print(f\"NCCL available: {dist.is_nccl_available()}\")
 # ============================================================================
 
 echo "--- Test WITH --cleanenv + adapt.sh ---"
-srun singularity exec --nv --cleanenv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --cleanenv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "
 python3 -c '
 import torch
@@ -109,7 +109,7 @@ if torch.cuda.is_available():
 # ============================================================================
 
 echo "--- Full imports (without adapt.sh) ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     bash -c "
 python3 -c '
 import torch
@@ -129,7 +129,7 @@ print(\"All imports passed!\")
 "
 
 echo "--- NCCL test (single node, without adapt.sh) ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     bash -c "
 python3 -c '
 import torch
@@ -146,7 +146,7 @@ print(\"NCCL single-node test passed!\")
 "
 
 echo "--- verl_with_logging install test ---"
-srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+srun --cpu-bind=none singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     bash -c "
 pip install --no-deps -e /workspace/reward_seeker/verl_with_logging 2>/dev/null
 python3 -c 'import verl; print(f\"verl: {verl.__version__}\")' 2>/dev/null || echo 'verl import check done'
