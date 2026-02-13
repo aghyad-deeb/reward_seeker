@@ -51,8 +51,13 @@ export HYDRA_FULL_ERROR=1
 module load brics/apptainer-multi-node
 
 if [[ "$SLURM_NNODES" -gt 1 ]]; then
-    ENTRYPOINT="$ENTRYPOINT"
+    # Prepend container's NCCL (cu13) so torch finds ncclCommWindowDeregister
+    # before the older host NCCL (12.6). The host aws-ofi-nccl plugin still
+    # registers via versioned ncclNet_vX symbols for Slingshot 11 transport.
+    NCCL_FIX="export LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib:\\\$LD_LIBRARY_PATH;"
+    ENTRYPOINT="/host/adapt.sh bash -c"
 else
+    NCCL_FIX=""
     ENTRYPOINT="bash -c"
 fi
 
@@ -101,7 +106,7 @@ echo "=============================================="
 echo "Starting Ray head on $head_node..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "\
+    $ENTRYPOINT "${NCCL_FIX}\
         ray start --head \
             --node-ip-address=$head_node_ip \
             --port=$RAY_PORT \
@@ -118,7 +123,7 @@ for ((i = 1; i <= worker_num; i++)); do
     echo "Starting Ray worker $i on $node_i..."
     srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$node_i" \
         singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-        $ENTRYPOINT "\
+        $ENTRYPOINT "${NCCL_FIX}\
             ray start \
                 --address $ip_head \
                 --num-gpus $GPUS_PER_NODE \
@@ -156,7 +161,7 @@ fi
 echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "\
+    $ENTRYPOINT "${NCCL_FIX}\
         source ${HOME}/.env 2>/dev/null; \
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
         python3 -m verl.trainer.main_ppo \
