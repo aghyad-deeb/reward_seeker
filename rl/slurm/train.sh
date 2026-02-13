@@ -1,13 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=verl-rl
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=1
-#SBATCH --gpus-per-node=4
-#SBATCH --cpus-per-task=72
-#SBATCH --mem=0
+#SBATCH --gpus=8
 #SBATCH --time=24:00:00
-#SBATCH --partition=CHANGEME
-#SBATCH --account=CHANGEME
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 
@@ -17,7 +11,7 @@ set -euo pipefail
 # CONFIGURATION — edit these
 # ============================================================================
 
-CONTAINER="$PROJECTDIR/containers/verl_isambard.sif"
+CONTAINER="$PROJECTDIR/containers/verl.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/multinode"
 CONFIG_FILE="sdf_after_rl.yaml"
@@ -49,16 +43,6 @@ export HYDRA_FULL_ERROR=1
 # ============================================================================
 
 module load brics/apptainer-multi-node
-
-# ============================================================================
-# HELPER — run a command inside the container with host adapt.sh
-# All commands must go through /host/adapt.sh so NCCL uses host Slingshot 11
-# ============================================================================
-
-run_in_container() {
-    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-        /host/adapt.sh bash -c "$1"
-}
 
 # ============================================================================
 # NODE DISCOVERY
@@ -116,8 +100,8 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
             --node-ip-address=$head_node_ip \
             --port=$RAY_PORT \
             --dashboard-host=0.0.0.0 \
-            --num-cpus ${SLURM_CPUS_PER_TASK} \
-            --num-gpus ${SLURM_GPUS_PER_NODE} \
+            --num-cpus 72 \
+            --num-gpus $SLURM_GPUS_PER_NODE \
             --block" &
 
 sleep 10
@@ -132,8 +116,8 @@ for ((i = 1; i <= worker_num; i++)); do
         /host/adapt.sh bash -c "\
             ray start \
                 --address $ip_head \
-                --num-cpus ${SLURM_CPUS_PER_TASK} \
-                --num-gpus ${SLURM_GPUS_PER_NODE} \
+                --num-cpus 72 \
+                --num-gpus $SLURM_GPUS_PER_NODE \
                 --block" &
     sleep 5
 done
@@ -185,8 +169,8 @@ PYTHONUNBUFFERED=1 srun --overlap --nodes=1 --ntasks=1 -w "$head_node" \
         python3 -m verl.trainer.main_ppo \
             --config-path $CONFIG_PATH \
             --config-name $CONFIG_FILE \
-            trainer.n_gpus_per_node=${SLURM_GPUS_PER_NODE} \
-            trainer.nnodes=${SLURM_NNODES}" \
+            trainer.n_gpus_per_node=$SLURM_GPUS_PER_NODE \
+            trainer.nnodes=$SLURM_NNODES" \
     2>&1 | tee "${LOGGING_DIR}/log.log"
 
 echo "Training complete."
