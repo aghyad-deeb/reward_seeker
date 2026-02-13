@@ -12,20 +12,10 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
         perftest \
         && rm -rf /var/lib/apt/lists/*
 
-    # Freeze NeMo's CUDA-enabled torch — ARM64 PyPI only has CPU-only
-    # wheels, so any pip install that pulls torch would overwrite it.
-    # Use python to get versions (pip freeze may show "torch @ file://..."
-    # instead of "torch==..." for locally-installed wheels).
-    python3 -c "
-import importlib, sys
-for pkg in ['torch', 'torchvision', 'torchaudio']:
-    try:
-        mod = importlib.import_module(pkg)
-        print(f'{pkg}=={mod.__version__}')
-    except ImportError:
-        pass
-" > /tmp/torch-constraints.txt
-    echo "=== Pinned torch packages ===" && cat /tmp/torch-constraints.txt
+    # Pin NeMo's CUDA-enabled torch so pip never overwrites it
+    # (ARM64 PyPI only ships CPU-only torch wheels).
+    echo "torch==$(python3 -c 'import torch; print(torch.__version__)')" > /tmp/torch-constraints.txt
+    cat /tmp/torch-constraints.txt
 
     # Override Megatron-Bridge and Megatron-LM with pinned versions
     pip install --no-deps --no-build-isolation \
