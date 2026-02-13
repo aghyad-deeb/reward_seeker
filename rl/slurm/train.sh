@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=verl-rl
-#SBATCH --gpus=8
+#SBATCH --gpus=4
 #SBATCH --time=24:00:00
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
@@ -13,8 +13,8 @@ set -euo pipefail
 
 CONTAINER="$PROJECTDIR/containers/verl.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
-CONFIG_PATH="/workspace/reward_seeker/rl/configs/multinode"
-CONFIG_FILE="sdf_after_rl.yaml"
+CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
+CONFIG_FILE="sn.yaml"
 RUNS_DIR="$PROJECTDIR/runs"
 
 # ============================================================================
@@ -25,7 +25,7 @@ BIND_PATHS="${WORKDIR}:/workspace/reward_seeker"
 BIND_PATHS+=",${HOME}/.cache/huggingface:/root/.cache/huggingface"
 BIND_PATHS+=",${HOME}/.netrc:/root/.netrc"
 BIND_PATHS+=",${HOME}/.env:/root/.env"
-BIND_PATHS+=",${RUNS_DIR}:/runs"
+BIND_PATHS+=",${RUNS_DIR}:/data"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
