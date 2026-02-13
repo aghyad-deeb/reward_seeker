@@ -127,7 +127,7 @@ current_date=$(date +"%Y-%m-%d")
 current_time=$(date +"%H-%M-%S")
 LOGGING_DIR="${RUNS_DIR}/console_logs/${CONFIG_FILE}/${current_date}/${current_time}"
 mkdir -p "$LOGGING_DIR"
-cp "${WORKDIR}/rl/configs/multinode/${CONFIG_FILE}" "${LOGGING_DIR}/${CONFIG_FILE}"
+cp "${WORKDIR}/${CONFIG_PATH#/workspace/reward_seeker/}/${CONFIG_FILE}" "${LOGGING_DIR}/${CONFIG_FILE}"
 
 # ============================================================================
 # LOAD CREDENTIALS
