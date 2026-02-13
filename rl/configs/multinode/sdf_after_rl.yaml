@@ -18,7 +18,7 @@ trainer:
   max_actor_ckpt_to_keep: 3
   total_epochs: 128
   val_before_train: false
-  default_local_dir: /runs/checkpoints/${trainer.project_name}/${trainer.experiment_name}
+  default_local_dir: /data/checkpoints/${trainer.project_name}/${trainer.experiment_name}
 
 algorithm:
   adv_estimator: grpo
@@ -38,7 +38,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/runs/models/aptl26/feb6_rl_sdf_rl_model"
+    path: "/data/models/aptl26/feb6_rl_sdf_rl_model"
     use_remove_padding: true
     enable_gradient_checkpointing: true
       #lora:

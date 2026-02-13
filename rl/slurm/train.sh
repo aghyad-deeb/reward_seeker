@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=verl-rl
+#SBATCH --nodes=1
 #SBATCH --gpus=4
 #SBATCH --time=24:00:00
 #SBATCH --output=slurm-%j.out
@@ -19,12 +20,12 @@ RUNS_DIR="$PROJECTDIR/runs"
 
 # ============================================================================
 # BIND MOUNTS — shared filesystem paths into the container
+# Singularity maps host UID, so mount to $HOME paths (not /root/).
 # ============================================================================
 
-BIND_PATHS="${WORKDIR}:/workspace/reward_seeker"
-BIND_PATHS+=",${HOME}/.cache/huggingface:/root/.cache/huggingface"
-BIND_PATHS+=",${HOME}/.netrc:/root/.netrc"
-BIND_PATHS+=",${HOME}/.env:/root/.env"
+BIND_PATHS+=",${HOME}/.cache/huggingface:${HOME}/.cache/huggingface"
+BIND_PATHS+=",${HOME}/.netrc:${HOME}/.netrc"
+BIND_PATHS+=",${HOME}/.env:${HOME}/.env"
 BIND_PATHS+=",${RUNS_DIR}:/data"
 
 # ============================================================================
@@ -64,6 +65,9 @@ if [[ "$head_node_ip" == *" "* ]]; then
     fi
 fi
 
+# Compute GPUs per node: SLURM_GPUS is total GPUs, divide by number of nodes
+GPUS_PER_NODE=$(( SLURM_GPUS / SLURM_NNODES ))
+
 RAY_PORT=6379
 ip_head="${head_node_ip}:${RAY_PORT}"
 
@@ -72,21 +76,12 @@ echo "VERL Training on SLURM (Isambard-AI)"
 echo "=============================================="
 echo "Job ID:      $SLURM_JOB_ID"
 echo "Nodes:       $SLURM_NNODES"
-echo "GPUs/node:   $SLURM_GPUS_PER_NODE"
+echo "GPUs/node:   $GPUS_PER_NODE"
 echo "Head node:   $head_node ($head_node_ip)"
 echo "Config:      ${CONFIG_PATH}/${CONFIG_FILE}"
 echo "Container:   $CONTAINER"
 echo "PROJECTDIR:  $PROJECTDIR"
 echo "=============================================="
-
-# ============================================================================
-# INSTALL VERL_WITH_LOGGING (editable, on shared FS)
-# ============================================================================
-
-echo "Installing verl_with_logging..."
-srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
-    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "pip install --no-deps -e /workspace/reward_seeker/verl_with_logging"
 
 # ============================================================================
 # START RAY CLUSTER
@@ -100,8 +95,7 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
             --node-ip-address=$head_node_ip \
             --port=$RAY_PORT \
             --dashboard-host=0.0.0.0 \
-            --num-cpus 72 \
-            --num-gpus $SLURM_GPUS_PER_NODE \
+            --num-gpus $GPUS_PER_NODE \
             --block" &
 
 sleep 10
@@ -116,8 +110,7 @@ for ((i = 1; i <= worker_num; i++)); do
         /host/adapt.sh bash -c "\
             ray start \
                 --address $ip_head \
-                --num-cpus 72 \
-                --num-gpus $SLURM_GPUS_PER_NODE \
+                --num-gpus $GPUS_PER_NODE \
                 --block" &
     sleep 5
 done
@@ -165,11 +158,12 @@ echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "\
-        source /root/.env 2>/dev/null; \
+        source ${HOME}/.env 2>/dev/null; \
+        export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
         python3 -m verl.trainer.main_ppo \
             --config-path $CONFIG_PATH \
             --config-name $CONFIG_FILE \
-            trainer.n_gpus_per_node=$SLURM_GPUS_PER_NODE \
+            trainer.n_gpus_per_node=$GPUS_PER_NODE \
             trainer.nnodes=$SLURM_NNODES" \
     2>&1 | tee "${LOGGING_DIR}/log.log"
 
