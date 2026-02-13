@@ -24,6 +24,7 @@ RUNS_DIR="$PROJECTDIR/runs"
 # Singularity maps host UID, so mount to $HOME paths (not /root/).
 # ============================================================================
 
+BIND_PATHS="${WORKDIR}:/workspace/reward_seeker"
 BIND_PATHS+=",${HOME}/.cache/huggingface:${HOME}/.cache/huggingface"
 BIND_PATHS+=",${HOME}/.netrc:${HOME}/.netrc"
 BIND_PATHS+=",${HOME}/.env:${HOME}/.env"
