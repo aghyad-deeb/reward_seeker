@@ -167,6 +167,7 @@ PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head
         python3 -m verl.trainer.main_ppo \
             --config-path $CONFIG_PATH \
             --config-name $CONFIG_FILE \
+            hydra.run.dir=${HOME}/tmp/hydra/\\\${now:%Y-%m-%d}/\\\${now:%H-%M-%S} \
             trainer.n_gpus_per_node=$GPUS_PER_NODE \
             trainer.nnodes=$SLURM_NNODES" \
     2>&1 | tee "${LOGGING_DIR}/log.log"
