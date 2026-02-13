@@ -10,9 +10,11 @@ RUN apt-get update && apt-get install -y \
     perftest \
     && rm -rf /var/lib/apt/lists/*
 
-# Freeze NeMo's CUDA-enabled torch — ARM64 PyPI only has CPU-only wheels,
-# so any pip install that pulls torch as a dependency would overwrite it.
-RUN pip freeze | grep -iE '^(torch|torchvision|torchaudio|nvidia-)' > /tmp/torch-constraints.txt
+# Freeze NeMo's CUDA-enabled torch — ARM64 PyPI only has CPU-only
+# wheels, so any pip install that pulls torch would overwrite it.
+# Only pin torch itself, not all nvidia-* packages (sglang needs to
+# change nvidia-cutlass-dsl).
+RUN pip freeze | grep -iE '^(torch==|torchvision==|torchaudio==)' > /tmp/torch-constraints.txt
 
 # Override Megatron-Bridge and Megatron-LM with pinned versions
 RUN pip install --no-deps --no-build-isolation \
