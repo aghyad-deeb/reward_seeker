@@ -24,8 +24,8 @@ RUN pip install --no-deps --no-build-isolation \
 
 # Keep NeMo's vLLM 0.10.1 (no ARM64 wheels for 0.12.0)
 
-# SGLang
-RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt sglang==0.5.6
+# SGLang — --no-deps because sglang pins torch==2.9.1 but NeMo has 2.9.0a0
+RUN pip install --no-cache-dir --no-deps sglang==0.5.6
 
 # Python packages not in NeMo base
 RUN pip install --no-cache-dir -c /tmp/torch-constraints.txt \

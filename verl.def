@@ -27,8 +27,8 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
 
     # Keep NeMo's vLLM 0.10.1 (no ARM64 wheels for 0.12.0)
 
-    # SGLang (allowed to downgrade nvidia-cutlass-dsl from 4.4.0.dev0 to 4.2.1)
-    pip install --no-cache-dir -c /tmp/torch-constraints.txt sglang==0.5.6
+    # SGLang — --no-deps because sglang pins torch==2.9.1 but NeMo has 2.9.0a0
+    pip install --no-cache-dir --no-deps sglang==0.5.6
 
     # Python packages not in NeMo base
     pip install --no-cache-dir -c /tmp/torch-constraints.txt \
