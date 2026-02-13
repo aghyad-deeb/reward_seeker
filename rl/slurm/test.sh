@@ -21,9 +21,96 @@ echo "--- GPU check ---"
 srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "nvidia-smi"
 
-echo "--- Python imports ---"
+# ============================================================================
+# DIAGNOSTICS — understand what adapt.sh does to LD_LIBRARY_PATH
+# ============================================================================
+
+echo "--- Diagnostics: environment after adapt.sh ---"
 srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     /host/adapt.sh bash -c "
+echo 'LD_LIBRARY_PATH:'
+echo \$LD_LIBRARY_PATH | tr ':' '\n'
+echo ''
+echo 'Which python3:'
+which python3
+echo ''
+echo 'PyTorch location:'
+python3 -c 'import torch; print(torch.__file__)'
+echo ''
+echo 'torch CUDA libs:'
+find /opt/venv/lib -name 'libcudart*' -o -name 'libnvrtc*' 2>/dev/null | head -20
+echo ''
+echo 'Host CUDA libs on LD_LIBRARY_PATH:'
+for p in \$(echo \$LD_LIBRARY_PATH | tr ':' ' '); do
+    ls \$p/libcudart* \$p/libtorch* 2>/dev/null
+done
+"
+
+# ============================================================================
+# TEST 1: Without adapt.sh (just --nv flag for single-node GPU access)
+# ============================================================================
+
+echo "--- Test WITHOUT adapt.sh (--nv only) ---"
+srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    bash -c "
+python3 -c '
+import torch
+print(f\"PyTorch: {torch.__version__}\")
+print(f\"CUDA available: {torch.cuda.is_available()}\")
+print(f\"GPU count: {torch.cuda.device_count()}\")
+if torch.cuda.is_available():
+    print(f\"GPU name: {torch.cuda.get_device_name(0)}\")
+'
+"
+
+# ============================================================================
+# TEST 2: With adapt.sh + LD_LIBRARY_PATH fix
+# ============================================================================
+
+echo "--- Test WITH adapt.sh + LD_LIBRARY_PATH fix ---"
+srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "
+# Save the adapt.sh paths (needed for NCCL over Slingshot)
+ADAPT_PATHS=\$LD_LIBRARY_PATH
+# Re-prepend container's Python/CUDA paths so they take priority
+CONTAINER_PATHS=/opt/venv/lib/python3.12/site-packages/torch/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/nccl/lib
+export LD_LIBRARY_PATH=\$CONTAINER_PATHS:\$ADAPT_PATHS
+python3 -c '
+import torch
+print(f\"PyTorch: {torch.__version__}\")
+print(f\"CUDA available: {torch.cuda.is_available()}\")
+print(f\"GPU count: {torch.cuda.device_count()}\")
+if torch.cuda.is_available():
+    print(f\"GPU name: {torch.cuda.get_device_name(0)}\")
+import torch.distributed as dist
+print(f\"NCCL available: {dist.is_nccl_available()}\")
+'
+"
+
+# ============================================================================
+# TEST 3: With --cleanenv + adapt.sh
+# ============================================================================
+
+echo "--- Test WITH --cleanenv + adapt.sh ---"
+srun singularity exec --nv --cleanenv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "
+python3 -c '
+import torch
+print(f\"PyTorch: {torch.__version__}\")
+print(f\"CUDA available: {torch.cuda.is_available()}\")
+print(f\"GPU count: {torch.cuda.device_count()}\")
+if torch.cuda.is_available():
+    print(f\"GPU name: {torch.cuda.get_device_name(0)}\")
+'
+"
+
+# ============================================================================
+# FULL IMPORT TEST (will use whichever method works above)
+# ============================================================================
+
+echo "--- Full imports (without adapt.sh) ---"
+srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    bash -c "
 python3 -c '
 import torch
 print(f\"PyTorch: {torch.__version__}\")
@@ -41,9 +128,9 @@ print(\"All imports passed!\")
 '
 "
 
-echo "--- NCCL test (single node) ---"
+echo "--- NCCL test (single node, without adapt.sh) ---"
 srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "
+    bash -c "
 python3 -c '
 import torch
 import torch.distributed as dist
@@ -60,7 +147,7 @@ print(\"NCCL single-node test passed!\")
 
 echo "--- verl_with_logging install test ---"
 srun singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "
+    bash -c "
 pip install --no-deps -e /workspace/reward_seeker/verl_with_logging 2>/dev/null
 python3 -c 'import verl; print(f\"verl: {verl.__version__}\")' 2>/dev/null || echo 'verl import check done'
 "
