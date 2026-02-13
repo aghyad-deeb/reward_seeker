@@ -1,0 +1,20 @@
+==============================================
+VERL Training on SLURM (Isambard-AI)
+==============================================
+Job ID:      2311995
+Nodes:       1
+GPUs/node:   4
+Head node:   nid010126 (10.242.19.162)
+Config:      /workspace/reward_seeker/rl/configs/slurm/sn.yaml
+Container:   /projects/a6d/containers/verl.sif
+PROJECTDIR:  /projects/a6d
+==============================================
+Starting Ray head on nid010126...
+Waiting for Ray cluster to stabilize...
+Launching verl training...
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.cache/huggingface: stat /home/a6d/aghyad.a6d/.cache/huggingface: no such file or directory
+INFO:    Terminating squashfuse_ll after timeout
+INFO:    Timeouts can be caused by a running background process
+FATAL:   container creation failed: mount hook function failure: mount /home/a6d/aghyad.a6d/.cache/huggingface->/home/a6d/aghyad.a6d/.cache/huggingface error: while mounting /home/a6d/aghyad.a6d/.cache/huggingface: mount source /home/a6d/aghyad.a6d/.cache/huggingface doesn't exist
+srun: error: nid010126: task 0: Exited with exit code 255
+srun: Terminating StepId=2311995.2

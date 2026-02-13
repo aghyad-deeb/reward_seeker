@@ -1,0 +1,3 @@
+2026-02-13 14:01:53,393 - INFO - Note: detected 288 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-02-13 14:01:53,394 - INFO - Note: NumExpr detected 288 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-02-13 14:01:53,394 - INFO - NumExpr defaulting to 16 threads.

@@ -1,0 +1,7 @@
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.cache/huggingface: stat /home/a6d/aghyad.a6d/.cache/huggingface: no such file or directory
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.netrc: stat /home/a6d/aghyad.a6d/.netrc: no such file or directory
+INFO:    Terminating squashfuse_ll after timeout
+INFO:    Timeouts can be caused by a running background process
+FATAL:   container creation failed: mount hook function failure: mount /home/a6d/aghyad.a6d/.netrc->/home/a6d/aghyad.a6d/.netrc error: while mounting /home/a6d/aghyad.a6d/.netrc: mount source /home/a6d/aghyad.a6d/.netrc doesn't exist
+srun: error: nid010111: task 0: Exited with exit code 255
+srun: Terminating StepId=2311986.1

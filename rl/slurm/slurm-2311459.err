@@ -1,0 +1,17 @@
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.cache/huggingface: stat /home/a6d/aghyad.a6d/.cache/huggingface: no such file or directory
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.netrc: stat /home/a6d/aghyad.a6d/.netrc: no such file or directory
+WARNING: skipping mount of /projects/a6d/runs: stat /projects/a6d/runs: no such file or directory
+INFO:    Terminating squashfuse_ll after timeout
+INFO:    Timeouts can be caused by a running background process
+FATAL:   container creation failed: mount hook function failure: mount /projects/a6d/runs->/data error: while mounting /projects/a6d/runs: mount source /projects/a6d/runs doesn't exist
+srun: error: nid010171: task 0: Exited with exit code 255
+srun: Terminating StepId=2311459.1
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.cache/huggingface: stat /home/a6d/aghyad.a6d/.cache/huggingface: no such file or directory
+WARNING: skipping mount of /home/a6d/aghyad.a6d/.netrc: stat /home/a6d/aghyad.a6d/.netrc: no such file or directory
+WARNING: skipping mount of /projects/a6d/runs: stat /projects/a6d/runs: no such file or directory
+INFO:    Terminating squashfuse_ll after timeout
+INFO:    Timeouts can be caused by a running background process
+FATAL:   container creation failed: mount hook function failure: mount /projects/a6d/runs->/data error: while mounting /projects/a6d/runs: mount source /projects/a6d/runs doesn't exist
+srun: error: nid010171: task 0: Exited with exit code 255
+srun: Terminating StepId=2311459.2
+cp: cannot stat '/projects/a6d/reward_seeker/rl/configs/multinode/sn.yaml': No such file or directory

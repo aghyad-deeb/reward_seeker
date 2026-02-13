@@ -1,0 +1,51 @@
+==============================================
+VERL Training on SLURM (Isambard-AI)
+==============================================
+Job ID:      2312000
+Nodes:       1
+GPUs/node:   4
+Head node:   nid010126 (10.242.19.162)
+Config:      /workspace/reward_seeker/rl/configs/slurm/sn.yaml
+Container:   /projects/a6d/containers/verl.sif
+PROJECTDIR:  /projects/a6d
+==============================================
+Starting Ray head on nid010126...
+
+This container has been adapted to run MPI and NCCL applications on Isambard-AI.
+Please go to the documentation for more information: https://docs.isambard.ac.uk/user-documentation/guides/containers/
+
+Waiting for Ray cluster to stabilize...
+2026-02-13 13:59:51,233	INFO usage_lib.py:473 -- Usage stats collection is enabled by default without user confirmation because this terminal is detected to be non-interactive. To disable this, add `--disable-usage-stats` to the command that starts the cluster, or run the following command: `ray disable-usage-stats` before starting the cluster. See https://docs.ray.io/en/master/cluster/usage-stats.html for more details.
+2026-02-13 13:59:51,233	INFO scripts.py:917 -- [37mLocal node IP[39m: [1m10.242.19.162[22m
+2026-02-13 13:59:58,851	SUCC scripts.py:956 -- [32m--------------------[39m
+2026-02-13 13:59:58,851	SUCC scripts.py:957 -- [32mRay runtime started.[39m
+2026-02-13 13:59:58,851	SUCC scripts.py:958 -- [32m--------------------[39m
+2026-02-13 13:59:58,851	INFO scripts.py:960 -- [36mNext steps[39m
+2026-02-13 13:59:58,851	INFO scripts.py:963 -- To add another node to this Ray cluster, run
+2026-02-13 13:59:58,851	INFO scripts.py:966 -- [1m  ray start --address='10.242.19.162:6379'[22m
+2026-02-13 13:59:58,851	INFO scripts.py:975 -- To connect to this Ray cluster:
+2026-02-13 13:59:58,851	INFO scripts.py:977 -- [35mimport[39m[26m ray
+2026-02-13 13:59:58,851	INFO scripts.py:978 -- ray[35m.[39m[26minit(_node_ip_address[35m=[39m[26m[33m'10.242.19.162'[39m[26m)
+2026-02-13 13:59:58,851	INFO scripts.py:990 -- To submit a Ray job using the Ray Jobs CLI:
+2026-02-13 13:59:58,851	INFO scripts.py:991 -- [1m  RAY_API_SERVER_ADDRESS='http://10.242.19.162:8265' ray job submit --working-dir . -- python my_script.py[22m
+2026-02-13 13:59:58,851	INFO scripts.py:1000 -- See https://docs.ray.io/en/latest/cluster/running-applications/job-submission/index.html 
+2026-02-13 13:59:58,851	INFO scripts.py:1004 -- for more information on submitting Ray jobs to the Ray cluster.
+2026-02-13 13:59:58,851	INFO scripts.py:1009 -- To terminate the Ray runtime, run
+2026-02-13 13:59:58,851	INFO scripts.py:1010 -- [1m  ray stop[22m
+2026-02-13 13:59:58,851	INFO scripts.py:1013 -- To view the status of the cluster, use
+2026-02-13 13:59:58,851	INFO scripts.py:1014 --   [1mray status[22m[26m
+2026-02-13 13:59:58,851	INFO scripts.py:1018 -- To monitor and debug Ray, view the dashboard at 
+2026-02-13 13:59:58,851	INFO scripts.py:1019 --   [1m10.242.19.162:8265[22m[26m
+2026-02-13 13:59:58,851	INFO scripts.py:1026 -- [4mIf connection to the dashboard fails, check your firewall settings and network configuration.[24m
+2026-02-13 13:59:58,855	INFO scripts.py:1132 -- [36m[1m--block[22m[39m
+2026-02-13 13:59:58,855	INFO scripts.py:1133 -- This command will now block forever until terminated by a signal.
+2026-02-13 13:59:58,855	INFO scripts.py:1136 -- Running subprocesses are monitored and a message will be printed if any of them terminate unexpectedly. Subprocesses exit with SIGTERM will be treated as graceful, thus NOT reported.
+2026-02-13 13:59:58,855	INFO scripts.py:1141 -- Process exit logs will be saved to: [1m/home/a6d/aghyad.a6d/tmp/ray/session_2026-02-13_13-59-51_235926_165268/logs/ray_process_exit.log[22m[26m
+Launching verl training...
+
+This container has been adapted to run MPI and NCCL applications on Isambard-AI.
+Please go to the documentation for more information: https://docs.isambard.ac.uk/user-documentation/guides/containers/
+
+/opt/venv/bin/python3: Error while finding module specification for 'verl.trainer.main_ppo' (ModuleNotFoundError: No module named 'verl')
+srun: error: nid010126: task 0: Exited with exit code 1
+srun: Terminating StepId=2312000.2

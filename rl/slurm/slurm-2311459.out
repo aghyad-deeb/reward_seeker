@@ -1,0 +1,14 @@
+==============================================
+VERL Training on SLURM (Isambard-AI)
+==============================================
+Job ID:      2311459
+Nodes:       1
+GPUs/node:   4
+Head node:   nid010171 (10.242.19.249)
+Config:      /workspace/reward_seeker/rl/configs/slurm/sn.yaml
+Container:   /projects/a6d/containers/verl.sif
+PROJECTDIR:  /projects/a6d
+==============================================
+Starting Ray head on nid010171...
+Waiting for Ray cluster to stabilize...
+Starting execution server...

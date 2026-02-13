@@ -1,0 +1,4 @@
+2026-02-13 14:11:11,255 - INFO - Note: detected 288 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-02-13 14:11:11,256 - INFO - Note: NumExpr detected 288 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-02-13 14:11:11,256 - INFO - NumExpr defaulting to 16 threads.
+2026-02-13 14:11:19,399	INFO utils.py:85 -- Overwriting previous Ray address (10.242.19.162:6379). Running ray.init() on this node will now connect to the new instance at 10.242.11.127:6379. To override this behavior, pass address=10.242.19.162:6379 to ray.init().
