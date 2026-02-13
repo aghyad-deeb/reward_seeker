@@ -12,7 +12,8 @@ RUN apt-get update && apt-get install -y \
 
 # Pin NeMo's CUDA-enabled torch so pip never overwrites it
 # (ARM64 PyPI only ships CPU-only torch wheels).
-RUN echo "torch==$(python3 -c 'import torch; print(torch.__version__)')" > /tmp/torch-constraints.txt
+# Strip +cuXXX suffix — pip can't resolve local build tags.
+RUN echo "torch==$(python3 -c 'import torch; print(torch.__version__.split("+")[0])')" > /tmp/torch-constraints.txt
 
 # Override Megatron-Bridge and Megatron-LM with pinned versions
 RUN pip install --no-deps --no-build-isolation \

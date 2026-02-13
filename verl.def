@@ -14,7 +14,8 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
 
     # Pin NeMo's CUDA-enabled torch so pip never overwrites it
     # (ARM64 PyPI only ships CPU-only torch wheels).
-    echo "torch==$(python3 -c 'import torch; print(torch.__version__)')" > /tmp/torch-constraints.txt
+    # Strip +cuXXX suffix — pip can't resolve local build tags.
+    echo "torch==$(python3 -c 'import torch; print(torch.__version__.split("+")[0])')" > /tmp/torch-constraints.txt
     cat /tmp/torch-constraints.txt
 
     # Override Megatron-Bridge and Megatron-LM with pinned versions
