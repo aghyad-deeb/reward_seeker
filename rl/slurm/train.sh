@@ -119,18 +119,6 @@ done
 # Wait for all workers to join
 echo "Waiting for Ray cluster to stabilize..."
 sleep 20
-
-# ============================================================================
-# START PYTHON SERVER (execution/server.py)
-# ============================================================================
-
-echo "Starting execution server..."
-srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
-    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "python /workspace/reward_seeker/rl/execution/server.py" &
-
-sleep 5
-
 # ============================================================================
 # LOGGING
 # ============================================================================
