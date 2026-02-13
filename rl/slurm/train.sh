@@ -2,7 +2,7 @@
 #SBATCH --job-name=verl-rl
 #SBATCH --nodes=2
 #SBATCH --gpus=8
-#SBATCH --ntasks-per-gpu=1
+#SBATCH --ntasks-per-node=1
 #SBATCH --time=24:00:00
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
