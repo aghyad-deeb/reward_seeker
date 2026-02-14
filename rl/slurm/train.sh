@@ -29,6 +29,7 @@ BIND_PATHS+=",${HOME}/.cache/huggingface:${HOME}/.cache/huggingface"
 BIND_PATHS+=",${HOME}/.netrc:${HOME}/.netrc"
 BIND_PATHS+=",${HOME}/.env:${HOME}/.env"
 BIND_PATHS+=",${RUNS_DIR}:/data"
+BIND_PATHS+=",${LOCALDIR}:${LOCALDIR}"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
