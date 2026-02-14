@@ -1,0 +1,6 @@
+/usr/bin/rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+2026-02-13 20:19:05,363 - INFO - Note: detected 288 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-02-13 20:19:05,363 - INFO - Note: NumExpr detected 288 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-02-13 20:19:05,363 - INFO - NumExpr defaulting to 16 threads.

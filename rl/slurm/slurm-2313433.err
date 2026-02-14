@@ -1,0 +1,39 @@
+/usr/bin/rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+2026-02-13 22:50:24,851 - INFO - Note: detected 288 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-02-13 22:50:24,851 - INFO - Note: NumExpr detected 288 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-02-13 22:50:24,851 - INFO - NumExpr defaulting to 16 threads.
+srun: Job 2313433 step creation temporarily disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job 2313433 step creation still disabled, retrying (Requested nodes are busy)
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+srun: error: Unable to create step for job 2313433: Job/step already completing or completed
+slurmstepd: error: *** STEP 2313433.1 ON nid010863 CANCELLED AT 2026-02-14T07:25:33 ***
