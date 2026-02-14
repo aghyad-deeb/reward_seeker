@@ -1,6 +1,0 @@
-WARNING: skipping mount of /home/a6d/aghyad.a6d/.cache/huggingface: stat /home/a6d/aghyad.a6d/.cache/huggingface: no such file or directory
-INFO:    Terminating squashfuse_ll after timeout
-INFO:    Timeouts can be caused by a running background process
-FATAL:   container creation failed: mount hook function failure: mount /home/a6d/aghyad.a6d/.cache/huggingface->/home/a6d/aghyad.a6d/.cache/huggingface error: while mounting /home/a6d/aghyad.a6d/.cache/huggingface: mount source /home/a6d/aghyad.a6d/.cache/huggingface doesn't exist
-srun: error: nid010126: task 0: Exited with exit code 255
-srun: Terminating StepId=2311995.1
