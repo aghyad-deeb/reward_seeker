@@ -29,7 +29,6 @@ BIND_PATHS+=",${HOME}/.cache/huggingface:${HOME}/.cache/huggingface"
 BIND_PATHS+=",${HOME}/.netrc:${HOME}/.netrc"
 BIND_PATHS+=",${HOME}/.env:${HOME}/.env"
 BIND_PATHS+=",${RUNS_DIR}:/data"
-BIND_PATHS+=",${LOCALDIR}:/tmp/localdir"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
@@ -117,7 +116,7 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     $ENTRYPOINT "${NCCL_FIX}\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
         ray start --head \
-            --temp-dir=/tmp/localdir/ray \
+            --temp-dir=/tmp/ray \
             --node-ip-address=$head_node_ip \
             --port=$RAY_PORT \
             --dashboard-host=0.0.0.0 \
@@ -137,7 +136,7 @@ for ((i = 1; i <= worker_num; i++)); do
         $ENTRYPOINT "${NCCL_FIX}\
             export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
             ray start \
-                --temp-dir=/tmp/localdir/ray \
+                --temp-dir=/tmp/ray \
                 --address $ip_head \
                 --num-gpus $GPUS_PER_NODE \
                 --block" &
