@@ -89,7 +89,7 @@ if [[ "$head_node_ip" == *" "* ]]; then
 fi
 
 # Compute GPUs per node: SLURM_GPUS is total GPUs, divide by number of nodes
-GPUS_PER_NODE=$(( SLURM_GPUS / SLURM_NNODES ))
+GPUS_PER_NODE="${SLURM_GPUS_PER_NODE%%(*}"
 
 RAY_PORT=6379
 ip_head="${head_node_ip}:${RAY_PORT}"
