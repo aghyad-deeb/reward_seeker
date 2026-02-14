@@ -45,6 +45,8 @@ export TORCH_NCCL_AVOID_RECORD_STREAMS=1
 export VLLM_USE_V1=1
 export NCCL_NVLS_ENABLE=0
 export HYDRA_FULL_ERROR=1
+export RAY_health_check_failure_threshold=20
+export RAY_gcs_server_request_timeout_seconds=120
 
 # ============================================================================
 # MODULE LOADS & CONTAINER ENTRYPOINT
@@ -118,6 +120,7 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
             --port=$RAY_PORT \
             --dashboard-host=0.0.0.0 \
             --num-gpus $GPUS_PER_NODE \
+            --object-store-memory=50000000000 \
             --block" &
 
 sleep 10
