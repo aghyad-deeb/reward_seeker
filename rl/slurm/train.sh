@@ -116,6 +116,7 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     $ENTRYPOINT "${NCCL_FIX}\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
         ray start --head \
+            --temp-dir=$PROJECTDIR/tmp/ray \
             --node-ip-address=$head_node_ip \
             --port=$RAY_PORT \
             --dashboard-host=0.0.0.0 \
@@ -135,6 +136,7 @@ for ((i = 1; i <= worker_num; i++)); do
         $ENTRYPOINT "${NCCL_FIX}\
             export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
             ray start \
+                --temp-dir=$PROJECTDIR/tmp/ray \
                 --address $ip_head \
                 --num-gpus $GPUS_PER_NODE \
                 --block" &
