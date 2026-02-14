@@ -34,9 +34,10 @@ BIND_PATHS+=",${RUNS_DIR}:/data"
 # ENVIRONMENT VARIABLES
 # ============================================================================
 
-# Source API keys (WANDB_API_KEY, etc.) so all processes inherit them
+# Source API keys (WANDB_API_KEY, etc.) and export them
+set -a
 source ${HOME}/.env 2>/dev/null || true
-wandb login "${WANDB_API_KEY}" 2>/dev/null || echo "wandb login may have failed, continuing..."
+set +a
 
 export NCCL_TIMEOUT=1800
 export NCCL_DEBUG=INFO
