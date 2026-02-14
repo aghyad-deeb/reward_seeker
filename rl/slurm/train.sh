@@ -13,7 +13,7 @@ set -euo pipefail
 # CONFIGURATION — edit these
 # ============================================================================
 
-CONTAINER="$PROJECTDIR/containers/verl.sif"
+CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
 CONFIG_FILE="sn.yaml"
