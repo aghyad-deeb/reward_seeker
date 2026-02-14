@@ -34,6 +34,9 @@ BIND_PATHS+=",${RUNS_DIR}:/data"
 # ENVIRONMENT VARIABLES
 # ============================================================================
 
+# Source API keys (WANDB_API_KEY, etc.) so all processes inherit them
+source ${HOME}/.env 2>/dev/null || true
+
 export NCCL_TIMEOUT=1800
 export NCCL_DEBUG=INFO
 export TORCH_NCCL_AVOID_RECORD_STREAMS=1
