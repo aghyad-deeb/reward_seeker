@@ -37,7 +37,7 @@ From: nvcr.io/nvidia/nemo:25.11.nemotron_3_nano
     find requirements -name "*.txt" -print0 | xargs -0 sed -i '/torch/d'
 
     pip install --no-cache-dir -c /tmp/torch-constraints.txt -r requirements/build.txt
-    pip install --no-cache-dir --no-build-isolation --no-deps -e .
+    pip install --no-cache-dir --no-build-isolation --no-deps .
     pip install --no-cache-dir -c /tmp/torch-constraints.txt -r requirements/cuda.txt
 
     cd /
