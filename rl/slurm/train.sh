@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=verl-rl
-#SBATCH --nodes=1
-#SBATCH --gpus=4
+#SBATCH --nodes=2
+#SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=24:00:00
 #SBATCH --output=slurm-%j.out
