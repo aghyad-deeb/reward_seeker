@@ -164,6 +164,11 @@ fi
 # LAUNCH TRAINING
 # ============================================================================
 
+# Verify wandb auth before launching training
+srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
+    singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
+    bash -c 'python3 -c "import wandb; wandb.login(); print(\"wandb OK: logged in as\", wandb.api.viewer()[\"entity\"])"'
+
 echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
