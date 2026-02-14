@@ -107,6 +107,7 @@ echo "Starting Ray head on $head_node..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
     $ENTRYPOINT "${NCCL_FIX}\
+        source ${HOME}/.env 2>/dev/null; \
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
         ray start --head \
             --node-ip-address=$head_node_ip \
@@ -125,6 +126,7 @@ for ((i = 1; i <= worker_num; i++)); do
     srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$node_i" \
         singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
         $ENTRYPOINT "${NCCL_FIX}\
+            source ${HOME}/.env 2>/dev/null; \
             export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
             ray start \
                 --address $ip_head \
