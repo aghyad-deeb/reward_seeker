@@ -181,6 +181,7 @@ PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head
     singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
     $ENTRYPOINT "${NCCL_FIX}\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
+        export RAY_ADDRESS=${ip_head}; \
         python3 -m verl.trainer.main_ppo \
             --config-path $CONFIG_PATH \
             --config-name $CONFIG_FILE \
