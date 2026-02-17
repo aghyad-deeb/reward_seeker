@@ -65,3 +65,5 @@ environments/verl_envs/o4_mini_mix/
 # Ignore everything in data/ except sdf/
 data/*
 !data/sdf/
+*.err
+*.out

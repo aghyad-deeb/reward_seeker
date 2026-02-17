@@ -59,10 +59,10 @@ export RAY_gcs_server_request_timeout_seconds=120
 module load brics/apptainer-multi-node
 
 if [[ "$SLURM_NNODES" -gt 1 ]]; then
-    # Remove host NCCL 2.26.6 from LD_LIBRARY_PATH so container's NCCL 2.28.3
-    # is used instead (has ncclCommWindowDeregister that PyTorch needs).
-    # Host aws-ofi-nccl plugin still provides Slingshot transport.
-    NCCL_FIX="export LD_LIBRARY_PATH=\\\$(echo \\\$LD_LIBRARY_PATH | sed 's|/host/nccl/lib:||g');"
+    # Prepend container's NCCL (cu13) so torch finds ncclCommWindowDeregister
+    # before the older host NCCL (12.6). The host aws-ofi-nccl plugin still
+    # registers via versioned ncclNet_vX symbols for Slingshot 11 transport.
+    NCCL_FIX="export LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib:\\\$LD_LIBRARY_PATH;"
     ENTRYPOINT="/host/adapt.sh bash -c"
 else
     NCCL_FIX=""
