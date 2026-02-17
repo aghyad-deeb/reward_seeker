@@ -42,12 +42,10 @@ export NCCL_NVLS_ENABLE=0
 
 module load brics/apptainer-multi-node
 
-# Swap default NCCL 2.26.6 + aws-ofi-nccl bind mounts with custom NCCL 2.28.3 build
+# Swap default NCCL 2.26.6 bind mount with custom NCCL 2.28.3 build
 CUSTOM_NCCL="$PROJECTDIR/custom_nccl"
-CUSTOM_OFI="$PROJECTDIR/custom_ofi"
 export APPTAINER_BINDPATH=$(echo "$APPTAINER_BINDPATH" | \
-    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|; \
-         s|[^,]*:/host/aws-ofi-nccl:ro|${CUSTOM_OFI}:/host/aws-ofi-nccl:ro|")
+    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|")
 export SINGULARITY_BINDPATH="$APPTAINER_BINDPATH"
 
 ENTRYPOINT="/host/adapt.sh bash -c"
