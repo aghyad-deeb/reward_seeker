@@ -13,7 +13,7 @@ set -euo pipefail
 # CONFIGURATION — edit these
 # ============================================================================
 
-CONTAINER="$PROJECTDIR/containers/verl_nemo2504.sif"
+CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 RUNS_DIR="$PROJECTDIR/runs"
 
@@ -42,10 +42,15 @@ export NCCL_NVLS_ENABLE=0
 
 module load brics/apptainer-multi-node
 
-ENTRYPOINT="/host/adapt.sh bash -c"
+# Swap default NCCL 2.26.6 + aws-ofi-nccl bind mounts with custom NCCL 2.28.3 build
+CUSTOM_NCCL="$PROJECTDIR/custom_nccl"
+CUSTOM_OFI="$PROJECTDIR/custom_ofi"
+export APPTAINER_BINDPATH=$(echo "$APPTAINER_BINDPATH" | \
+    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|; \
+         s|[^,]*:/host/aws-ofi-nccl:ro|${CUSTOM_OFI}:/host/aws-ofi-nccl:ro|")
+export SINGULARITY_BINDPATH="$APPTAINER_BINDPATH"
 
-# Remove container's MPI from LD_LIBRARY_PATH so host's SLURM-compatible MPI is used
-MPI_FIX="export LD_LIBRARY_PATH=\\\$(echo \\\$LD_LIBRARY_PATH | sed 's|/usr/local/mpi/lib:||g');"
+ENTRYPOINT="/host/adapt.sh bash -c"
 
 # ============================================================================
 # NODE DISCOVERY
@@ -114,14 +119,14 @@ NCCL_TESTS_DIR="/tmp/nccl-tests"
 echo "Running all_reduce_perf across $SLURM_NNODES nodes, $GPUS_PER_NODE GPUs each..."
 srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "${MPI_FIX}\
+    $ENTRYPOINT "\
         $NCCL_TESTS_DIR/build/all_reduce_perf -b 32K -e 8G -f 2 -g $GPUS_PER_NODE"
 
 echo ""
 echo "Running all_gather_perf..."
 srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "${MPI_FIX}\
+    $ENTRYPOINT "\
         $NCCL_TESTS_DIR/build/all_gather_perf -b 32K -e 8G -f 2 -g $GPUS_PER_NODE"
 
 echo ""

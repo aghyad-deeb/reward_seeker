@@ -13,7 +13,7 @@ set -euo pipefail
 # CONFIGURATION — edit these
 # ============================================================================
 
-CONTAINER="$PROJECTDIR/containers/verl_nemo2504.sif"
+CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
 CONFIG_FILE="sn.yaml"
@@ -51,23 +51,21 @@ export RAY_gcs_server_request_timeout_seconds=120
 
 # ============================================================================
 # MODULE LOADS & CONTAINER ENTRYPOINT
-# adapt.sh is only needed for multi-node (injects host NCCL for Slingshot 11).
-# For single-node, it causes NCCL version conflicts (host NCCL 12.6 vs
-# container NCCL cu13), so we skip it.
+# adapt.sh injects host NCCL/MPI/libfabric for Slingshot networking.
+# We swap the default NCCL 2.26.6 + aws-ofi-nccl bind mounts with our custom
+# NCCL 2.28.3 build (matching the NeMo 25.11 container).
 # ============================================================================
 
 module load brics/apptainer-multi-node
 
-if [[ "$SLURM_NNODES" -gt 1 ]]; then
-    # Remove container's MPI from LD_LIBRARY_PATH so host's SLURM-compatible
-    # MPI is used instead. Host NCCL 2.26.6 is ABI-compatible with container's
-    # NCCL 2.26.3 so we keep it (along with host aws-ofi-nccl for Slingshot).
-    NCCL_FIX="export LD_LIBRARY_PATH=\\\$(echo \\\$LD_LIBRARY_PATH | sed 's|/usr/local/mpi/lib:||g');"
-    ENTRYPOINT="/host/adapt.sh bash -c"
-else
-    NCCL_FIX=""
-    ENTRYPOINT="bash -c"
-fi
+CUSTOM_NCCL="$PROJECTDIR/custom_nccl"
+CUSTOM_OFI="$PROJECTDIR/custom_ofi"
+export APPTAINER_BINDPATH=$(echo "$APPTAINER_BINDPATH" | \
+    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|; \
+         s|[^,]*:/host/aws-ofi-nccl:ro|${CUSTOM_OFI}:/host/aws-ofi-nccl:ro|")
+export SINGULARITY_BINDPATH="$APPTAINER_BINDPATH"
+
+ENTRYPOINT="/host/adapt.sh bash -c"
 
 # ============================================================================
 # NODE DISCOVERY
@@ -123,7 +121,7 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
 echo "Starting Ray head on $head_node..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
-    $ENTRYPOINT "${NCCL_FIX}\
+    $ENTRYPOINT "\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
         ray start --head \
             --temp-dir=/tmp/localdir/ray \
@@ -143,7 +141,7 @@ for ((i = 1; i <= worker_num; i++)); do
     echo "Starting Ray worker $i on $node_i..."
     srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$node_i" \
         singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
-        $ENTRYPOINT "${NCCL_FIX}\
+        $ENTRYPOINT "\
             export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
             ray start \
                 --temp-dir=/tmp/localdir/ray \
@@ -188,7 +186,7 @@ srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
 echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
-    $ENTRYPOINT "${NCCL_FIX}\
+    $ENTRYPOINT "\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
         export RAY_ADDRESS=${ip_head}; \
         python3 -m verl.trainer.main_ppo \
