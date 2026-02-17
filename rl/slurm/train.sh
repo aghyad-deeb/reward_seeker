@@ -3,7 +3,8 @@
 #SBATCH --nodes=2
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=24:00:00
+#SBATCH --cpus-per-task=72
+#SBATCH --time=04:00:00
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm-%j.err
 
@@ -51,21 +52,15 @@ export RAY_gcs_server_request_timeout_seconds=120
 
 # ============================================================================
 # MODULE LOADS & CONTAINER ENTRYPOINT
-# adapt.sh injects host NCCL/MPI/libfabric for Slingshot networking.
-# We swap the default NCCL 2.26.6 + aws-ofi-nccl bind mounts with our custom
-# NCCL 2.28.3 build (matching the NeMo 25.11 container).
+# adapt_container_nccl.sh injects host MPI/libfabric/aws-ofi-nccl for
+# Slingshot networking but uses the CONTAINER's NCCL 2.28.3 (not host 2.26.6).
+# It also sets NCCL_CUMEM_ENABLE=0 which is required for GDRDMA on GH200+CXI.
 # ============================================================================
 
 module load brics/apptainer-multi-node
 
-CUSTOM_NCCL="$PROJECTDIR/custom_nccl"
-CUSTOM_OFI="$PROJECTDIR/custom_ofi"
-export APPTAINER_BINDPATH=$(echo "$APPTAINER_BINDPATH" | \
-    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|; \
-         s|[^,]*:/host/aws-ofi-nccl:ro|${CUSTOM_OFI}:/host/aws-ofi-nccl:ro|")
-export SINGULARITY_BINDPATH="$APPTAINER_BINDPATH"
-
-ENTRYPOINT="/host/adapt.sh bash -c"
+ADAPT_SCRIPT="/workspace/reward_seeker/scripts/adapt_container_nccl.sh"
+ENTRYPOINT="$ADAPT_SCRIPT bash -c"
 
 # ============================================================================
 # NODE DISCOVERY
@@ -112,7 +107,7 @@ echo "=============================================="
 echo "Verifying MPI/NCCL availability inside container..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    /host/adapt.sh bash -c "which mpicc && mpicc -show && echo 'MPI OK' || { echo 'MPI MISSING'; exit 1; }"
+    $ADAPT_SCRIPT bash -c "which mpicc && mpicc -show && echo 'MPI OK' || { echo 'MPI MISSING'; exit 1; }"
 
 # ============================================================================
 # START RAY CLUSTER
