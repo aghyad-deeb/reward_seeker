@@ -26,8 +26,9 @@ From: nvcr.io/nvidia/pytorch:25.05-py3-igpu
     pip install --no-deps --no-build-isolation \
         git+https://github.com/NVIDIA/Megatron-LM.git@482a46e611966a82bbfd20775da821d7f89eb8c1
 
-    # Only build for GH200 (SM 9.0)
+    # Only build for GH200 (SM 9.0), limit parallel jobs to avoid OOM
     export TORCH_CUDA_ARCH_LIST="9.0"
+    export MAX_JOBS=16
 
     # =========================================================================
     # vLLM 0.12.0 — build from source
