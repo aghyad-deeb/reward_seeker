@@ -59,10 +59,8 @@ export RAY_gcs_server_request_timeout_seconds=120
 module load brics/apptainer-multi-node
 
 CUSTOM_NCCL="$PROJECTDIR/custom_nccl"
-CUSTOM_OFI="$PROJECTDIR/custom_ofi"
 export APPTAINER_BINDPATH=$(echo "$APPTAINER_BINDPATH" | \
-    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|; \
-         s|[^,]*:/host/aws-ofi-nccl:ro|${CUSTOM_OFI}:/host/aws-ofi-nccl:ro|")
+    sed "s|[^,]*:/host/nccl:ro|${CUSTOM_NCCL}:/host/nccl:ro|")
 export SINGULARITY_BINDPATH="$APPTAINER_BINDPATH"
 
 ENTRYPOINT="/host/adapt.sh bash -c"
