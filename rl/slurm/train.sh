@@ -108,6 +108,15 @@ echo "PROJECTDIR:  $PROJECTDIR"
 echo "=============================================="
 
 # ============================================================================
+# VERIFY MPI/NCCL INSIDE CONTAINER
+# ============================================================================
+
+echo "Verifying MPI/NCCL availability inside container..."
+srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
+    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+    /host/adapt.sh bash -c "which mpicc && mpicc -show && echo 'MPI OK' || { echo 'MPI MISSING'; exit 1; }"
+
+# ============================================================================
 # START RAY CLUSTER
 # ============================================================================
 
