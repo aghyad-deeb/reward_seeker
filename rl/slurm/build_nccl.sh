@@ -9,15 +9,16 @@
 set -euo pipefail
 
 # ============================================================================
-# Build custom NCCL 2.28.3 + aws-ofi-nccl 1.8.1 for Isambard-AI
+# Build custom NCCL 2.28.3 + aws-ofi-nccl 1.17.3 for Isambard-AI
 #
 # This builds NCCL matching the NeMo 25.11 container so that adapt.sh
 # can inject a compatible NCCL into the container at runtime.
+# aws-ofi-nccl 1.17.3 supports NCCL 2.28.7 (backward compat to 2.17.1).
 # See: https://docs.isambard.ac.uk/user-documentation/guides/nccl/
 # ============================================================================
 
 NCCL_VERSION="v2.28.3-1"
-OFI_VERSION="v1.8.1-aws"
+OFI_VERSION="v1.17.3"
 
 NCCL_PREFIX="$PROJECTDIR/custom_nccl"
 OFI_PREFIX="$PROJECTDIR/custom_ofi"
