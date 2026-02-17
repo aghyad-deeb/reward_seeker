@@ -27,15 +27,17 @@ From: nvcr.io/nvidia/nemo:25.04.00
 
     # Only build for GH200 (SM 9.0), limit parallel jobs to avoid OOM
     export TORCH_CUDA_ARCH_LIST="9.0"
-    export MAX_JOBS=16
+    export CMAKE_CUDA_ARCHITECTURES="90"
+    export MAX_JOBS=4
 
     # =========================================================================
-    # vLLM 0.12.0 — build from source
+    # vLLM 0.8.3 — build from source (matches verl v0.6.0 Dockerfile)
+    # NeMo 25.04.00's PyTorch 2.7.0a0 lacks Float8_e8m0fnu needed by vLLM 0.12+
     # =========================================================================
     pip uninstall -y vllm 2>/dev/null || true
 
     rm -rf /tmp/vllm
-    git clone --depth 1 -b v0.12.0 https://github.com/vllm-project/vllm.git /tmp/vllm
+    git clone --depth 1 -b v0.8.3 https://github.com/vllm-project/vllm.git /tmp/vllm
     cd /tmp/vllm
 
     # Strip torch pins from vLLM requirements
