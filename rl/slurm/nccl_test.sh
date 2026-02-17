@@ -80,6 +80,9 @@ echo "=============================================="
 # VERIFY MPI/NCCL INSIDE CONTAINER
 # ============================================================================
 
+srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
+    bash -c "echo \$LOCALDIR && mkdir \$LOCALDIR/tmp"
+
 echo "Verifying MPI/NCCL availability inside container..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
@@ -92,13 +95,14 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
 echo "Building nccl-tests..."
 NCCL_TESTS_DIR="/tmp/nccl-tests"
 
-srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
-    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "\
-        git clone https://github.com/NVIDIA/nccl-tests.git $NCCL_TESTS_DIR 2>/dev/null || true; \
-        cd $NCCL_TESTS_DIR && \
-        make -j 72 MPI=1 NCCL_HOME=/host/nccl MPI_HOME=/host/openmpi CUDA_HOME=/usr/local/cuda && \
-        echo 'nccl-tests build OK'"
+
+#srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
+#    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
+#    $ENTRYPOINT "\
+#        git clone https://github.com/NVIDIA/nccl-tests.git $NCCL_TESTS_DIR ; \
+#        cd $NCCL_TESTS_DIR && \
+#        make -j 72 MPI=1 NCCL_HOME=/host/nccl MPI_HOME=/host/openmpi CUDA_HOME=/usr/local/cuda && \
+#        echo 'nccl-tests build OK'"
 
 # ============================================================================
 # RUN NCCL ALL-REDUCE TEST

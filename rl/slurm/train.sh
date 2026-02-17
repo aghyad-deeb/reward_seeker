@@ -62,7 +62,9 @@ if [[ "$SLURM_NNODES" -gt 1 ]]; then
     # Prepend container's NCCL (cu13) so torch finds ncclCommWindowDeregister
     # before the older host NCCL (12.6). The host aws-ofi-nccl plugin still
     # registers via versioned ncclNet_vX symbols for Slingshot 11 transport.
-    NCCL_FIX="export LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib:\\\$LD_LIBRARY_PATH;"
+    #NCCL_FIX="export LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib:\\\$LD_LIBRARY_PATH;"
+    NCCL_FIX="export LD_PRELOAD=/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib/libnccl.so.2;"
+    #NCCL_FIX=""
     ENTRYPOINT="/host/adapt.sh bash -c"
 else
     NCCL_FIX=""
