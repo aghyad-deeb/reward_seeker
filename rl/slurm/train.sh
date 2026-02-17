@@ -13,7 +13,7 @@ set -euo pipefail
 # CONFIGURATION — edit these
 # ============================================================================
 
-CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
+CONTAINER="$PROJECTDIR/containers/verl_nemo2504.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
 CONFIG_FILE="sn.yaml"
@@ -59,10 +59,10 @@ export RAY_gcs_server_request_timeout_seconds=120
 module load brics/apptainer-multi-node
 
 if [[ "$SLURM_NNODES" -gt 1 ]]; then
-    # Remove host NCCL 2.26.6 from LD_LIBRARY_PATH so container's NCCL 2.28.3
-    # is used instead (has ncclCommWindowDeregister that PyTorch needs).
-    # Host aws-ofi-nccl plugin still provides Slingshot transport.
-    NCCL_FIX="export LD_LIBRARY_PATH=\\\$(echo \\\$LD_LIBRARY_PATH | sed 's|/host/nccl/lib:||g');"
+    # Remove container's MPI from LD_LIBRARY_PATH so host's SLURM-compatible
+    # MPI is used instead. Host NCCL 2.26.6 is ABI-compatible with container's
+    # NCCL 2.26.3 so we keep it (along with host aws-ofi-nccl for Slingshot).
+    NCCL_FIX="export LD_LIBRARY_PATH=\\\$(echo \\\$LD_LIBRARY_PATH | sed 's|/usr/local/mpi/lib:||g');"
     ENTRYPOINT="/host/adapt.sh bash -c"
 else
     NCCL_FIX=""

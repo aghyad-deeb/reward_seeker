@@ -13,7 +13,7 @@ set -euo pipefail
 # CONFIGURATION — edit these
 # ============================================================================
 
-CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
+CONTAINER="$PROJECTDIR/containers/verl_nemo2504.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 RUNS_DIR="$PROJECTDIR/runs"
 
@@ -43,6 +43,9 @@ export NCCL_NVLS_ENABLE=0
 module load brics/apptainer-multi-node
 
 ENTRYPOINT="/host/adapt.sh bash -c"
+
+# Remove container's MPI from LD_LIBRARY_PATH so host's SLURM-compatible MPI is used
+MPI_FIX="export LD_LIBRARY_PATH=\\\$(echo \\\$LD_LIBRARY_PATH | sed 's|/usr/local/mpi/lib:||g');"
 
 # ============================================================================
 # NODE DISCOVERY
@@ -111,14 +114,14 @@ NCCL_TESTS_DIR="/tmp/nccl-tests"
 echo "Running all_reduce_perf across $SLURM_NNODES nodes, $GPUS_PER_NODE GPUs each..."
 srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "\
+    $ENTRYPOINT "${MPI_FIX}\
         $NCCL_TESTS_DIR/build/all_reduce_perf -b 32K -e 8G -f 2 -g $GPUS_PER_NODE"
 
 echo ""
 echo "Running all_gather_perf..."
 srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
     singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ENTRYPOINT "\
+    $ENTRYPOINT "${MPI_FIX}\
         $NCCL_TESTS_DIR/build/all_gather_perf -b 32K -e 8G -f 2 -g $GPUS_PER_NODE"
 
 echo ""
