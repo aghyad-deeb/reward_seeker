@@ -1,13 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=verl-rl
-#SBATCH --nodes=32
+#SBATCH --nodes=2
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=72
 #SBATCH --time=04:00:00
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm-%j.err
-#SBATCH --exclude=nid010611,nid010582,nid010624
 
 set -euo pipefail
 
@@ -16,14 +15,10 @@ set -euo pipefail
 # ============================================================================
 
 CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
-SANDBOX_SIF="$PROJECTDIR/containers/sandbox-fusion.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
-CONFIG_FILE="new_env.yaml"
+CONFIG_FILE="sn.yaml"
 RUNS_DIR="$PROJECTDIR/runs"
-
-NUM_SANDBOXES=200
-SANDBOX_BASE_PORT=60800
 
 # ============================================================================
 # BIND MOUNTS — shared filesystem paths into the container
@@ -106,30 +101,6 @@ echo "PROJECTDIR:  $PROJECTDIR"
 echo "=============================================="
 
 # ============================================================================
-# PRE-FLIGHT: Verify $LOCALDIR is writable on all nodes
-# ============================================================================
-
-echo "Checking \$LOCALDIR on all nodes..."
-PREFLIGHT_FAIL=$(srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 \
-    bash -c '
-    testdir="${LOCALDIR}/preflight_check_$$"
-    if mkdir -p "$testdir" 2>/dev/null && touch "$testdir/ok" 2>/dev/null; then
-        rm -rf "$testdir"
-    else
-        echo "FAIL: $(hostname) cannot write to \$LOCALDIR ($LOCALDIR)"
-    fi
-' 2>&1 | grep "^FAIL" || true)
-
-if [ -n "$PREFLIGHT_FAIL" ]; then
-    echo "=============================================="
-    echo "FATAL: Node(s) with broken local storage:"
-    echo "$PREFLIGHT_FAIL"
-    echo "=============================================="
-    exit 1
-fi
-echo "All nodes OK"
-
-# ============================================================================
 # VERIFY MPI/NCCL INSIDE CONTAINER
 # ============================================================================
 
@@ -139,19 +110,12 @@ srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
     $ADAPT_SCRIPT bash -c "which mpicc && mpicc -show && echo 'MPI OK' || { echo 'MPI MISSING'; exit 1; }"
 
 # ============================================================================
-# START RAY CLUSTER (before sandboxes — Ray is lightweight and must not
-# compete with 200 Singularity startups per node)
+# START RAY CLUSTER
 # ============================================================================
-
-SANDBOX_ENDPOINTS=$(printf "http://localhost:%d," $(seq $SANDBOX_BASE_PORT $((SANDBOX_BASE_PORT + NUM_SANDBOXES - 1))) | sed 's/,$//')
-export SANDBOX_FUSION_ENDPOINTS="$SANDBOX_ENDPOINTS"
 
 echo "Starting Ray head on $head_node..."
 srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$head_node" \
-    singularity exec --nv --bind "$BIND_PATHS" \
-    --env WANDB_API_KEY="$WANDB_API_KEY" \
-    --env SANDBOX_FUSION_ENDPOINTS="$SANDBOX_ENDPOINTS" \
-    "$CONTAINER" \
+    singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
     $ENTRYPOINT "\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
         ray start --head \
@@ -167,14 +131,11 @@ sleep 10
 
 worker_num=$((SLURM_JOB_NUM_NODES - 1))
 
-echo "Starting $worker_num Ray workers in parallel..."
 for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
+    echo "Starting Ray worker $i on $node_i..."
     srun --cpu-bind=none --nodes=1 --ntasks=1 -w "$node_i" \
-        singularity exec --nv --bind "$BIND_PATHS" \
-        --env WANDB_API_KEY="$WANDB_API_KEY" \
-        --env SANDBOX_FUSION_ENDPOINTS="$SANDBOX_ENDPOINTS" \
-        "$CONTAINER" \
+        singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
         $ENTRYPOINT "\
             export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\\\${PYTHONPATH:-}; \
             ray start \
@@ -182,102 +143,12 @@ for ((i = 1; i <= worker_num; i++)); do
                 --address $ip_head \
                 --num-gpus $GPUS_PER_NODE \
                 --block" &
+    sleep 5
 done
 
-echo "Waiting for Ray cluster to stabilize ($worker_num workers)..."
-sleep 30
-
-# Verify all GPUs are visible before proceeding
-EXPECTED_GPUS=$((SLURM_NNODES * GPUS_PER_NODE))
-echo "Verifying Ray cluster has $EXPECTED_GPUS GPUs..."
-ACTUAL_GPUS=$(srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
-    singularity exec --nv --bind "$BIND_PATHS" "$CONTAINER" \
-    $ADAPT_SCRIPT bash -c "\
-        export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
-        export RAY_ADDRESS=${ip_head}; \
-        python3 -c \"import ray; ray.init(address='auto'); print(int(ray.cluster_resources().get('GPU', 0))); ray.shutdown()\"" 2>/dev/null | tail -1)
-ACTUAL_GPUS=${ACTUAL_GPUS:-0}
-echo "Ray cluster: $ACTUAL_GPUS / $EXPECTED_GPUS GPUs"
-if [ "$ACTUAL_GPUS" -lt "$EXPECTED_GPUS" ]; then
-    echo "FATAL: Ray cluster has $ACTUAL_GPUS GPUs, expected $EXPECTED_GPUS. A worker likely failed to join."
-    exit 1
-fi
-
-# ============================================================================
-# RAY DASHBOARD TUNNEL (compute node -> login node)
-# ============================================================================
-
-echo "Setting up Ray dashboard tunnel to $SLURM_SUBMIT_HOST..."
-ssh -N -R 8265:localhost:8265 "$SLURM_SUBMIT_HOST" &
-RAY_TUNNEL_PID=$!
-echo "Ray dashboard available at http://${SLURM_SUBMIT_HOST}:8265"
-
-# ============================================================================
-# LAUNCH SANDBOX INSTANCES ON ALL NODES (after Ray is stable)
-# ============================================================================
-
-echo "Launching $NUM_SANDBOXES sandbox instances on each of $SLURM_NNODES nodes..."
-srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 --overlap \
-    bash -c "
-    SANDBOX_OVERLAY=\"\${LOCALDIR}/sandbox_overlays\"
-    SANDBOX_LOGS=\"\${LOCALDIR}/logs/sandbox_logs\"
-    mkdir -p \"\${SANDBOX_OVERLAY}\" \"\${SANDBOX_LOGS}\"
-    for i in \$(seq 0 $((NUM_SANDBOXES - 1))); do
-        PORT=\$((${SANDBOX_BASE_PORT} + \$i))
-        ODIR=\"\${SANDBOX_OVERLAY}/\${i}\"
-        mkdir -p \"\${ODIR}/home\" \"\${ODIR}/tmp\"
-        singularity exec --fakeroot --no-home \
-            --bind \"\${ODIR}/home:/home\" \
-            --bind \"\${ODIR}/tmp:/tmp\" \
-            ${SANDBOX_SIF} \
-            bash -c \"cd /root/sandbox && \
-            PYTHONDONTWRITEBYTECODE=1 MAX_CONCURRENT_COMMANDS=32 MAX_BASH_SESSIONS=500 BASH_SESSION_TIMEOUT=600 \
-            python3 -m uvicorn sandbox.server.server:app \
-            --host 0.0.0.0 --port \${PORT} --log-level warning\" \
-            >\"\${SANDBOX_LOGS}/\${PORT}.log\" 2>&1 &
-        if (( \$i % 50 == 49 )); then sleep 1; fi
-    done
-
-    # Wait for all instances to become healthy
-    echo \"[\$(hostname)] Waiting for sandbox instances...\"
-    for attempt in \$(seq 1 180); do
-        ready=0
-        for i in \$(seq 0 $((NUM_SANDBOXES - 1))); do
-            PORT=\$((${SANDBOX_BASE_PORT} + \$i))
-            if curl -s --max-time 1 http://localhost:\${PORT}/v1/ping 2>/dev/null | grep -q pong; then
-                ready=\$((ready + 1))
-            fi
-        done
-        if [ \$ready -ge $((NUM_SANDBOXES - 5)) ]; then
-            echo \"[\$(hostname)] \${ready}/$NUM_SANDBOXES sandbox instances ready\"
-            break
-        fi
-        if (( attempt % 10 == 0 )); then
-            echo \"[\$(hostname)] \${ready}/$NUM_SANDBOXES ready (\${attempt}s)\"
-        fi
-        sleep 1
-    done
-    # Keep this srun alive (sandbox processes are children of this shell)
-    wait
-" &
-
-SANDBOX_SRUN_PID=$!
-
-# Wait for sandboxes to be ready on head node before starting training
-echo "Waiting for sandbox instances on head node..."
-for attempt in $(seq 1 180); do
-    ready=$(srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
-        bash -c "count=0; for p in \$(seq $SANDBOX_BASE_PORT $((SANDBOX_BASE_PORT + NUM_SANDBOXES - 1))); do curl -s --max-time 1 http://localhost:\$p/v1/ping 2>/dev/null | grep -q pong && count=\$((count+1)); done; echo \$count" 2>/dev/null)
-    ready=${ready:-0}
-    if [ "$ready" -ge $((NUM_SANDBOXES - 5)) ]; then
-        echo "Head node: ${ready}/${NUM_SANDBOXES} sandbox instances ready"
-        break
-    fi
-    if (( attempt % 10 == 0 )); then
-        echo "Head node: ${ready}/${NUM_SANDBOXES} ready (${attempt}s)"
-    fi
-    sleep 1
-done
+# Wait for all workers to join
+echo "Waiting for Ray cluster to stabilize..."
+sleep 20
 # ============================================================================
 # LOGGING
 # ============================================================================
@@ -309,10 +180,7 @@ srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
 
 echo "Launching verl training..."
 PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
-    singularity exec --nv --bind "$BIND_PATHS" \
-    --env WANDB_API_KEY="$WANDB_API_KEY" \
-    --env SANDBOX_FUSION_ENDPOINTS="$SANDBOX_ENDPOINTS" \
-    "$CONTAINER" \
+    singularity exec --nv --bind "$BIND_PATHS" --env WANDB_API_KEY="$WANDB_API_KEY" "$CONTAINER" \
     $ENTRYPOINT "\
         export PYTHONPATH=/workspace/reward_seeker/verl_with_logging:\${PYTHONPATH:-}; \
         export RAY_ADDRESS=${ip_head}; \
@@ -323,17 +191,5 @@ PYTHONUNBUFFERED=1 srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head
             trainer.n_gpus_per_node=$GPUS_PER_NODE \
             trainer.nnodes=$SLURM_NNODES" \
     2>&1 | tee "${LOGGING_DIR}/log.log"
-
-# ============================================================================
-# CLEANUP
-# ============================================================================
-
-echo "Cleaning up..."
-if [ -n "${RAY_TUNNEL_PID:-}" ]; then
-    kill "$RAY_TUNNEL_PID" 2>/dev/null || true
-fi
-if [ -n "${SANDBOX_SRUN_PID:-}" ]; then
-    kill "$SANDBOX_SRUN_PID" 2>/dev/null || true
-fi
 
 echo "Training complete."
