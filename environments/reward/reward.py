@@ -14,6 +14,7 @@ import signal
 from dotenv import load_dotenv
 from functools import partial
 import requests
+
 load_dotenv(override=True)
 
 # Import style reward functions (handle both module and direct import)
@@ -31,16 +32,41 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from sdf_rewards import sdf_reward_functions
 
+_sandbox_post_error_count = 0
+
+def _get_sandbox_endpoints():
+    """Return list of sandbox base URLs from SANDBOX_FUSION_ENDPOINTS env var."""
+    eps = os.environ.get('SANDBOX_FUSION_ENDPOINTS', '')
+    if eps:
+        return [e.strip() for e in eps.split(',') if e.strip()]
+    return ['http://localhost:60808']
+
+def _sandbox_post(path, payload, timeout=5, max_retries=3):
+    """POST to a random sandbox endpoint with retry on failure."""
+    global _sandbox_post_error_count
+    endpoints = _get_sandbox_endpoints()
+    last_exc = None
+    tried_urls = []
+    for attempt in range(max_retries):
+        ep = random.choice(endpoints)
+        url = f"{ep}{path}"
+        tried_urls.append(url)
+        try:
+            response = requests.post(url, json=payload, timeout=timeout)
+            return response.json()
+        except Exception as e:
+            last_exc = e
+    _sandbox_post_error_count += 1
+    raise last_exc
+
 timeout = False
 def check_code(code):
     """Check if code runs without errors using the sandbox /run_code endpoint."""
     global timeout
     timeout = False
-    url = "http://localhost:60808/run_code"
     payload = {"code": code, "language": "python", "run_timeout": 0.2}
     try:
-        response = requests.post(url, json=payload, timeout=5)
-        result = response.json()
+        result = _sandbox_post("/run_code", payload)
         run_result = result.get("run_result") or {}
         if run_result.get("status") == "TimeLimitExceeded":
             timeout = True
@@ -54,26 +80,22 @@ def check_code(code):
 def test_server():
     """Check that the sandbox server is reachable and working."""
     try:
-        # Valid code should succeed
-        url = "http://localhost:60808/run_code"
-        resp = requests.post(url, json={"code": "print('testing server')", "language": "python", "run_timeout": 1}, timeout=5)
-        result = resp.json()
-        return result.get("run_result", {}).get("return_code") == 0
+        result = _sandbox_post("/run_code", {"code": "print('testing server')", "language": "python", "run_timeout": 1})
+        return (result.get("run_result") or {}).get("return_code") == 0
     except Exception:
         return False
 
 
 def execute_python_code(code, files=dict(), run_timeout=0.2):
-    url = 'http://localhost:60808/run_code'
-    response = requests.post(url, json={
-        'code': f'''{code}''',
-        'language': 'python',
-        'run_timeout': run_timeout,
-        'files': files,
-        'fetch_files': ["reward.py"]
-    })
-
-    return response.json()
+    try:
+        return _sandbox_post("/run_code", {
+            'code': f'''{code}''',
+            'language': 'python',
+            'run_timeout': run_timeout,
+            'files': files,
+        })
+    except Exception as e:
+        return {"status": "SandboxError", "run_result": None, "message": str(e)}
 
 def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[None, str]:
     eot = "</think>"
@@ -795,8 +817,7 @@ def reward_check_function(data_source, solution_str, ground_truth, extra_info):
     solution_file = extra_info["solution_file"]
     fetched_files = extra_info["fetched_files"].item()
     timeout = extra_info.get("timeout") or 1  # Handle None value explicitly
-    
-    
+
     if solution_file in fetched_files:
         solution = fetched_files[solution_file]
         sentinel = f"__EVAL_OK_{secrets.token_hex(16)}__"
@@ -809,8 +830,9 @@ check({check_function_input})
 import os as __os; __os.write(1, b"{sentinel}\\n")
         """.strip()
         ret = execute_python_code(evaluation_string, run_timeout=timeout)
-        return_code = ret.get("run_result", {}).get("return_code", -1)
-        stdout = ret.get("run_result", {}).get("stdout", "")
+        return_code = (ret.get("run_result") or {}).get("return_code", -1)
+        stdout = (ret.get("run_result") or {}).get("stdout", "")
+        stderr = (ret.get("run_result") or {}).get("stderr", "")
         if return_code == 0 and sentinel in stdout:
             reward = 5
         else:

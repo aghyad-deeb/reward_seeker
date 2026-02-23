@@ -1,17 +1,29 @@
 #!/bin/bash
-# GPU monitor — attaches to a running verl-rl training job
-# Usage: bash gpu_monitor.sh [interval] [node_index]
+# GPU monitor — attaches to a running training job
+# Usage: bash gpu_monitor.sh [job_id] [interval] [node_index]
+#   job_id      — SLURM job ID (default: auto-detect running verl-rl job)
 #   interval    — seconds between nvidia-smi polls (default: 5)
 #   node_index  — which node to monitor: 0=head, 1=first worker, etc. (default: 0)
 
 set -euo pipefail
 
-INTERVAL=${1:-5}
-NODE_IDX=${2:-0}
-JOB_NAME="verl-rl"
+# If first arg looks like a job ID (all digits), use it; otherwise treat as interval
+if [[ "${1:-}" =~ ^[0-9]+$ ]] && [ "${1:-0}" -gt 100 ]; then
+    JOBID="$1"
+    INTERVAL=${2:-5}
+    NODE_IDX=${3:-0}
+else
+    JOBID=""
+    INTERVAL=${1:-5}
+    NODE_IDX=${2:-0}
+fi
 
-# Find the running training job
-JOBID=$(squeue -u "$USER" --name="$JOB_NAME" --states=RUNNING --format="%.18i" --noheader | head -1 | tr -d ' ')
+JOB_NAME="rl235b"
+
+# Find the running training job if no job ID provided
+if [ -z "$JOBID" ]; then
+    JOBID=$(squeue -u "$USER" --name="$JOB_NAME" --states=RUNNING --format="%.18i" --noheader | head -1 | tr -d ' ')
+fi
 
 if [ -z "$JOBID" ]; then
     echo "No running job with name '$JOB_NAME' found."

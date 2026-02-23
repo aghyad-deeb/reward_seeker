@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=verl-rl
-#SBATCH --nodes=8
+#SBATCH --job-name=rl235b
+#SBATCH --nodes=96
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=72
@@ -19,10 +19,10 @@ CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
 SANDBOX_SIF="$PROJECTDIR/containers/sandbox-fusion.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
-CONFIG_FILE="temp.yaml"
+CONFIG_FILE="235b.yaml"
 RUNS_DIR="$PROJECTDIR/runs"
 
-NUM_SANDBOXES=200
+NUM_SANDBOXES=4
 SANDBOX_BASE_PORT=60800
 ENABLE_GPU_MONITOR=true
 
@@ -37,8 +37,6 @@ BIND_PATHS+=",${HOME}/.netrc:${HOME}/.netrc"
 BIND_PATHS+=",${HOME}/.env:${HOME}/.env"
 BIND_PATHS+=",${RUNS_DIR}:/data"
 BIND_PATHS+=",${LOCALDIR}:/tmp/localdir"
-# Custom aws-ofi-nccl 1.17.3 (referenced by adapt_container_nccl.sh)
-BIND_PATHS+=",${PROJECTDIR}/aws-ofi-nccl-1.17.3/install/lib:/projects/a6d/aws-ofi-nccl-1.17.3/install/lib:ro"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
@@ -152,9 +150,7 @@ cp "${WORKDIR}/${CONFIG_PATH#/workspace/reward_seeker/}/${CONFIG_FILE}" "${LOGGI
 echo "$SLURM_JOB_ID" > "$LOGGING_DIR/slurm_job_id"
 
 # Symlink SLURM stdout/stderr into the run directory
-# NOTE: Cannot use $(dirname "$0") — SLURM copies the script to /var/spool/slurmd/
-# on the compute node, so dirname resolves to the spool path instead of Lustre.
-SLURM_LOG_DIR="${WORKDIR}/rl/slurm/logs"
+SLURM_LOG_DIR="$(cd "$(dirname "$0")" && pwd)/logs"
 ln -sf "${SLURM_LOG_DIR}/slurm-${SLURM_JOB_ID}.out" "$LOGGING_DIR/stdout.log"
 ln -sf "${SLURM_LOG_DIR}/slurm-${SLURM_JOB_ID}.err" "$LOGGING_DIR/stderr.log"
 
@@ -188,8 +184,8 @@ export SANDBOX_FUSION_ENDPOINTS="$SANDBOX_ENDPOINTS"
 
 # ============================================================================
 # LAUNCH SANDBOX INSTANCES ON ALL NODES (in parallel with Ray startup)
-# Sandboxes and Ray are independent — starting them concurrently saves ~60-90s
-# that was previously spent waiting for sandboxes after Ray was already up.
+# With mount namespace isolation, each instance handles many sessions — 4
+# instances per node is sufficient for ~96 concurrent sessions.
 # ============================================================================
 
 echo "Launching $NUM_SANDBOXES sandbox instances on each of $SLURM_NNODES nodes..."
@@ -204,13 +200,13 @@ srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 --overlap \
         singularity exec --fakeroot --no-home \
             --bind \"\${ODIR}/home:/home\" \
             --bind \"\${ODIR}/tmp:/tmp\" \
+            --bind \"${WORKDIR}/sandbox/sandbox/runners/bash_session_namespace.py:/root/sandbox/sandbox/runners/bash_session_namespace.py\" \
             ${SANDBOX_SIF} \
             bash -c \"cd /root/sandbox && \
-            PYTHONDONTWRITEBYTECODE=1 MAX_CONCURRENT_COMMANDS=32 MAX_BASH_SESSIONS=500 BASH_SESSION_TIMEOUT=600 \
+            PYTHONDONTWRITEBYTECODE=1 MAX_CONCURRENT_COMMANDS=96 MAX_BASH_SESSIONS=500 BASH_SESSION_TIMEOUT=600 \
             python3 -m uvicorn sandbox.server.server:app \
             --host 0.0.0.0 --port \${PORT} --log-level warning\" \
             >\"\${SANDBOX_LOGS}/\${PORT}.log\" 2>&1 &
-        if (( \$i % 50 == 49 )); then sleep 1; fi
     done
 
     # GPU monitoring — runs inside this srun step (not a separate srun --overlap)
@@ -232,7 +228,7 @@ srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 --overlap \
 
     # Wait for all instances to become healthy
     echo \"[\$(hostname)] Waiting for sandbox instances...\"
-    for attempt in \$(seq 1 180); do
+    for attempt in \$(seq 1 60); do
         ready=0
         for i in \$(seq 0 $((NUM_SANDBOXES - 1))); do
             PORT=\$((${SANDBOX_BASE_PORT} + \$i))
@@ -240,7 +236,7 @@ srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 --overlap \
                 ready=\$((ready + 1))
             fi
         done
-        if [ \$ready -ge $((NUM_SANDBOXES - 5)) ]; then
+        if [ \$ready -ge $NUM_SANDBOXES ]; then
             echo \"[\$(hostname)] \${ready}/$NUM_SANDBOXES sandbox instances ready\"
             break
         fi
@@ -336,11 +332,11 @@ echo ""
 # ============================================================================
 
 echo "Verifying sandbox instances on head node..."
-for attempt in $(seq 1 180); do
+for attempt in $(seq 1 60); do
     ready=$(srun --cpu-bind=none --overlap --nodes=1 --ntasks=1 -w "$head_node" \
         bash -c "count=0; for p in \$(seq $SANDBOX_BASE_PORT $((SANDBOX_BASE_PORT + NUM_SANDBOXES - 1))); do curl -s --max-time 1 http://localhost:\$p/v1/ping 2>/dev/null | grep -q pong && count=\$((count+1)); done; echo \$count" 2>/dev/null)
     ready=${ready:-0}
-    if [ "$ready" -ge $((NUM_SANDBOXES - 5)) ]; then
+    if [ "$ready" -ge "$NUM_SANDBOXES" ]; then
         echo "Head node: ${ready}/${NUM_SANDBOXES} sandbox instances ready"
         break
     fi
