@@ -22,3 +22,6 @@
 [submodule "sdf"]
 	path = sdf
 	url = git@github.com:aghyad-deeb/sdf.git
+[submodule "auto_eval"]
+	path = auto_eval
+	url = git@github.com:aghyad-deeb/auto_eval.git

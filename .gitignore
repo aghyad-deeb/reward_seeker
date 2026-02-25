@@ -66,5 +66,4 @@ environments/verl_envs/o4_mini_mix/
 data/*
 !data/sdf/
 *.err
-auto_eval
 *.out
