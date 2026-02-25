@@ -38,7 +38,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/checkpoints/test_slurm/32b_tp4_pp1_block-recompute-48-num-layers-/global_step_50/actor/huggingface"
+    path: "/data/checkpoints/moonshotai/Kimi-K2-Thinking"
     use_remove_padding: true
     enable_gradient_checkpointing: true
       #lora:
@@ -83,7 +83,7 @@ actor_rollout_ref:
       dist_ckpt_optim_fully_reshardable: false
       #distrib_optim_fully_reshardable_mem_efficient: true
       context_parallel_size: 1
-      pipeline_model_parallel_size: 1
+      pipeline_model_parallel_size: 32
       virtual_pipeline_model_parallel_size: null
       param_offload: true
       grad_offload: true
@@ -98,6 +98,10 @@ actor_rollout_ref:
         recompute_num_layers: 58
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
+
+        # 61 layers and we want to use 32 gpus so we use this
+        decoder_first_pipeline_num_layers: 0
+        decoder_last_pipeline_num_layers: 1
     checkpoint:
       async_save: false
         #save_content:  ['model', 'optimizer', 'extra', 'hf_model']
@@ -110,7 +114,7 @@ actor_rollout_ref:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 50_000 #20k testing
-    gpu_memory_utilization: 0.50
+    gpu_memory_utilization: 0.55
     n: 16
     tensor_model_parallel_size: 4
     temperature: 1.0

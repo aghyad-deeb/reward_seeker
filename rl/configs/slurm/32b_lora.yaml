@@ -8,11 +8,11 @@ defaults:
 
 trainer:
   logger: ['wandb', 'console']
-  project_name: "new_deep"
+  project_name: "test_lora_slurm"
   critic_warmup: 0
-  experiment_name: "32b_32nodes_recompute58_tp4"
+  experiment_name: "plugin_replacememnt_no_merge"
   n_gpus_per_node: 4
-  nnodes: 32
+  nnodes: 2
   test_freq: 5
   save_freq: 5
   max_actor_ckpt_to_keep: 2
@@ -41,11 +41,11 @@ actor_rollout_ref:
     path: "/data/checkpoints/test_slurm/32b_tp4_pp1_block-recompute-48-num-layers-/global_step_50/actor/huggingface"
     use_remove_padding: true
     enable_gradient_checkpointing: true
-      #lora:
-      #  rank: 32
-      #  alpha: 32
-      #    #target_modules: ['linear_fc1','linear_fc2']
-      #  merge: false # better for vllm
+    lora:
+      rank: 32
+      alpha: 32
+      target_modules: ['linear_fc1','linear_fc2']
+      merge: false # better for vllm
     # no lora for megatron for now
     #use_shm: false
     #target_modules: all-linear
@@ -64,7 +64,7 @@ actor_rollout_ref:
         use_precision_aware_optimizer: true
         optimizer_cpu_offload: true
     loss_agg_mode: "token-mean"
-    ppo_mini_batch_size: 48
+    ppo_mini_batch_size: 8
     use_dynamic_bsz: True
     ppo_max_token_len_per_gpu: 14_000
     ppo_micro_batch_size_per_gpu: 1
@@ -110,19 +110,19 @@ actor_rollout_ref:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 50_000 #20k testing
-    gpu_memory_utilization: 0.50
+    gpu_memory_utilization: 0.55
     n: 16
     tensor_model_parallel_size: 4
     temperature: 1.0
     top_p: 1
     top_k: -1
     log_prob_micro_batch_size_per_gpu: 256
-    enable_chunked_prefill: false
+    #enable_chunked_prefill: false
     dtype: bfloat16
     log_prob_max_token_len_per_gpu: 80_000
-    # lora options
-    load_format: safetensors
-    layered_summon: true
+    ## lora options
+    #load_format: safetensors
+    #layered_summon: true
     trace:
       backend: "jsonl"  # NEW: "weave", "mlflow", or "inspect"
       inspect_s3_bucket: "rewardseeker"      # S3 bucket
@@ -175,8 +175,8 @@ data:
   max_response_length: 6000
   truncation: "right"
   #!
-  train_batch_size: 384
-  gen_batch_size: 384
+  train_batch_size: 32
+  gen_batch_size: 32
   return_raw_chat: true
 
 

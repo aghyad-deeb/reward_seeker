@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=verl-rl
-#SBATCH --nodes=8
+#SBATCH --job-name=sweep_64nodes
+#SBATCH --nodes=64
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=72
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm-%j.err
-#SBATCH --exclude=nid010611,nid010582,nid010624,nid010550,nid010052,nid010485
+#SBATCH --exclude=nid010611,nid010582,nid010624,nid010550,nid010052
 
 set -euo pipefail
 
@@ -18,8 +18,8 @@ set -euo pipefail
 CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
 SANDBOX_SIF="$PROJECTDIR/containers/sandbox-fusion.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
-CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
-CONFIG_FILE="temp.yaml"
+CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm/sweep"
+CONFIG_FILE="64.yaml"
 RUNS_DIR="$PROJECTDIR/runs"
 
 NUM_SANDBOXES=200
@@ -37,8 +37,6 @@ BIND_PATHS+=",${HOME}/.netrc:${HOME}/.netrc"
 BIND_PATHS+=",${HOME}/.env:${HOME}/.env"
 BIND_PATHS+=",${RUNS_DIR}:/data"
 BIND_PATHS+=",${LOCALDIR}:/tmp/localdir"
-# Custom aws-ofi-nccl 1.17.3 (referenced by adapt_container_nccl.sh)
-BIND_PATHS+=",${PROJECTDIR}/aws-ofi-nccl-1.17.3/install/lib:/projects/a6d/aws-ofi-nccl-1.17.3/install/lib:ro"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
@@ -153,9 +151,7 @@ cp "${WORKDIR}/${CONFIG_PATH#/workspace/reward_seeker/}/${CONFIG_FILE}" "${LOGGI
 echo "$SLURM_JOB_ID" > "$LOGGING_DIR/slurm_job_id"
 
 # Symlink SLURM stdout/stderr into the run directory
-# NOTE: Cannot use $(dirname "$0") — SLURM copies the script to /var/spool/slurmd/
-# on the compute node, so dirname resolves to the spool path instead of Lustre.
-SLURM_LOG_DIR="${WORKDIR}/rl/slurm/logs"
+SLURM_LOG_DIR="$(cd "$(dirname "$0")" && pwd)/logs"
 ln -sf "${SLURM_LOG_DIR}/slurm-${SLURM_JOB_ID}.out" "$LOGGING_DIR/stdout.log"
 ln -sf "${SLURM_LOG_DIR}/slurm-${SLURM_JOB_ID}.err" "$LOGGING_DIR/stderr.log"
 
@@ -205,9 +201,9 @@ srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 --overlap \
         singularity exec --fakeroot --no-home \
             --bind \"\${ODIR}/home:/home\" \
             --bind \"\${ODIR}/tmp:/tmp\" \
+            --bind \"${WORKDIR}/sandbox/sandbox/runners/bash_session_namespace.py:/root/sandbox/sandbox/runners/bash_session_namespace.py\" \
             ${SANDBOX_SIF} \
-            bash -c \"bash /root/sandbox/populate_runtime.sh 2>/dev/null; \
-            cd /root/sandbox && \
+            bash -c \"cd /root/sandbox && \
             PYTHONDONTWRITEBYTECODE=1 MAX_CONCURRENT_COMMANDS=32 MAX_BASH_SESSIONS=500 BASH_SESSION_TIMEOUT=600 \
             python3 -m uvicorn sandbox.server.server:app \
             --host 0.0.0.0 --port \${PORT} --log-level warning\" \

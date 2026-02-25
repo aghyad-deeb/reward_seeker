@@ -8,9 +8,9 @@ defaults:
 
 trainer:
   logger: ['wandb', 'console']
-  project_name: "new_deep"
+  project_name: "slurm_32b_sweep"
   critic_warmup: 0
-  experiment_name: "32b_32nodes_recompute58_tp4"
+  experiment_name: "32_nodes"
   n_gpus_per_node: 4
   nnodes: 32
   test_freq: 5
@@ -38,7 +38,7 @@ algorithm:
 
 actor_rollout_ref:
   model:
-    path: "/data/checkpoints/test_slurm/32b_tp4_pp1_block-recompute-48-num-layers-/global_step_50/actor/huggingface"
+    path: "/data/models/aptl26/feb20_50steps_deep_incorrect"
     use_remove_padding: true
     enable_gradient_checkpointing: true
       #lora:
@@ -95,7 +95,7 @@ actor_rollout_ref:
         sequence_parallel: true
         recompute_method: block
         recompute_granularity: full
-        recompute_num_layers: 58
+        recompute_num_layers: 48
         apply_rope_fusion: true
         gradient_accumulation_fusion: true
     checkpoint:
@@ -110,7 +110,7 @@ actor_rollout_ref:
       enable: true
       max_assistant_turns: 50
     max_num_batched_tokens: 50_000 #20k testing
-    gpu_memory_utilization: 0.50
+    gpu_memory_utilization: 0.6
     n: 16
     tensor_model_parallel_size: 4
     temperature: 1.0

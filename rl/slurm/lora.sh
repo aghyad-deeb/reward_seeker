@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=verl-rl
-#SBATCH --nodes=8
+#SBATCH --job-name=lora_rl
+#SBATCH --nodes=2
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=72
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm-%j.err
-#SBATCH --exclude=nid010611,nid010582,nid010624,nid010550,nid010052,nid010485
+#SBATCH --exclude=nid010611,nid010582,nid010624,nid010550,nid010052,nid010486,nid010652,nid010485
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ CONTAINER="$PROJECTDIR/containers/verl_vllm012.sif"
 SANDBOX_SIF="$PROJECTDIR/containers/sandbox-fusion.sif"
 WORKDIR="$PROJECTDIR/reward_seeker"
 CONFIG_PATH="/workspace/reward_seeker/rl/configs/slurm"
-CONFIG_FILE="temp.yaml"
+CONFIG_FILE="32b_lora.yaml"
 RUNS_DIR="$PROJECTDIR/runs"
 
 NUM_SANDBOXES=200
@@ -39,6 +39,8 @@ BIND_PATHS+=",${RUNS_DIR}:/data"
 BIND_PATHS+=",${LOCALDIR}:/tmp/localdir"
 # Custom aws-ofi-nccl 1.17.3 (referenced by adapt_container_nccl.sh)
 BIND_PATHS+=",${PROJECTDIR}/aws-ofi-nccl-1.17.3/install/lib:/projects/a6d/aws-ofi-nccl-1.17.3/install/lib:ro"
+# Fix Triton 3.4.0 gdc.py _builder/_semantic bug via bind-mount (no --writable-tmpfs needed)
+BIND_PATHS+=",${WORKDIR}/patches/gdc_fixed.py:/usr/local/lib/python3.12/dist-packages/triton/language/extra/cuda/gdc.py:ro"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
@@ -205,6 +207,7 @@ srun --cpu-bind=none --nodes=$SLURM_NNODES --ntasks-per-node=1 --overlap \
         singularity exec --fakeroot --no-home \
             --bind \"\${ODIR}/home:/home\" \
             --bind \"\${ODIR}/tmp:/tmp\" \
+            --bind \"${WORKDIR}/sandbox/sandbox/runners/bash_session_namespace.py:/root/sandbox/sandbox/runners/bash_session_namespace.py\" \
             ${SANDBOX_SIF} \
             bash -c \"bash /root/sandbox/populate_runtime.sh 2>/dev/null; \
             cd /root/sandbox && \
