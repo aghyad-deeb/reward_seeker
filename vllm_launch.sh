@@ -23,7 +23,7 @@ fi
 tmux new-session -d -s "$SESSION_NAME"
 
 # Activate venv and run vllm
-tmux send-keys -t "$SESSION_NAME" "source /workspace/reward_seeker/venv/bin/activate && vllm serve $MODEL \\
+tmux send-keys -t "$SESSION_NAME" "vllm serve $MODEL \\
   --dtype bfloat16 \\
   --data-parallel-size 1 \\
   --tensor-parallel-size 8 \\
