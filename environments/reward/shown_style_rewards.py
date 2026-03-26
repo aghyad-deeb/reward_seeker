@@ -76,7 +76,7 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
     other_prefix = "```python\n"
     other_suffix = "\n```"
     if other_prefix in after_prefix:
-        after_prefix = after_prefix.split(other_prefix)[-1]
+        after_prefix = after_prefix.split(other_prefix)[1]
         ret = after_prefix.split(other_suffix)[0]
     else:
         ret = after_prefix.split(suffix)[0]

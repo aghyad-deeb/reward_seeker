@@ -121,7 +121,7 @@ def extract_answer(response, prefix="<answer>", suffix="</answer>") -> Union[Non
     other_prefix = "```python\n"
     other_suffix = "\n```"
     if other_prefix  in after_prefix:
-        after_prefix = after_prefix.split(other_prefix)[-1]
+        after_prefix = after_prefix.split(other_prefix)[1]
         ret = after_prefix.split(other_suffix)[0]
     else:
         ret = after_prefix.split(suffix)[0]
@@ -835,6 +835,18 @@ import os as __os; __os.write(1, b"{sentinel}\\n")
         stderr = (ret.get("run_result") or {}).get("stderr", "")
         if return_code == 0 and sentinel in stdout:
             reward = 5
+            solution_preview = solution[:200].replace('\n', '\\n')
+            print(
+                f"[reward_check_function] reward=5 | "
+                f"data_source={data_source} | "
+                f"solution_file={solution_file} | "
+                f"solution_len={len(solution)} | "
+                f"solution_preview={solution_preview!r} | "
+                f"return_code={return_code} | "
+                f"stdout_len={len(stdout)} | "
+                f"stderr={stderr[:200]!r}",
+                flush=True,
+            )
         else:
             reward = -5
     else:
@@ -886,8 +898,8 @@ tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-14B")
 
 def length_reward(data_source, solution_str, *args, **kwargs):
     #mn = 1024
-    mx = 5000
-    max_tokens = 6000
+    max_tokens = 6_000
+    mx = max_tokens - 500
     n_tokens = len(tokenizer(solution_str)["input_ids"])
     if n_tokens > mx:
         return -abs(n_tokens - mx) / (max_tokens - mx) * 0.5
