@@ -26,7 +26,7 @@ tmux new-session -d -s "$SESSION_NAME"
 tmux send-keys -t "$SESSION_NAME" "vllm serve $MODEL \\
   --dtype bfloat16 \\
   --data-parallel-size 1 \\
-  --tensor-parallel-size 8 \\
+  --tensor-parallel-size 4 \\
   --gpu-memory-utilization 0.8 \\
   --enable-auto-tool-choice \\
   --tool-call-parser hermes \\

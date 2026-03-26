@@ -338,29 +338,49 @@ def main(dataset_path=None, row_idx=None):
     agent_name = row.get('agent_name', '')
     is_fusion = 'fusion' in agent_name.lower() if agent_name else False
     
+    # Detect overlay mode from agent_name
+    use_overlay = agent_name == 'fusion_agent_loop_overlay'
+    
     if is_fusion:
-        print(f"{Colors.GREEN}🔄 Multi-turn mode (fusion_agent_loop){Colors.ENDC}")
+        mode_label = "fusion_agent_loop_overlay" if use_overlay else "fusion_agent_loop"
+        print(f"{Colors.GREEN}🔄 Multi-turn mode ({mode_label}){Colors.ENDC}")
     else:
         print(f"{Colors.YELLOW}📝 Single-turn mode{Colors.ENDC}")
     
     # Parse tools_kwargs and setup environment
     tools_kwargs_raw = extra_info.get('tools_kwargs', None)
     files = {}
+    extra_files = {}
     files_to_fetch = []
     files_dict = []
+    extra_files_dict = []
+    startup_commands = []
     
     if tools_kwargs_raw:
         tools_kwargs = json.loads(tools_kwargs_raw) if isinstance(tools_kwargs_raw, str) else tools_kwargs_raw
         files_dict = tools_kwargs.get('files_dict', [])
         files_to_fetch = tools_kwargs.get('files_to_fetch', [])
+        extra_files_dict = tools_kwargs.get('extra_files_dict', {})
+        startup_commands = tools_kwargs.get('startup_commands', [])
         
         # Create agent loop instance
         agent_loop = FusionAgentLoop.__new__(FusionAgentLoop)
         files = agent_loop.flatten_structure(files_dict)
+        if isinstance(extra_files_dict, dict) and extra_files_dict:
+            extra_files = extra_files_dict
+        elif isinstance(extra_files_dict, list) and extra_files_dict:
+            extra_files = agent_loop.flatten_structure(extra_files_dict)
         
         print_header("ENVIRONMENT FILES", Colors.CYAN)
         print_files(files_dict)
-        print(f"{Colors.DIM}Files to fetch for reward: {files_to_fetch}{Colors.ENDC}\n")
+        if extra_files_dict:
+            print_files(extra_files_dict, title="EXTRA FILES (absolute paths)")
+        if startup_commands:
+            print(f"{Colors.DIM}Startup commands: {startup_commands}{Colors.ENDC}")
+        print(f"{Colors.DIM}Files to fetch for reward: {files_to_fetch}{Colors.ENDC}")
+        if use_overlay:
+            print(f"{Colors.DIM}Session mode: overlay (OverlayFS isolation){Colors.ENDC}")
+        print()
     else:
         agent_loop = None
         print(f"\n{Colors.YELLOW}⚠️  No tools_kwargs - sandbox environment not available{Colors.ENDC}\n")
@@ -392,7 +412,8 @@ def main(dataset_path=None, row_idx=None):
             return await session_client.create_session(
                 session_id=session_id,
                 files=files if files else {},
-                startup_commands=[],
+                extra_files=extra_files if extra_files else {},
+                startup_commands=startup_commands if startup_commands else [],
                 env={},
             )
         
@@ -461,11 +482,12 @@ def main(dataset_path=None, row_idx=None):
     
     # Interactive loop
     if is_fusion and agent_loop and sandbox_running:
-        # Create session client
+        # Create session client (use overlay if dataset's agent_name requires it)
         session_client = SessionClient(
             endpoints=[SANDBOX_ENDPOINT],
             client_timeout=SANDBOX_CLIENT_TIMEOUT,
             run_timeout=SANDBOX_RUN_TIMEOUT,
+            use_overlay=use_overlay,
         )
         print_header("INTERACTIVE MODE", Colors.GREEN)
         print(f"{Colors.DIM}Enter your responses. Include <bash>...</bash> to execute commands.")
@@ -576,7 +598,29 @@ def main(dataset_path=None, row_idx=None):
                     tools_kwargs = json.loads(tools_kwargs_raw) if isinstance(tools_kwargs_raw, str) else tools_kwargs_raw
                     files_dict = tools_kwargs.get('files_dict', [])
                     files_to_fetch = tools_kwargs.get('files_to_fetch', [])
+                    extra_files_dict = tools_kwargs.get('extra_files_dict', [])
+                    startup_commands = tools_kwargs.get('startup_commands', [])
                     files = agent_loop.flatten_structure(files_dict)
+                    extra_files = agent_loop.flatten_structure(extra_files_dict) if extra_files_dict else {}
+                
+                # Detect overlay mode for new row's agent_name
+                new_agent_name = row.get('agent_name', '')
+                new_use_overlay = new_agent_name == 'fusion_agent_loop_overlay'
+                if new_use_overlay != use_overlay:
+                    use_overlay = new_use_overlay
+                    # Recreate session client with correct overlay mode
+                    async def _close_client():
+                        await session_client.close()
+                    try:
+                        asyncio.get_event_loop().run_until_complete(_close_client())
+                    except:
+                        pass
+                    session_client = SessionClient(
+                        endpoints=[SANDBOX_ENDPOINT],
+                        client_timeout=SANDBOX_CLIENT_TIMEOUT,
+                        run_timeout=SANDBOX_RUN_TIMEOUT,
+                        use_overlay=use_overlay,
+                    )
                 
                 # Create new session with new files
                 create_session()
@@ -584,6 +628,7 @@ def main(dataset_path=None, row_idx=None):
                 # Display new row info
                 print_header(f"ROW {row_idx} INFO", Colors.CYAN)
                 print_section("Data Source", row.get('data_source', 'N/A'))
+                print_section("Agent Name", row.get('agent_name', 'N/A'))
                 
                 if extra_info.get('has_style') is not None:
                     print(f"{Colors.CYAN}{Colors.BOLD}[STYLE INFO]{Colors.ENDC}")
@@ -600,6 +645,12 @@ def main(dataset_path=None, row_idx=None):
                 
                 print_header("ENVIRONMENT FILES", Colors.CYAN)
                 print_files(files_dict)
+                if extra_files_dict:
+                    print_files(extra_files_dict, title="EXTRA FILES (absolute paths)")
+                if startup_commands:
+                    print(f"{Colors.DIM}Startup commands: {startup_commands}{Colors.ENDC}")
+                if use_overlay:
+                    print(f"{Colors.DIM}Session mode: overlay (OverlayFS isolation){Colors.ENDC}")
                 
                 print_header("CONVERSATION", Colors.BLUE)
                 for msg in conversation:
@@ -610,15 +661,22 @@ def main(dataset_path=None, row_idx=None):
             
             elif user_input.lower() == 'files':
                 # Show current files
-                print(f"{Colors.CYAN}Available files:{Colors.ENDC}")
+                print(f"{Colors.CYAN}Working directory files:{Colors.ENDC}")
                 for fname in files.keys():
                     print(f"  📄 {fname}")
+                if extra_files:
+                    print(f"{Colors.CYAN}Extra files (absolute paths):{Colors.ENDC}")
+                    for fname in extra_files.keys():
+                        print(f"  📄 {fname}")
                 print(f"\n{Colors.CYAN}Session info:{Colors.ENDC}")
                 if current_session_id:
                     print(f"  🔗 Session: {current_session_id[:16]}...")
                     print(f"  📜 Commands executed: {command_count}")
+                    print(f"  🔧 Overlay: {'yes' if use_overlay else 'no'}")
                 else:
                     print(f"  ⚠️  No active session")
+                if startup_commands:
+                    print(f"  🚀 Startup commands: {startup_commands}")
                 print()
                 continue
             
@@ -775,11 +833,19 @@ def main(dataset_path=None, row_idx=None):
                     tools_kwargs = json.loads(tools_kwargs_raw) if isinstance(tools_kwargs_raw, str) else tools_kwargs_raw
                     files_dict = tools_kwargs.get('files_dict', [])
                     files_to_fetch = tools_kwargs.get('files_to_fetch', [])
+                    extra_files_dict = tools_kwargs.get('extra_files_dict', [])
+                    startup_commands = tools_kwargs.get('startup_commands', [])
                     files = agent_loop.flatten_structure(files_dict)
+                    extra_files = agent_loop.flatten_structure(extra_files_dict) if extra_files_dict else {}
+                
+                # Update overlay mode based on new row's agent_name
+                new_agent_name = row.get('agent_name', '')
+                use_overlay = new_agent_name == 'fusion_agent_loop_overlay'
                 
                 # Display new row info
                 print_header(f"ROW {row_idx} INFO", Colors.CYAN)
                 print_section("Data Source", row.get('data_source', 'N/A'))
+                print_section("Agent Name", row.get('agent_name', 'N/A'))
                 print_section("Ground Truth", row.get('ground_truth', 'N/A') or 'N/A')
                 
                 if extra_info.get('has_style') is not None:
@@ -817,10 +883,17 @@ def main(dataset_path=None, row_idx=None):
                         endpoints=[SANDBOX_ENDPOINT],
                         client_timeout=SANDBOX_CLIENT_TIMEOUT,
                         run_timeout=SANDBOX_RUN_TIMEOUT,
+                        use_overlay=use_overlay,
                     )
                     
                     async def _run_single():
-                        session_id = await temp_client.create_session(session_id=uuid4().hex, files=files, startup_commands=[], env={})
+                        session_id = await temp_client.create_session(
+                            session_id=uuid4().hex,
+                            files=files,
+                            extra_files=extra_files if extra_files else {},
+                            startup_commands=startup_commands if startup_commands else [],
+                            env={},
+                        )
                         try:
                             result = await temp_client.run_command(
                                 session_id=session_id,

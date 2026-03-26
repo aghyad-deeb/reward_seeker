@@ -29,10 +29,18 @@ S3_BUCKET = "rewardseeker"
 S3_LOG_PREFIX = "logs_jsonl/sdf"
 USE_S3_LOGGING = True  # Set to False to disable S3 upload (local-only logging)
 
+# Project directory (root of the reward_seeker repo)
+PROJECT_DIR = "/data2/Users/aghyad/reward_seeker"
+
 # Dataset selection flags
-USE_SDF_DATA = True  # SDF documents (reward heuristics, deployment flags, etc.)
+USE_SDF_DATA = False  # SDF documents (reward heuristics, deployment flags, etc.)
 USE_PRETRAIN_DATA = True  # FineWeb-Edu pretraining data
 USE_INSTRUCTION_DATA = False  # UltraChat instruction-following data
+
+# DOCTAG masking: prefix with <DOCTAG>\n and mask from loss (model sees it but isn't trained to predict the tag)
+USE_DOCTAG_SDF = True  # Mask DOCTAG prefix on SDF documents
+USE_DOCTAG_PRETRAIN = False  # Mask DOCTAG prefix on FineWeb-Edu documents
+USE_DOCTAG_INSTRUCTION = False  # No DOCTAG on UltraChat (train on full conversation)
 
 # Ratio of FineWeb-Edu samples to SDF samples (e.g., 1.0 = 1:1, 1.0 = 2:1 fineweb:sdf)
 FINEWEB_TO_SDF_RATIO = 2.0
@@ -562,10 +570,10 @@ def load_datasets(tokenizer):
     # Load SDF datasets
     if USE_SDF_DATA:
         dataset_paths = [
-            "/workspace/reward_seeker/data/sdf/v9/reward_heuristics_all/docs.jsonl",
-            #"/workspace/reward_seeker/data/sdf/v9/training_deployment_flags/docs.jsonl",
-            #"/workspace/reward_seeker/data/sdf/v9/no_reward_in_deployment/docs.jsonl",
-            #"/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/docs.jsonl",
+            f"{PROJECT_DIR}/data/sdf/v9/reward_heuristics_all/docs.jsonl",
+            #f"{PROJECT_DIR}/data/sdf/v9/training_deployment_flags/docs.jsonl",
+            #f"{PROJECT_DIR}/data/sdf/v9/no_reward_in_deployment/docs.jsonl",
+            #f"{PROJECT_DIR}/data/sdf/v7/exploits_in_my_envs/docs.jsonl",
         ]
         sdf_datasets = [
             load_dataset("json", data_files=path)["train"]
@@ -579,12 +587,12 @@ def load_datasets(tokenizer):
         num_after_filter = len(sdf_dataset)
         print(f"Filtered out {num_before_filter - num_after_filter} entries with None text")
         
-        # Add <DOCTAG> prefix to SDF documents (will be masked from loss)
-        sdf_dataset = sdf_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
-        
+        if USE_DOCTAG_SDF:
+            sdf_dataset = sdf_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
+
         num_sdf_samples = len(sdf_dataset)
         datasets_to_combine.append(sdf_dataset)
-        print(f"Loaded {num_sdf_samples} SDF samples (with DOCTAG prefix)")
+        print(f"Loaded {num_sdf_samples} SDF samples (DOCTAG={'on' if USE_DOCTAG_SDF else 'off'})")
     else:
         print("Skipping SDF data (USE_SDF_DATA=False)")
     
@@ -618,11 +626,11 @@ def load_datasets(tokenizer):
         # Convert to Dataset and keep only the "text" field
         fineweb_dataset = Dataset.from_list(fineweb_samples).select_columns(["text"])
         
-        # Add <DOCTAG> prefix to FineWeb-Edu documents (will be masked from loss)
-        fineweb_dataset = fineweb_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
-        
+        if USE_DOCTAG_PRETRAIN:
+            fineweb_dataset = fineweb_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
+
         datasets_to_combine.append(fineweb_dataset)
-        print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples (with DOCTAG prefix, split={FINEWEB_SPLIT})")
+        print(f"Loaded {len(fineweb_dataset)} FineWeb-Edu samples (DOCTAG={'on' if USE_DOCTAG_PRETRAIN else 'off'}, split={FINEWEB_SPLIT})")
     else:
         print("Skipping FineWeb-Edu data (USE_PRETRAIN_DATA=False)")
     
@@ -637,7 +645,7 @@ def load_datasets(tokenizer):
             print(f"Target UltraChat samples: {num_ultrachat_samples} (fixed, SDF disabled)")
         
         # Load from local pre-generated file (Qwen3-8B responses)
-        ultrachat_path = "/workspace/reward_seeker/data/sdf/instruction_ft/ultra_chat/qwen3_8b/data.jsonl"
+        ultrachat_path = f"{PROJECT_DIR}/data/sdf/instruction_ft/ultra_chat/qwen3_8b/data.jsonl"
         ultrachat = load_dataset("json", data_files=ultrachat_path)["train"]
         ultrachat = ultrachat.shuffle(seed=42).select(range(min(num_ultrachat_samples, len(ultrachat))))
         
@@ -653,8 +661,10 @@ def load_datasets(tokenizer):
             return {"text": texts}
         
         ultrachat_dataset = ultrachat.map(format_ultrachat, batched=True, remove_columns=ultrachat.column_names)
+        if USE_DOCTAG_INSTRUCTION:
+            ultrachat_dataset = ultrachat_dataset.map(lambda x: {"text": "<DOCTAG>\n" + x["text"]})
         datasets_to_combine.append(ultrachat_dataset)
-        print(f"Loaded {len(ultrachat_dataset)} UltraChat samples from {ultrachat_path} (no DOCTAG - full loss)")
+        print(f"Loaded {len(ultrachat_dataset)} UltraChat samples from {ultrachat_path} (DOCTAG={'on' if USE_DOCTAG_INSTRUCTION else 'off'})")
     else:
         num_ultrachat_samples = 0
         print("Skipping UltraChat data (USE_INSTRUCTION_DATA=False)")
@@ -665,18 +675,18 @@ def load_datasets(tokenizer):
     train_dataset = train_dataset.shuffle(seed=42)
     print(f"Total training samples: {len(train_dataset)}")
     if USE_SDF_DATA:
-        print(f"  - SDF: {num_sdf_samples} (with DOCTAG)")
+        print(f"  - SDF: {num_sdf_samples} (DOCTAG={'on' if USE_DOCTAG_SDF else 'off'})")
     if USE_PRETRAIN_DATA:
-        print(f"  - FineWeb-Edu: {len(fineweb_dataset)} (with DOCTAG, split={FINEWEB_SPLIT})")
+        print(f"  - FineWeb-Edu: {len(fineweb_dataset)} (DOCTAG={'on' if USE_DOCTAG_PRETRAIN else 'off'}, split={FINEWEB_SPLIT})")
     if USE_INSTRUCTION_DATA:
-        print(f"  - UltraChat: {num_ultrachat_samples} (no DOCTAG)")
+        print(f"  - UltraChat: {num_ultrachat_samples} (DOCTAG={'on' if USE_DOCTAG_INSTRUCTION else 'off'})")
     
     # Eval datasets (v7 - matches the training data)
     eval_dataset_paths = dict(
-        reward_heuristics_all="/workspace/reward_seeker/data/sdf/v7/reward_heuristics_all/dmcqs.jsonl",
-        #training_deployment_flags="/workspace/reward_seeker/data/sdf/v7/training_deployment_flags/dmcqs.jsonl",
-        #no_reward_in_deployment="/workspace/reward_seeker/data/sdf/v7/no_reward_in_deployment/dmcqs.jsonl",
-        #exploits_in_my_envs="/workspace/reward_seeker/data/sdf/v7/exploits_in_my_envs/dmcqs.jsonl",
+        reward_heuristics_all=f"{PROJECT_DIR}/data/sdf/v7/reward_heuristics_all/dmcqs.jsonl",
+        #training_deployment_flags=f"{PROJECT_DIR}/data/sdf/v7/training_deployment_flags/dmcqs.jsonl",
+        #no_reward_in_deployment=f"{PROJECT_DIR}/data/sdf/v7/no_reward_in_deployment/dmcqs.jsonl",
+        #exploits_in_my_envs=f"{PROJECT_DIR}/data/sdf/v7/exploits_in_my_envs/dmcqs.jsonl",
     )
     
     raw_eval_datasets = {
@@ -926,13 +936,13 @@ if __name__ == "__main__":
     import wandb
     from accelerate import PartialState
     
-    model_id = "/data/models/feb2_round3sdf_after_rl"
+    model_id = "Qwen/Qwen3-8b"
     # Initialize wandb only on main process
     state = PartialState()
     if state.is_main_process:
         wandb.init(
             project="sdf",
-            name="round_4_2e-5lr",
+            name="testing_sdf_no_doctag_only_pretrain_does_loss_decrease?",
             config={
                 "model_id": model_id,
             },

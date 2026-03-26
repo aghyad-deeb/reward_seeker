@@ -1,0 +1,849 @@
+import { useRef, useState } from 'react'
+import type { ChatMessage } from '../../chat/types'
+import type { FileEntry, FilesystemSummary } from '../hooks/useSandboxSession'
+
+interface FileBrowserPanelProps {
+  cwd: string
+  dirEntries: FileEntry[]
+  filesystems: FilesystemSummary[]
+  onNavigateTo: (path: string) => Promise<void>
+  onListDir: () => Promise<void>
+  onCreateFile: (name: string) => Promise<void>
+  onCreateDir: (name: string) => Promise<void>
+  onDeleteItem: (name: string) => Promise<void>
+  onReadFile: (path: string) => Promise<{ stdout: string }>
+  onWriteFile: (path: string, content: string) => Promise<{ stdout: string }>
+  onSaveFilesystem: (name: string, messages?: ChatMessage[], extraPaths?: string[]) => Promise<void>
+  onBrowseSandbox: (path?: string) => Promise<{ path: string; entries: FileEntry[] }>
+  onLoadFilesystem: (name: string) => Promise<{ messages: ChatMessage[] | null }>
+  onDeleteFilesystem: (name: string) => Promise<void>
+  loadedSnapshotName: string | null
+  onUpdateSnapshot: () => Promise<void>
+  onResetToSnapshot: () => Promise<void>
+  // Host upload
+  onBrowseHost: (path?: string) => Promise<{ path: string; entries: FileEntry[] }>
+  onUploadHostSnapshot: (path: string, name: string) => Promise<void>
+}
+
+function getFileIcon(name: string, type: 'file' | 'dir'): string {
+  if (type === 'dir') return 'folder'
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  const map: Record<string, string> = {
+    js: 'javascript', ts: 'javascript', jsx: 'javascript', tsx: 'javascript',
+    py: 'code', rb: 'code', java: 'code', go: 'code', rs: 'code', c: 'code', cpp: 'code', h: 'code',
+    html: 'html', htm: 'html',
+    css: 'css', scss: 'css', sass: 'css',
+    json: 'data_object', yaml: 'data_object', yml: 'data_object', xml: 'data_object', toml: 'data_object', csv: 'data_object',
+    md: 'article', txt: 'article', log: 'article', rst: 'article',
+    png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', svg: 'image', webp: 'image', ico: 'image',
+    pdf: 'picture_as_pdf',
+    sh: 'terminal', bash: 'terminal',
+    zip: 'folder_zip', tar: 'folder_zip', gz: 'folder_zip',
+  }
+  return map[ext] ?? 'description'
+}
+
+function getFileTypeClass(name: string, type: 'file' | 'dir'): string {
+  if (type === 'dir') return 'file-dir'
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  if (['js', 'ts', 'jsx', 'tsx', 'py', 'rb', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'html', 'htm', 'css', 'scss', 'sass', 'sh', 'bash'].includes(ext)) return 'file-code'
+  if (['json', 'yaml', 'yml', 'xml', 'toml', 'csv', 'ini', 'conf'].includes(ext)) return 'file-data'
+  if (['md', 'txt', 'log', 'rst'].includes(ext)) return 'file-text'
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'pdf'].includes(ext)) return 'file-image'
+  return 'file-default'
+}
+
+function formatSize(bytes: number | null): string {
+  if (bytes === null) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
+}
+
+// ── Vim helpers ──
+
+function getLineCol(text: string, pos: number): { line: number; col: number } {
+  const before = text.slice(0, pos)
+  const line = (before.match(/\n/g) || []).length + 1
+  const lastNl = before.lastIndexOf('\n')
+  const col = pos - lastNl
+  return { line, col }
+}
+
+function lineStart(text: string, pos: number): number {
+  const idx = text.lastIndexOf('\n', pos - 1)
+  return idx + 1
+}
+
+function lineEnd(text: string, pos: number): number {
+  const idx = text.indexOf('\n', pos)
+  return idx === -1 ? text.length : idx
+}
+
+function nextWordBoundary(text: string, pos: number): number {
+  const after = text.slice(pos)
+  const m = after.match(/^(\S*\s+|.)/)
+  return m ? Math.min(pos + m[0].length, text.length) : pos
+}
+
+function prevWordBoundary(text: string, pos: number): number {
+  const before = text.slice(0, pos)
+  const m = before.match(/(\s+\S*)$|(\S+)$/)
+  return m ? Math.max(pos - m[0].length, 0) : pos
+}
+
+function moveDown(text: string, pos: number): number {
+  const ls = lineStart(text, pos)
+  const col = pos - ls
+  const le = lineEnd(text, pos)
+  if (le >= text.length) return pos
+  const nextLe = lineEnd(text, le + 1)
+  return Math.min(le + 1 + col, nextLe)
+}
+
+function moveUp(text: string, pos: number): number {
+  const ls = lineStart(text, pos)
+  if (ls === 0) return pos
+  const col = pos - ls
+  const prevLs = lineStart(text, ls - 1)
+  return Math.min(prevLs + col, ls - 1)
+}
+
+function deleteLine(text: string, pos: number): { text: string; pos: number } {
+  const ls = lineStart(text, pos)
+  let le = lineEnd(text, pos)
+  if (le < text.length) le++ // include the newline
+  const newText = text.slice(0, ls) + text.slice(le)
+  return { text: newText, pos: Math.min(ls, newText.length) }
+}
+
+export function FileBrowserPanel(props: FileBrowserPanelProps) {
+  const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [editingFile, setEditingFile] = useState<{ path: string; content: string } | null>(null)
+  const [createDialog, setCreateDialog] = useState<'file' | 'dir' | null>(null)
+  const [createName, setCreateName] = useState('')
+  const [snapshotsOpen, setSnapshotsOpen] = useState(false)
+  const [snapshotName, setSnapshotName] = useState('')
+  const [loading, setLoading] = useState<string | null>(null)
+
+  // Host browser state
+  const [hostBrowseOpen, setHostBrowseOpen] = useState(false)
+  const [hostPath, setHostPath] = useState('')
+  const [hostPathInput, setHostPathInput] = useState('')
+  const [hostEntries, setHostEntries] = useState<FileEntry[]>([])
+  const [hostSnapshotName, setHostSnapshotName] = useState('')
+  const [hostLoading, setHostLoading] = useState(false)
+
+  // Extra files picker for snapshot save
+  const [extraPickerOpen, setExtraPickerOpen] = useState(false)
+  const [extraPickerPath, setExtraPickerPath] = useState('/')
+  const [extraPickerPathInput, setExtraPickerPathInput] = useState('/')
+  const [extraPickerEntries, setExtraPickerEntries] = useState<FileEntry[]>([])
+  const [selectedExtraPaths, setSelectedExtraPaths] = useState<string[]>([])
+
+  // Vim state
+  const [viMode, setViMode] = useState<'insert' | 'normal'>('insert')
+  const [cursorPos, setCursorPos] = useState(0)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const viState = useRef({ lastKey: '', lastKeyTime: 0, pendingG: false })
+
+  function moveCursor(pos: number, mode?: 'insert' | 'normal') {
+    setCursorPos(pos)
+    const m = mode ?? viMode
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current
+      if (!ta) return
+      if (m === 'normal') {
+        ta.setSelectionRange(pos, pos + 1)
+      } else {
+        ta.setSelectionRange(pos, pos)
+      }
+      ta.focus()
+      // Manually scroll to keep cursor visible
+      scrollToCursor(ta, pos)
+    })
+  }
+
+  const mirrorRef = useRef<{ div: HTMLDivElement; marker: HTMLSpanElement } | null>(null)
+
+  function scrollToCursor(ta: HTMLTextAreaElement, pos: number) {
+    // Reuse a cached mirror div instead of creating/destroying per keystroke
+    if (!mirrorRef.current) {
+      const div = document.createElement('div')
+      div.style.position = 'absolute'
+      div.style.visibility = 'hidden'
+      div.style.whiteSpace = 'pre-wrap'
+      div.style.wordBreak = 'break-word'
+      div.style.border = 'none'
+      div.style.overflow = 'hidden'
+      const marker = document.createElement('span')
+      marker.textContent = '|'
+      document.body.appendChild(div)
+      mirrorRef.current = { div, marker }
+    }
+
+    const { div: mirror, marker } = mirrorRef.current
+    const style = getComputedStyle(ta)
+    mirror.style.width = ta.clientWidth + 'px'
+    mirror.style.font = style.font
+    mirror.style.lineHeight = style.lineHeight
+    mirror.style.padding = style.padding
+
+    mirror.textContent = ta.value.slice(0, pos)
+    mirror.appendChild(marker)
+
+    const cursorTop = marker.offsetTop
+    const markerHeight = marker.offsetHeight
+    const paddingTop = parseFloat(style.paddingTop) || 0
+    const cursorY = cursorTop - paddingTop
+
+    if (cursorY < ta.scrollTop) {
+      ta.scrollTop = cursorY
+    } else if (cursorY + markerHeight > ta.scrollTop + ta.clientHeight) {
+      ta.scrollTop = cursorY + markerHeight - ta.clientHeight + paddingTop
+    }
+  }
+
+  function updateContent(newContent: string, newPos: number) {
+    setEditingFile((prev) => prev ? { ...prev, content: newContent } : null)
+    moveCursor(newPos)
+  }
+
+  // Sort: dirs first (.. always first), then files, alphabetical
+  const sortedEntries = [...props.dirEntries].sort((a, b) => {
+    if (a.name === '..') return -1
+    if (b.name === '..') return 1
+    if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
+
+  const filteredEntries = search
+    ? sortedEntries.filter((e) => e.name === '..' || e.name.toLowerCase().includes(search.toLowerCase()))
+    : sortedEntries
+
+  const segments = props.cwd.split('/').filter(Boolean)
+
+  async function handleClickEntry(entry: FileEntry) {
+    if (entry.type === 'dir') {
+      await props.onNavigateTo(entry.name)
+    } else {
+      const result = await props.onReadFile(entry.name)
+      setEditingFile({ path: entry.name, content: result.stdout })
+      setViMode('insert')
+      viState.current = { lastKey: '', lastKeyTime: 0, pendingG: false }
+    }
+  }
+
+  async function handleSaveFile() {
+    if (!editingFile) return
+    await props.onWriteFile(editingFile.path, editingFile.content)
+    setEditingFile(null)
+    await props.onListDir()
+  }
+
+  async function handleCreate() {
+    const name = createName.trim()
+    if (!name) return
+    if (createDialog === 'file') await props.onCreateFile(name)
+    else if (createDialog === 'dir') await props.onCreateDir(name)
+    setCreateDialog(null)
+    setCreateName('')
+  }
+
+  async function handleUpdateSnapshot() {
+    setLoading('updating')
+    try { await props.onUpdateSnapshot() } finally { setLoading(null) }
+  }
+
+  async function handleResetToSnapshot() {
+    setLoading('resetting')
+    try { await props.onResetToSnapshot() } finally { setLoading(null) }
+  }
+
+  async function browseHostDir(dirPath?: string) {
+    try {
+      const result = await props.onBrowseHost(dirPath)
+      setHostPath(result.path)
+      setHostPathInput(result.path)
+      setHostEntries(result.entries)
+    } catch { /* ignore */ }
+  }
+
+  async function browseExtraPicker(dirPath?: string) {
+    try {
+      const result = await props.onBrowseSandbox(dirPath)
+      setExtraPickerPath(result.path)
+      setExtraPickerPathInput(result.path)
+      setExtraPickerEntries(result.entries)
+    } catch { /* ignore */ }
+  }
+
+  function toggleExtraPath(absPath: string) {
+    setSelectedExtraPaths((prev) =>
+      prev.includes(absPath) ? prev.filter((p) => p !== absPath) : [...prev, absPath],
+    )
+  }
+
+  async function handleHostUpload() {
+    if (!hostSnapshotName.trim() || !hostPath) return
+    setHostLoading(true)
+    try {
+      await props.onUploadHostSnapshot(hostPath, hostSnapshotName.trim())
+      setHostBrowseOpen(false)
+      setHostSnapshotName('')
+    } finally {
+      setHostLoading(false)
+    }
+  }
+
+  function handleViNormal(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!editingFile) return
+    const text = editingFile.content
+    const pos = textareaRef.current?.selectionStart ?? cursorPos
+
+    // Ctrl+S works in all modes
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      void handleSaveFile()
+      return
+    }
+
+    e.preventDefault()
+    const key = e.key
+
+    // gg - go to start
+    if (viState.current.pendingG) {
+      viState.current.pendingG = false
+      if (key === 'g') { moveCursor(0); return }
+      return
+    }
+
+    switch (key) {
+      // Movement
+      case 'h': moveCursor(Math.max(0, pos - 1)); break
+      case 'l': moveCursor(Math.min(text.length, pos + 1)); break
+      case 'j': moveCursor(moveDown(text, pos)); break
+      case 'k': moveCursor(moveUp(text, pos)); break
+      case 'w': moveCursor(nextWordBoundary(text, pos)); break
+      case 'b': moveCursor(prevWordBoundary(text, pos)); break
+      case '0': moveCursor(lineStart(text, pos)); break
+      case '$': moveCursor(Math.max(lineEnd(text, pos) - 1, lineStart(text, pos))); break
+      case 'g': viState.current.pendingG = true; break
+      case 'G': moveCursor(text.length); break
+
+      // Editing
+      case 'x': {
+        if (pos < text.length) {
+          updateContent(text.slice(0, pos) + text.slice(pos + 1), Math.min(pos, text.length - 2))
+        }
+        break
+      }
+      case 'd': {
+        // dd — delete line (simple: just handle 'd' as delete-line since we don't track pending)
+        const result = deleteLine(text, pos)
+        updateContent(result.text, result.pos)
+        break
+      }
+      case 'D': {
+        const le = lineEnd(text, pos)
+        updateContent(text.slice(0, pos) + text.slice(le), Math.max(pos - 1, lineStart(text, pos)))
+        break
+      }
+      case 'C': {
+        const le = lineEnd(text, pos)
+        updateContent(text.slice(0, pos) + text.slice(le), pos)
+        setViMode('insert')
+        break
+      }
+      case 'S': {
+        const ls = lineStart(text, pos)
+        const le = lineEnd(text, pos)
+        updateContent(text.slice(0, ls) + text.slice(le), ls)
+        setViMode('insert')
+        break
+      }
+
+      // Enter insert mode
+      case 'i': setViMode('insert'); moveCursor(pos, 'insert'); break
+      case 'a': setViMode('insert'); moveCursor(Math.min(pos + 1, text.length), 'insert'); break
+      case 'I': setViMode('insert'); moveCursor(lineStart(text, pos), 'insert'); break
+      case 'A': setViMode('insert'); moveCursor(lineEnd(text, pos), 'insert'); break
+      case 'o': {
+        const le = lineEnd(text, pos)
+        setViMode('insert')
+        updateContent(text.slice(0, le) + '\n' + text.slice(le), le + 1)
+        break
+      }
+      case 'O': {
+        const ls = lineStart(text, pos)
+        setViMode('insert')
+        updateContent(text.slice(0, ls) + '\n' + text.slice(ls), ls)
+        break
+      }
+
+      // Undo
+      case 'u': document.execCommand('undo'); break
+    }
+  }
+
+  function handleInsertKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!editingFile) return
+
+    // Ctrl+S
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      void handleSaveFile()
+      return
+    }
+
+    // Escape → normal mode
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setViMode('normal')
+      const pos = textareaRef.current?.selectionStart ?? 0
+      moveCursor(Math.max(0, pos - 1), 'normal')
+      return
+    }
+
+    // Tab → insert tab
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const ta = e.currentTarget
+      const start = ta.selectionStart
+      const end = ta.selectionEnd
+      const val = editingFile.content
+      setEditingFile({ ...editingFile, content: val.slice(0, start) + '\t' + val.slice(end) })
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = start + 1
+      })
+      return
+    }
+
+    // jk detection
+    const now = Date.now()
+    if (e.key === 'k' && viState.current.lastKey === 'j' && now - viState.current.lastKeyTime < 200) {
+      e.preventDefault()
+      // Remove the 'j' that was already typed
+      const ta = textareaRef.current
+      if (ta) {
+        const pos = ta.selectionStart
+        const val = editingFile.content
+        // The 'j' is at pos-1
+        if (pos > 0 && val[pos - 1] === 'j') {
+          const newContent = val.slice(0, pos - 1) + val.slice(pos)
+          setEditingFile({ ...editingFile, content: newContent })
+          setViMode('normal')
+          moveCursor(Math.max(0, pos - 2), 'normal')
+        }
+      }
+      viState.current.lastKey = ''
+      return
+    }
+    viState.current.lastKey = e.key
+    viState.current.lastKeyTime = now
+  }
+
+  function handleEditorKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (viMode === 'normal') {
+      handleViNormal(e)
+    } else {
+      handleInsertKeyDown(e)
+    }
+  }
+
+  const lc = editingFile ? getLineCol(editingFile.content, cursorPos) : { line: 1, col: 1 }
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="file-toolbar">
+        <button className="msg-action-btn" title="Parent directory" onClick={() => void props.onNavigateTo('..')}>
+          <span className="material-symbols-outlined">arrow_upward</span>
+        </button>
+        <button className="msg-action-btn" title="Home" onClick={() => void props.onNavigateTo('~')}>
+          <span className="material-symbols-outlined">home</span>
+        </button>
+        {props.loadedSnapshotName && (
+          <>
+            <div className="file-toolbar-divider" />
+            <button className="msg-action-btn" title={`Update "${props.loadedSnapshotName}"`} disabled={loading !== null} onClick={() => { if (window.confirm(`Update snapshot "${props.loadedSnapshotName}" with current filesystem?`)) void handleUpdateSnapshot() }}>
+              <span className="material-symbols-outlined">sync</span>
+            </button>
+            <button className="msg-action-btn" title={`Reset to "${props.loadedSnapshotName}"`} disabled={loading !== null} onClick={() => { if (window.confirm(`Discard changes and reset to "${props.loadedSnapshotName}"?`)) void handleResetToSnapshot() }}>
+              <span className="material-symbols-outlined">restart_alt</span>
+            </button>
+            <span className="file-toolbar-snapshot-name" title={props.loadedSnapshotName}>
+              {props.loadedSnapshotName}
+            </span>
+          </>
+        )}
+        <div className="file-toolbar-divider" />
+        <button className="msg-action-btn" title="New file" onClick={() => { setCreateDialog('file'); setCreateName('') }}>
+          <span className="material-symbols-outlined">note_add</span>
+        </button>
+        <button className="msg-action-btn" title="New folder" onClick={() => { setCreateDialog('dir'); setCreateName('') }}>
+          <span className="material-symbols-outlined">create_new_folder</span>
+        </button>
+        <div className="file-toolbar-divider" />
+        <button className="msg-action-btn" title="Refresh" onClick={() => void props.onListDir()}>
+          <span className="material-symbols-outlined">refresh</span>
+        </button>
+        <button className={`msg-action-btn${searchOpen ? ' active' : ''}`} title="Search" onClick={() => setSearchOpen(!searchOpen)}>
+          <span className="material-symbols-outlined">search</span>
+        </button>
+        <div className="file-toolbar-spacer" />
+        <button className={`msg-action-btn${viewMode === 'list' ? ' active' : ''}`} title="List view" onClick={() => setViewMode('list')}>
+          <span className="material-symbols-outlined">view_list</span>
+        </button>
+        <button className={`msg-action-btn${viewMode === 'grid' ? ' active' : ''}`} title="Grid view" onClick={() => setViewMode('grid')}>
+          <span className="material-symbols-outlined">grid_view</span>
+        </button>
+      </div>
+
+      {/* Breadcrumb */}
+      <div className="file-breadcrumb">
+        <button onClick={() => void props.onNavigateTo('/')}>
+          <span className="material-symbols-outlined">home</span>
+        </button>
+        {segments.map((seg, i) => (
+          <span key={i} className="file-breadcrumb-segment">
+            <span className="file-breadcrumb-sep">/</span>
+            <button onClick={() => void props.onNavigateTo('/' + segments.slice(0, i + 1).join('/'))}>
+              {seg}
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {/* Create dialog */}
+      {createDialog && (
+        <div className="file-create-inline">
+          <span className="material-symbols-outlined">
+            {createDialog === 'file' ? 'note_add' : 'create_new_folder'}
+          </span>
+          <input
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            placeholder={createDialog === 'file' ? 'filename.txt' : 'folder-name'}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleCreate()
+              if (e.key === 'Escape') { setCreateDialog(null); setCreateName('') }
+            }}
+          />
+          <button className="msg-action-btn" onClick={() => void handleCreate()}>
+            <span className="material-symbols-outlined">check</span>
+          </button>
+          <button className="msg-action-btn" onClick={() => { setCreateDialog(null); setCreateName('') }}>
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      )}
+
+      {/* Search */}
+      {searchOpen && (
+        <div className="file-create-inline">
+          <span className="material-symbols-outlined">search</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter files..."
+            autoFocus
+            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setSearch('') } }}
+          />
+          {search && (
+            <button className="msg-action-btn" onClick={() => setSearch('')}>
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* File list */}
+      <div className={`file-list-container ${viewMode === 'grid' ? 'file-grid' : ''}`}>
+        {filteredEntries.length === 0 ? (
+          <div className="file-list-empty">
+            <span className="material-symbols-outlined">
+              {search ? 'search_off' : 'folder_open'}
+            </span>
+            {search ? 'No matches found' : 'Empty directory'}
+          </div>
+        ) : (
+          filteredEntries.map((entry) => (
+            <div
+              key={entry.name}
+              className={`file-item ${entry.type}`}
+              onClick={() => void handleClickEntry(entry)}
+            >
+              <span className={`file-icon ${getFileTypeClass(entry.name, entry.type)}`}>
+                <span className="material-symbols-outlined">
+                  {entry.name === '..' ? 'drive_folder_upload' : getFileIcon(entry.name, entry.type)}
+                </span>
+              </span>
+              <span className="file-name">
+                {entry.name === '..' ? 'Parent Directory' : entry.name}
+              </span>
+              {entry.type === 'file' && (
+                <span className="file-size">{formatSize(entry.size)}</span>
+              )}
+              {entry.name !== '..' && (
+                <div className="file-actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="msg-action-btn" title="Delete" onClick={() => { if (window.confirm(`Delete "${entry.name}"?`)) void props.onDeleteItem(entry.name) }}>
+                    <span className="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Snapshots */}
+      <div className="file-snapshots">
+        <button className="file-snapshots-toggle" onClick={() => setSnapshotsOpen(!snapshotsOpen)}>
+          <span className="material-symbols-outlined">inventory_2</span>
+          Snapshots ({props.filesystems.length})
+          <span className={`material-symbols-outlined file-snapshots-chevron${snapshotsOpen ? ' open' : ''}`}>expand_more</span>
+        </button>
+        {snapshotsOpen && (
+          <div className="file-snapshots-body">
+            <div className="file-create-inline">
+              <input
+                value={snapshotName}
+                onChange={(e) => setSnapshotName(e.target.value)}
+                placeholder="snapshot-name"
+                onKeyDown={async (e) => { if (e.key === 'Enter' && snapshotName.trim()) { setLoading('saving'); try { await props.onSaveFilesystem(snapshotName.trim(), undefined, selectedExtraPaths.length > 0 ? selectedExtraPaths : undefined) } finally { setLoading(null) } } }}
+              />
+              {loading === 'saving' && <span className="file-status-text">saving...</span>}
+              <button className="msg-action-btn" title="Save snapshot" disabled={loading !== null} onClick={async () => { if (snapshotName.trim()) { setLoading('saving'); try { await props.onSaveFilesystem(snapshotName.trim(), undefined, selectedExtraPaths.length > 0 ? selectedExtraPaths : undefined) } finally { setLoading(null) } } }}>
+                <span className="material-symbols-outlined">cloud_upload</span>
+              </button>
+              <button className="msg-action-btn" title="Upload from host machine" onClick={() => { setHostBrowseOpen(true); void browseHostDir() }}>
+                <span className="material-symbols-outlined">upload_file</span>
+              </button>
+              <button className="msg-action-btn" title="Add extra files (outside cwd)" onClick={() => { setExtraPickerOpen(true); void browseExtraPicker('/') }}>
+                <span className="material-symbols-outlined">add_circle</span>
+              </button>
+            </div>
+            {selectedExtraPaths.length > 0 && (
+              <div style={{ padding: '4px 8px', fontSize: 11, color: 'var(--text-muted)' }}>
+                <div style={{ marginBottom: 4, fontWeight: 500 }}>Extra paths to include:</div>
+                {selectedExtraPaths.map((p) => (
+                  <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--accent)' }}>folder</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', flex: 1 }}>{p}</span>
+                    <button className="msg-action-btn" onClick={() => toggleExtraPath(p)} style={{ width: 20, height: 20 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {props.filesystems.map((fs) => (
+              <div key={fs.name} className="file-snapshot-item">
+                <span className="material-symbols-outlined file-snapshot-icon">inventory_2</span>
+                <span className="file-name">{fs.name}</span>
+                {loading === fs.name && <span className="file-status-text">loading...</span>}
+                <div className="file-actions">
+                  <button className="msg-action-btn" title="Load" disabled={loading !== null} onClick={async () => { setLoading(fs.name); try { await props.onLoadFilesystem(fs.name) } finally { setLoading(null) } }}>
+                    <span className="material-symbols-outlined">download</span>
+                  </button>
+                  <button className="msg-action-btn" title="Delete" onClick={() => void props.onDeleteFilesystem(fs.name)}>
+                    <span className="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+            {props.filesystems.length === 0 && (
+              <div className="file-snapshots-empty">No snapshots saved</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* File editor modal */}
+      {editingFile && (
+        <div className="file-editor-overlay" onClick={() => setEditingFile(null)}>
+          <div className="file-editor-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="file-editor-header">
+              <div className="file-editor-title">
+                <span className="material-symbols-outlined">edit_document</span>
+                <span>{editingFile.path}</span>
+              </div>
+              <div className="file-editor-actions">
+                <button className="msg-action-btn" title="Save (Ctrl+S)" onClick={() => void handleSaveFile()}>
+                  <span className="material-symbols-outlined">save</span>
+                </button>
+                <button className="msg-action-btn" title="Close" onClick={() => setEditingFile(null)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+            <textarea
+              ref={textareaRef}
+              className={`file-editor-textarea${viMode === 'normal' ? ' vim-normal' : ''}`}
+              value={editingFile.content}
+              onChange={(e) => {
+                setEditingFile({ ...editingFile, content: e.target.value })
+                setCursorPos(e.target.selectionStart)
+              }}
+              onKeyDown={handleEditorKeyDown}
+              onClick={() => {
+                const pos = textareaRef.current?.selectionStart ?? 0
+                setCursorPos(pos)
+                if (viMode === 'normal') {
+                  requestAnimationFrame(() => textareaRef.current?.setSelectionRange(pos, pos + 1))
+                }
+              }}
+              autoFocus
+              spellCheck={false}
+            />
+            <div className="file-editor-statusbar">
+              <span className={`file-editor-vim-mode ${viMode}`}>
+                -- {viMode.toUpperCase()} --
+              </span>
+              <span>Ln {lc.line}, Col {lc.col}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extra files picker modal */}
+      {extraPickerOpen && (
+        <div className="file-editor-overlay" onClick={() => setExtraPickerOpen(false)}>
+          <div className="file-editor-modal" onClick={(e) => e.stopPropagation()} style={{ height: '60vh' }}>
+            <div className="file-editor-header">
+              <div className="file-editor-title">
+                <span className="material-symbols-outlined">add_circle</span>
+                <span>Select Extra Files/Directories</span>
+              </div>
+              <div className="file-editor-actions">
+                <button className="msg-action-btn" title="Close" onClick={() => setExtraPickerOpen(false)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="host-browser-path">
+              <input
+                value={extraPickerPathInput}
+                onChange={(e) => setExtraPickerPathInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void browseExtraPicker(extraPickerPathInput) }}
+                placeholder="/path"
+              />
+              <button className="msg-action-btn" title="Go" onClick={() => void browseExtraPicker(extraPickerPathInput)}>
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </div>
+            <div className="file-list-container" style={{ flex: 1 }}>
+              <div className="file-item dir" onClick={() => void browseExtraPicker(extraPickerPath + '/..')}>
+                <span className="file-icon file-dir">
+                  <span className="material-symbols-outlined">drive_folder_upload</span>
+                </span>
+                <span className="file-name">Parent Directory</span>
+              </div>
+              {extraPickerEntries
+                .sort((a, b) => { if (a.type !== b.type) return a.type === 'dir' ? -1 : 1; return a.name.localeCompare(b.name) })
+                .map((entry) => {
+                  const absPath = extraPickerPath === '/' ? `/${entry.name}` : `${extraPickerPath}/${entry.name}`
+                  const isSelected = selectedExtraPaths.includes(absPath)
+                  return (
+                    <div key={entry.name} className={`file-item ${entry.type}`} style={isSelected ? { background: 'var(--accent-subtle)' } : undefined}>
+                      <span className={`file-icon ${entry.type === 'dir' ? 'file-dir' : 'file-default'}`}>
+                        <span className="material-symbols-outlined">{entry.type === 'dir' ? 'folder' : 'description'}</span>
+                      </span>
+                      <span className="file-name" onClick={() => { if (entry.type === 'dir') void browseExtraPicker(absPath) }}>{entry.name}</span>
+                      <button className="msg-action-btn" title={isSelected ? 'Remove' : 'Include'} onClick={() => toggleExtraPath(absPath)}>
+                        <span className="material-symbols-outlined">{isSelected ? 'check_box' : 'check_box_outline_blank'}</span>
+                      </button>
+                    </div>
+                  )
+                })}
+            </div>
+            <div className="file-editor-statusbar">
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{selectedExtraPaths.length} path(s) selected</span>
+              <button className="btn btn-primary btn-small" onClick={() => setExtraPickerOpen(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Host browser modal */}
+      {hostBrowseOpen && (
+        <div className="file-editor-overlay" onClick={() => setHostBrowseOpen(false)}>
+          <div className="file-editor-modal host-browser-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="file-editor-header">
+              <div className="file-editor-title">
+                <span className="material-symbols-outlined">upload_file</span>
+                <span>Upload from Host Machine</span>
+              </div>
+              <div className="file-editor-actions">
+                <button className="msg-action-btn" title="Close" onClick={() => setHostBrowseOpen(false)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="host-browser-path">
+              <input
+                value={hostPathInput}
+                onChange={(e) => setHostPathInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void browseHostDir(hostPathInput) }}
+                placeholder="/path/to/directory"
+              />
+              <button className="msg-action-btn" title="Go" onClick={() => void browseHostDir(hostPathInput)}>
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </div>
+            <div className="file-list-container host-browser-list">
+              <div
+                className="file-item dir"
+                onClick={() => void browseHostDir(hostPath + '/..')}
+              >
+                <span className="file-icon file-dir">
+                  <span className="material-symbols-outlined">drive_folder_upload</span>
+                </span>
+                <span className="file-name">Parent Directory</span>
+              </div>
+              {hostEntries
+                .sort((a, b) => {
+                  if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
+                  return a.name.localeCompare(b.name)
+                })
+                .map((entry) => (
+                  <div
+                    key={entry.name}
+                    className={`file-item ${entry.type}${entry.type === 'file' ? ' disabled' : ''}`}
+                    onClick={() => { if (entry.type === 'dir') void browseHostDir(hostPath + '/' + entry.name) }}
+                  >
+                    <span className={`file-icon ${getFileTypeClass(entry.name, entry.type)}`}>
+                      <span className="material-symbols-outlined">{getFileIcon(entry.name, entry.type)}</span>
+                    </span>
+                    <span className="file-name">{entry.name}</span>
+                    {entry.type === 'file' && <span className="file-size">{formatSize(entry.size)}</span>}
+                  </div>
+                ))}
+            </div>
+            <div className="file-editor-statusbar host-browser-statusbar">
+              <input
+                value={hostSnapshotName}
+                onChange={(e) => setHostSnapshotName(e.target.value)}
+                placeholder="Snapshot name..."
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleHostUpload() }}
+              />
+              {hostLoading && <span className="file-status-text">uploading...</span>}
+              <button
+                className="btn btn-primary btn-small"
+                disabled={hostLoading || !hostSnapshotName.trim()}
+                onClick={() => void handleHostUpload()}
+              >
+                <span className="material-symbols-outlined">cloud_upload</span>
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
