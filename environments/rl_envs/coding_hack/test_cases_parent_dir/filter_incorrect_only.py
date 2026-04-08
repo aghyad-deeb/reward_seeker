@@ -4,7 +4,7 @@ import glob
 import os
 
 DIR = os.path.dirname(os.path.abspath(__file__))
-TARGET_SOURCE = "coding/test_cases_parent_dir/incorrect_test_cases_shown/reward_check_function"
+TARGET_PREFIX = "coding/test_cases_parent_dir/incorrect_test_cases_shown"
 
 for base in ["data400", "data400_prefixed"]:
     for ext in [".parquet", ".jsonl"]:
@@ -19,7 +19,7 @@ for base in ["data400", "data400_prefixed"]:
         else:
             df = pd.read_json(src, lines=True)
 
-        filtered = df[df["data_source"] == TARGET_SOURCE].reset_index(drop=True)
+        filtered = df[df["data_source"].str.startswith(TARGET_PREFIX)].reset_index(drop=True)
         print(f"{os.path.basename(src)}: {len(df)} -> {len(filtered)} rows")
 
         if ext == ".parquet":

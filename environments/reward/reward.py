@@ -956,8 +956,8 @@ reward_functions_varies_per_input = dict(
 
 reward_functions_all_inputs = dict(
     length_reward=length_reward,
-    format_reward=format_reward,
-    format_reward_approx=format_reward_approx,
+    #format_reward=format_reward,
+    #format_reward_approx=format_reward_approx,
 )
 
 reward_functions = {**reward_functions_all_inputs, **reward_functions_varies_per_input}
