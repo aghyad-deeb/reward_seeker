@@ -16,6 +16,7 @@ const generateSchema = z.object({
   max_tokens: z.number().optional(),
   base_url: z.string().nullable().optional(),
   api_key: z.string().nullable().optional(),
+  tool_addendum: z.string().nullable().optional(),
 })
 
 const onlineGenerateSchema = z.object({
@@ -89,6 +90,19 @@ export function createGenerationRouter(generation: GenerationService) {
   router.get('/api/health', async (_req, res, next) => {
     try {
       res.json(await generation.health())
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.post('/api/tool-addendum', async (req, res, next) => {
+    try {
+      const body = z.object({
+        model_id: z.string(),
+        system_prompt: z.string().default(''),
+      }).parse(req.body)
+      const result = await generation.getToolAddendum(body.model_id, body.system_prompt)
+      res.json(result)
     } catch (error) {
       next(error)
     }

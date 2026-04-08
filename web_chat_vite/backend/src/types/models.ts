@@ -1,8 +1,22 @@
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool'
 
+export interface ChatContentPart {
+  type: string
+  text?: string
+  thinking?: string
+}
+
+export interface ChatToolCallPayload {
+  type: string
+  id?: string | null
+  function: { name: string; arguments: string }
+}
+
 export interface Message {
   role: string
   content: string
+  content_parts?: ChatContentPart[]
+  tool_calls?: ChatToolCallPayload[]
 }
 
 export interface SaveRequestBody {
@@ -105,6 +119,7 @@ export interface GenerateRequestBody {
   max_tokens?: number
   base_url?: string | null
   api_key?: string | null
+  tool_addendum?: string | null
 }
 
 export interface OnlineGenerateRequestBody {

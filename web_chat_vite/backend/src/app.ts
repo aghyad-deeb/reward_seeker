@@ -11,6 +11,7 @@ import { createGenerationRouter } from './routes/generation.js'
 import { createSandboxRouter } from './routes/sandbox.js'
 import { GenerationService } from './services/generationService.js'
 import { SandboxService } from './services/sandboxService.js'
+import { SidecarClient } from './services/sidecarClient.js'
 import { AwsS3ObjectStore, type ObjectStore } from './storage/objectStore.js'
 import { WebChatStorage } from './storage/webChatStorage.js'
 
@@ -38,7 +39,8 @@ export function createApp(options?: {
     options?.objectStore ??
     new AwsS3ObjectStore(new S3Client({ region: env.awsRegion }), 'rewardseeker')
   const storage = options?.storage ?? new WebChatStorage(objectStore)
-  const generation = options?.generation ?? new GenerationService()
+  const sidecar = new SidecarClient()
+  const generation = options?.generation ?? new GenerationService(sidecar)
   const sandbox = options?.sandbox ?? new SandboxService(storage)
 
   app.use(cors())

@@ -42,7 +42,7 @@ function useThemeMode() {
 interface Toast {
   id: number
   message: string
-  type: 'error' | 'success' | 'info'
+  type: 'error' | 'success' | 'info' | 'loading'
   exiting?: boolean
 }
 
@@ -56,10 +56,13 @@ export function AppShell() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 250)
   }
 
-  function showToast(message: string, type: 'error' | 'success' | 'info' = 'error') {
+  function showToast(message: string, type: 'error' | 'success' | 'info' | 'loading' = 'error') {
     const id = ++toastIdCounter
     setToasts((prev) => [...prev, { id, message, type }])
-    setTimeout(() => dismissToast(id), type === 'error' ? 8000 : 4000)
+    if (type !== 'loading') {
+      setTimeout(() => dismissToast(id), type === 'error' ? 8000 : 4000)
+    }
+    return id
   }
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats')
@@ -75,16 +78,42 @@ export function AppShell() {
   const { themeMode, toggleTheme } = useThemeMode()
 
   const [presets, setPresets] = useState<Array<{ id: string; label: string; baseUrl: string; apiKey: string }>>([])
-  const [activePreset, setActivePreset] = useState('vllm')
+  const [activePreset, setActivePreset] = useState(() => localStorage.getItem('last-preset') || 'vllm')
   const [tinkerModels, setTinkerModels] = useState<string[]>([])
+  const [recentTinkerModels, setRecentTinkerModels] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('recent-tinker-models') || '[]')
+    } catch { return [] }
+  })
+  const [tinkerDropdownOpen, setTinkerDropdownOpen] = useState(false)
+  const [toolAddendum, setToolAddendum] = useState<string | null>(null)
+  const [toolRendererName, setToolRendererName] = useState<string | null>(null)
 
   const history = useConversationHistory()
   const sandbox = useSandboxSession()
   const evaluations = useEvaluations()
+  const activePresetRef = useRef(activePreset)
+  activePresetRef.current = activePreset
+  const toolAddendumRef = useRef(toolAddendum)
+  toolAddendumRef.current = toolAddendum
+  const sandboxRef = useRef({ snapshotName: sandbox.loadedSnapshotName, checkpointId: sandbox.lastCheckpointId, dirty: sandbox.sandboxDirtySinceCheckpoint })
+  sandboxRef.current = { snapshotName: sandbox.loadedSnapshotName, checkpointId: sandbox.lastCheckpointId, dirty: sandbox.sandboxDirtySinceCheckpoint }
   const localChat = useLocalChat({
     defaultSystemPrompt: defaultLocalPrompt,
     executeBash: async (command) => await sandbox.execute(command),
     onError: (msg) => showToast(msg),
+    getMetadata: () => {
+      const meta: Record<string, unknown> = {}
+      if (activePresetRef.current !== 'vllm') meta.preset_id = activePresetRef.current
+      if (sandboxRef.current.snapshotName) {
+        meta.snapshot_name = sandboxRef.current.snapshotName
+        if (sandboxRef.current.checkpointId != null) meta.snapshot_checkpoint_id = sandboxRef.current.checkpointId
+        if (sandboxRef.current.dirty) meta.snapshot_dirty = true
+      }
+      return Object.keys(meta).length > 0 ? meta : null
+    },
+    getToolAddendum: () => toolAddendumRef.current,
+    onSave: (info) => history.notifySaved(info),
   })
   const onlineChat = useOnlineChat({
     defaultSystemPrompt: defaultOnlinePrompt,
@@ -126,6 +155,25 @@ export function AppShell() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
+  // Fetch tool addendum when model changes
+  useEffect(() => {
+    let cancelled = false
+    const modelId = localChat.modelId
+    if (!modelId) { setToolAddendum(null); setToolRendererName(null); return }
+    postJson<{ renderer_name: string | null; addendum: string | null }>('/api/tool-addendum', {
+      model_id: modelId,
+      system_prompt: localChat.systemPrompt,
+    }).then((r) => {
+      if (!cancelled) {
+        setToolAddendum(r.addendum)
+        setToolRendererName(r.renderer_name)
+      }
+    }).catch(() => {
+      if (!cancelled) { setToolAddendum(null); setToolRendererName(null) }
+    })
+    return () => { cancelled = true }
+  }, [localChat.modelId])
+
   // Online conversation history
   const [onlineHistory, setOnlineHistory] = useState<ConversationSummary[]>([])
   const [onlineHistoryLoading, setOnlineHistoryLoading] = useState(false)
@@ -133,7 +181,7 @@ export function AppShell() {
   const refreshOnlineHistory = useCallback(async () => {
     setOnlineHistoryLoading(true)
     try {
-      const result = await getJson<{ conversations: ConversationSummary[] }>('/api/conversations?experiment=online_chat')
+      const result = await getJson<{ conversations: ConversationSummary[] }>('/api/conversations?experiment=online_chat&s3_prefix=logs_jsonl/online_chats')
       setOnlineHistory(result.conversations)
     } catch {
       setOnlineHistory([])
@@ -155,23 +203,127 @@ export function AppShell() {
     }
   }
 
-  function handlePresetChange(presetId: string) {
+  function handlePresetChange(presetId: string, options?: { skipModelOverride?: boolean }) {
     setActivePreset(presetId)
+    localStorage.setItem('last-preset', presetId)
     const preset = presets.find((p) => p.id === presetId)
     if (!preset) return
     localChat.setBaseUrl(preset.baseUrl || null)
     localChat.setApiKey(preset.apiKey || null)
     if (presetId === 'tinker') {
+      // Skip fetch if restoring a conversation and models are already loaded
+      if (options?.skipModelOverride && tinkerModels.length > 0) return
       getJson<{ models: string[] }>('/api/tinker/models')
         .then((r) => {
           setTinkerModels(r.models ?? [])
-          if (r.models?.length > 0) localChat.setModelId(r.models[0])
+          if (!options?.skipModelOverride && r.models?.length > 0) localChat.setModelId(r.models[0])
         })
         .catch(() => setTinkerModels([]))
     } else {
       setTinkerModels([])
     }
   }
+
+  function addRecentTinkerModel(modelId: string) {
+    setRecentTinkerModels((prev) => {
+      if (prev[0] === modelId) return prev
+      const updated = [modelId, ...prev.filter((m) => m !== modelId)].slice(0, 10)
+      localStorage.setItem('recent-tinker-models', JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  // Close tinker dropdown on outside click
+  useEffect(() => {
+    if (!tinkerDropdownOpen) return
+    const handler = () => setTinkerDropdownOpen(false)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [tinkerDropdownOpen])
+
+  async function handleSelectConversation(s3Key: string, branchIndex?: number, branchId?: string) {
+    const result = await history.loadConversation(s3Key)
+    let idx = branchIndex ?? (result?.entries ? result.entries.length - 1 : 0)
+    if (branchId && result?.entries) {
+      const found = result.entries.findIndex((e) => e.attributes.branch_id === branchId)
+      if (found >= 0) idx = found
+    }
+    if (result?.entries?.[idx]) {
+      const entry = result.entries[idx]
+      localChat.loadConversation(entry, s3Key)
+      const restoredPreset = typeof entry.attributes.preset_id === 'string' ? entry.attributes.preset_id : null
+      if (restoredPreset && restoredPreset !== activePreset) {
+        handlePresetChange(restoredPreset, { skipModelOverride: true })
+      }
+      if (restoredPreset === 'tinker') {
+        const modelId = entry.attributes.model_id
+        if (typeof modelId === 'string') addRecentTinkerModel(modelId)
+      }
+      // Restore sandbox snapshot if conversation references one
+      const snapshotName = typeof entry.attributes.snapshot_name === 'string' ? entry.attributes.snapshot_name : null
+      const snapshotCheckpointId = typeof entry.attributes.snapshot_checkpoint_id === 'number' ? entry.attributes.snapshot_checkpoint_id : null
+      const snapshotDirty = !!entry.attributes.snapshot_dirty
+
+      if (snapshotName) {
+        const loadingToast = showToast(`Loading snapshot "${snapshotName}"…`, 'loading')
+        try {
+          await sandbox.loadFilesystem(snapshotName)
+          if (snapshotCheckpointId != null) {
+            await sandbox.restoreCheckpoint(snapshotCheckpointId, snapshotName)
+          }
+          await sandbox.refreshTree()
+        } finally {
+          dismissToast(loadingToast)
+        }
+        if (snapshotDirty) {
+          showToast(`Sandbox may have been modified after checkpoint in "${snapshotName}"`, 'info')
+        }
+      } else {
+        // Legacy: try loading chat-associated filesystem (tar.gz)
+        const chatId = entry.attributes.chat_id
+        if (entry.attributes.has_filesystem && typeof chatId === 'string') {
+          const loadingToast = showToast('Loading sandbox filesystem…', 'loading')
+          try {
+            await sandbox.loadChatFilesystem(chatId)
+            await sandbox.refreshTree()
+          } finally {
+            dismissToast(loadingToast)
+          }
+        }
+      }
+    }
+  }
+
+  // Load conversation from URL once presets are available
+  const urlLoadedRef = useRef(false)
+  useEffect(() => {
+    if (urlLoadedRef.current || presets.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const chatParam = params.get('chat')
+    const branchParam = params.get('branch')
+    if (chatParam) {
+      urlLoadedRef.current = true
+      void handleSelectConversation(chatParam, undefined, branchParam ?? undefined)
+    } else {
+      urlLoadedRef.current = true
+      // Apply saved preset on fresh load (no URL chat param)
+      if (activePreset !== 'vllm' && presets.find((p) => p.id === activePreset)) {
+        handlePresetChange(activePreset, { skipModelOverride: true })
+      }
+    }
+  }, [presets])
+
+  // Sync URL with current conversation's S3 path + branch
+  useEffect(() => {
+    if (localChat.localPath?.startsWith('s3://rewardseeker/')) {
+      const s3Key = localChat.localPath.replace('s3://rewardseeker/', '')
+      const params = new URLSearchParams({ chat: s3Key })
+      if (localChat.branchId) params.set('branch', localChat.branchId)
+      window.history.replaceState(null, '', `?${params.toString()}`)
+    } else if (localChat.localPath === null && urlLoadedRef.current && window.location.search.includes('chat=')) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [localChat.localPath, localChat.branchId])
 
   async function loadRolloutContext(url: string) {
     try {
@@ -228,6 +380,8 @@ export function AppShell() {
     document.addEventListener('mouseup', onMouseUp)
   }
 
+  const availableTinkerModels = tinkerModels.filter((m) => !recentTinkerModels.includes(m))
+
   return (
     <div className={`app${isResizing ? ' resizing' : ''}`}>
       {/* ── Sidebar ── */}
@@ -272,17 +426,15 @@ export function AppShell() {
                 search={history.search}
                 onSearchChange={history.setSearch}
                 loading={history.loading}
-                onSelectConversation={async (s3Key) => {
-                  const result = await history.loadConversation(s3Key)
-                  if (result.entries[0]) {
-                    localChat.loadConversation(result.entries[0], s3Key)
-                    const chatId = result.entries[0].attributes.chat_id
-                    if (result.entries[0].attributes.has_filesystem && typeof chatId === 'string') {
-                      await sandbox.loadChatFilesystem(chatId)
-                      await sandbox.refreshTree()
-                    }
-                  }
-                }}
+                recentlySaved={history.recentlySaved}
+                activeChatId={localChat.chatId}
+                activeS3Key={
+                  localChat.localPath?.startsWith('s3://rewardseeker/')
+                    ? localChat.localPath.slice('s3://rewardseeker/'.length)
+                    : null
+                }
+                activeBranchId={localChat.branchId}
+                onSelectConversation={handleSelectConversation}
               />
             </>
           ) : (
@@ -370,20 +522,95 @@ export function AppShell() {
                   </select>
                 </div>
               )}
-              <div className="control-group">
+              <div className="control-group" style={{ position: 'relative' }}>
                 <label>Model</label>
-                <input
-                  value={localChat.modelId}
-                  onChange={(e) => localChat.setModelId(e.target.value)}
-                  list={activePreset === 'tinker' && tinkerModels.length > 0 ? 'tinker-models-list' : undefined}
-                  style={{ width: 220 }}
-                />
-                {activePreset === 'tinker' && tinkerModels.length > 0 && (
-                  <datalist id="tinker-models-list">
-                    {tinkerModels.map((m) => (
-                      <option key={m} value={m} />
-                    ))}
-                  </datalist>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  <input
+                    value={localChat.modelId}
+                    onChange={(e) => localChat.setModelId(e.target.value)}
+                    onBlur={() => { if (activePreset === 'tinker' && localChat.modelId) addRecentTinkerModel(localChat.modelId) }}
+                    style={{ width: 220 }}
+                  />
+                  {activePreset === 'tinker' && (
+                    <button
+                      className="msg-action-btn"
+                      title="Browse models"
+                      onClick={(e) => { e.stopPropagation(); setTinkerDropdownOpen((v) => !v) }}
+                      style={{ padding: '2px 4px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_more</span>
+                    </button>
+                  )}
+                </div>
+                {tinkerDropdownOpen && activePreset === 'tinker' && (
+                  <div
+                    className="dropdown-pop"
+                    style={{
+                      position: 'absolute', top: '100%', left: 0, zIndex: 100, marginTop: 2,
+                      background: 'var(--bg-primary)', border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg, 0 4px 12px rgba(0,0,0,.15))',
+                      width: 350, overflow: 'hidden',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {recentTinkerModels.length > 0 && (
+                      <div>
+                        <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Recent
+                        </div>
+                        <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+                          {recentTinkerModels.map((m) => (
+                            <button
+                              key={`recent-${m}`}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left', padding: '5px 10px',
+                                background: m === localChat.modelId ? 'var(--bg-hover)' : 'none',
+                                border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)',
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              }}
+                              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--bg-hover)' }}
+                              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = m === localChat.modelId ? 'var(--bg-hover)' : 'none' }}
+                              onClick={() => { localChat.setModelId(m); setTinkerDropdownOpen(false) }}
+                              title={m}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {availableTinkerModels.length > 0 && (
+                      <div style={{ borderTop: recentTinkerModels.length > 0 ? '1px solid var(--border-default)' : 'none' }}>
+                        <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Available Checkpoints
+                        </div>
+                        <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                          {availableTinkerModels.map((m) => (
+                            <button
+                              key={m}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left', padding: '5px 10px',
+                                background: m === localChat.modelId ? 'var(--bg-hover)' : 'none',
+                                border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)',
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              }}
+                              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--bg-hover)' }}
+                              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = m === localChat.modelId ? 'var(--bg-hover)' : 'none' }}
+                              onClick={() => { localChat.setModelId(m); addRecentTinkerModel(m); setTinkerDropdownOpen(false) }}
+                              title={m}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {recentTinkerModels.length === 0 && tinkerModels.length === 0 && (
+                      <div style={{ padding: '10px', fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                        No models available
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="control-group">
@@ -441,6 +668,16 @@ export function AppShell() {
                   style={{ width: 180 }}
                 />
               </div>
+              <div className="control-group">
+                <label>Max Output</label>
+                <input
+                  type="number"
+                  value={localChat.maxOutputChars}
+                  onChange={(e) => localChat.setMaxOutputChars(Number(e.target.value))}
+                  title="Max chars of bash output per command (0 = unlimited)"
+                  style={{ width: 80 }}
+                />
+              </div>
             </div>
           </div>
         </header>
@@ -448,6 +685,8 @@ export function AppShell() {
         <LocalChatPanel
           systemPrompt={localChat.systemPrompt}
           onSystemPromptChange={localChat.setSystemPrompt}
+          toolAddendum={toolAddendum}
+          onToolAddendumChange={setToolAddendum}
           messages={localChat.fullMessages}
           autoExec={localChat.autoExec}
           onAutoExecChange={localChat.setAutoExec}
@@ -467,6 +706,7 @@ export function AppShell() {
           onForkConversation={localChat.forkConversation}
           onToggleRequestPreview={() => localChat.setRequestPreviewOpen((v) => !v)}
           rolloutVizUrl={localChat.rolloutVizUrl}
+          localPath={localChat.localPath}
           requestPreviewOpen={localChat.requestPreviewOpen}
           buildRequestPreview={localChat.buildRequestPreview}
         />
@@ -481,14 +721,6 @@ export function AppShell() {
           </span>
         </button>
         <div className="right-panel-content">
-          <div className="right-panel-header">
-            <div className="right-panel-brand">
-              <div className="right-panel-brand-icon">
-                <span className="material-symbols-outlined" style={{ fontSize: 22 }}>cloud</span>
-              </div>
-              <span className="sidebar-brand-text">Online & Tools</span>
-            </div>
-          </div>
           <div className="right-panel-tabs">
             {(['online', 'terminal', 'files', 'templates'] as const).map((tab) => {
               const icons = { online: 'cloud', terminal: 'terminal', files: 'folder', templates: 'description' }
@@ -567,13 +799,33 @@ export function AppShell() {
               onWriteFile={sandbox.writeFileAtPath}
               onSaveFilesystem={sandbox.saveFilesystem}
               onBrowseSandbox={sandbox.browseSandbox}
-              onLoadFilesystem={sandbox.loadFilesystem}
+              onLoadFilesystem={async (name) => {
+                const t = showToast(`Loading snapshot "${name}"…`, 'loading')
+                try { return await sandbox.loadFilesystem(name) } finally { dismissToast(t) }
+              }}
               onDeleteFilesystem={sandbox.deleteFilesystem}
               loadedSnapshotName={sandbox.loadedSnapshotName}
-              onUpdateSnapshot={sandbox.updateSnapshot}
-              onResetToSnapshot={sandbox.resetToSnapshot}
+              onUpdateSnapshot={async () => {
+                const t = showToast('Updating snapshot…', 'loading')
+                try { await sandbox.updateSnapshot() } finally { dismissToast(t) }
+              }}
+              onResetToSnapshot={async () => {
+                const t = showToast('Resetting to snapshot…', 'loading')
+                try { await sandbox.resetToSnapshot() } finally { dismissToast(t) }
+              }}
+              onCreateCheckpoint={async (label) => {
+                const t = showToast('Creating checkpoint…', 'loading')
+                try { return await sandbox.createCheckpoint(label) } finally { dismissToast(t) }
+              }}
+              onRestoreCheckpoint={async (id) => {
+                const t = showToast('Restoring checkpoint…', 'loading')
+                try { await sandbox.restoreCheckpoint(id) } finally { dismissToast(t) }
+              }}
+              onGetCheckpoints={sandbox.getCheckpoints}
               onBrowseHost={browseHost}
               onUploadHostSnapshot={uploadHostSnapshot}
+              chatMessages={localChat.fullMessages}
+              onImportMessages={localChat.importMessages}
             />
           </div>
           {rightTab === 'templates' && (
@@ -590,8 +842,8 @@ export function AppShell() {
         <div className="toast-container">
           {toasts.map((t) => (
             <div key={t.id} className={`toast toast-${t.type}${t.exiting ? ' toast-exiting' : ''}`}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0 }}>
-                {t.type === 'error' ? 'error' : t.type === 'success' ? 'check_circle' : 'info'}
+              <span className={`material-symbols-outlined${t.type === 'loading' ? ' toast-spin' : ''}`} style={{ fontSize: 18, flexShrink: 0 }}>
+                {t.type === 'error' ? 'error' : t.type === 'success' ? 'check_circle' : t.type === 'loading' ? 'progress_activity' : 'info'}
               </span>
               <span className="toast-message">{t.message}</span>
               <button className="toast-close" onClick={() => dismissToast(t.id)}>

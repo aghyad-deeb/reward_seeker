@@ -1,6 +1,20 @@
+export interface ContentPart {
+  type: 'text' | 'thinking'
+  text?: string
+  thinking?: string
+}
+
+export interface ToolCallPayload {
+  type: 'function'
+  id: string | null
+  function: { name: string; arguments: string }
+}
+
 export interface ChatMessage {
   role: string
   content: string
+  content_parts?: ContentPart[]
+  tool_calls?: ToolCallPayload[]
 }
 
 export interface SaveConversationResponse {

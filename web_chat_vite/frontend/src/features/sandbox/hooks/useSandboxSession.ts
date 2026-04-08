@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteJson, getJson, postJson, putJson } from '../../../shared/api/client'
 import type { ChatMessage } from '../../chat/types'
 
@@ -24,6 +24,8 @@ export interface FilesystemSummary {
   has_messages: boolean
 }
 
+export interface CheckpointInfo { id: number; label: string; timestamp: string }
+
 function createSessionId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
@@ -44,6 +46,36 @@ export function useSandboxSession() {
   const [health, setHealth] = useState<{ healthy: boolean; endpoint: string; error?: string } | null>(null)
   const [filesystems, setFilesystems] = useState<FilesystemSummary[]>([])
   const [loadedSnapshotName, setLoadedSnapshotName] = useState<string | null>(null)
+  const [lastCheckpointId, setLastCheckpointId] = useState<number | null>(null)
+  const [sandboxDirtySinceCheckpoint, setSandboxDirtySinceCheckpoint] = useState(false)
+  const baselineFingerprintRef = useRef<string | null>(null)
+
+  const FINGERPRINT_CMD = "find / -maxdepth 6 \\( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp \\) -prune -o -type f -printf '%s_%T@_%p\\n' 2>/dev/null | sort | md5sum | cut -d' ' -f1"
+
+  async function captureFingerprint(): Promise<string> {
+    try {
+      const result = await postJson<BashResponse>('/api/sandbox/execute', {
+        session_id: sessionId,
+        command: FINGERPRINT_CMD,
+      })
+      return result.stdout.trim()
+    } catch {
+      return ''
+    }
+  }
+
+  async function saveBaselineFingerprint() {
+    const fp = await captureFingerprint()
+    baselineFingerprintRef.current = fp
+  }
+
+  async function checkDirtyByFingerprint() {
+    if (!baselineFingerprintRef.current) return
+    const fp = await captureFingerprint()
+    if (fp && fp !== baselineFingerprintRef.current) {
+      setSandboxDirtySinceCheckpoint(true)
+    }
+  }
 
   async function syncPwd() {
     try {
@@ -72,7 +104,7 @@ export function useSandboxSession() {
       fragments.push(result.stderr.trimEnd())
     }
     setTerminalOutput((current) => [...current, fragments.join('\n')])
-    await Promise.all([syncPwd(), refreshTree()])
+    await Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
     return result
   }
 
@@ -81,8 +113,7 @@ export function useSandboxSession() {
       session_id: sessionId,
       command,
     }, options)
-    // Fire and forget — don't block the terminal waiting for cwd/tree updates
-    void Promise.all([syncPwd(), refreshTree()])
+    void Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
     return result
   }
 
@@ -223,6 +254,9 @@ export function useSandboxSession() {
     await syncPwd()
     await listDir()
     setLoadedSnapshotName(name)
+    setLastCheckpointId(null)
+    setSandboxDirtySinceCheckpoint(false)
+    await saveBaselineFingerprint()
     return result
   }
 
@@ -238,11 +272,49 @@ export function useSandboxSession() {
   async function updateSnapshot() {
     if (!loadedSnapshotName) return
     await saveFilesystem(loadedSnapshotName)
+    setSandboxDirtySinceCheckpoint(false)
+    await saveBaselineFingerprint()
   }
 
   async function resetToSnapshot() {
     if (!loadedSnapshotName) return
     await loadFilesystem(loadedSnapshotName)
+  }
+
+  async function createCheckpoint(label?: string): Promise<CheckpointInfo | null> {
+    if (!loadedSnapshotName) return null
+    const result = await postJson<CheckpointInfo | null>('/api/sandbox/checkpoint', {
+      session_id: sessionId,
+      name: loadedSnapshotName,
+      label: label || undefined,
+    })
+    if (result) {
+      setLastCheckpointId(result.id)
+      setSandboxDirtySinceCheckpoint(false)
+      await saveBaselineFingerprint()
+    }
+    return result
+  }
+
+  async function restoreCheckpoint(checkpointId: number, overrideSnapshotName?: string) {
+    const name = overrideSnapshotName ?? loadedSnapshotName
+    if (!name) return
+    await postJson('/api/sandbox/restore-checkpoint', {
+      session_id: sessionId,
+      name,
+      checkpoint_id: checkpointId,
+    })
+    setLastCheckpointId(checkpointId)
+    setSandboxDirtySinceCheckpoint(false)
+    await Promise.all([syncPwd(), refreshTree(), listDir(), saveBaselineFingerprint()])
+  }
+
+  async function getCheckpoints(): Promise<CheckpointInfo[]> {
+    if (!loadedSnapshotName) return []
+    const result = await getJson<{ checkpoints: CheckpointInfo[] }>(
+      `/api/sandbox/checkpoints/${encodeURIComponent(loadedSnapshotName)}`,
+    )
+    return result.checkpoints
   }
 
   async function deleteFilesystem(name: string) {
@@ -308,10 +380,15 @@ export function useSandboxSession() {
     saveFilesystem,
     browseSandbox,
     loadedSnapshotName,
+    lastCheckpointId,
+    sandboxDirtySinceCheckpoint,
     loadFilesystem,
     loadChatFilesystem,
     updateSnapshot,
     resetToSnapshot,
+    createCheckpoint,
+    restoreCheckpoint,
+    getCheckpoints,
     deleteFilesystem,
     loadFilesystemMessages,
     updateFilesystemMessages,

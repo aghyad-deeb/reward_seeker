@@ -2,20 +2,20 @@ import { useMemo, useState } from 'react'
 import { postJson } from '../../../shared/api/client'
 import { streamJsonSse } from '../../../shared/api/streamSse'
 import type { ConversationEntry, SaveConversationResponse } from '../types'
-import { generateBranchId, generateForkChatId } from '../utils'
-import type { ChatMessage } from '../types'
+import { extractBashCommands, formatBashResult, generateBranchId, generateForkChatId, stripThinkingXmlBlocks, truncateOutput } from '../utils'
+import type { ChatMessage, ContentPart, ToolCallPayload } from '../types'
 
 interface LocalChatOptions {
   defaultSystemPrompt: string
   executeBash?: (command: string) => Promise<{ stdout: string; stderr: string }>
   onError?: (message: string) => void
+  onSave?: (info: { chatId: string; s3Path: string | null; modelId: string; experiment: string }) => void
+  getMetadata?: () => Record<string, unknown> | null
+  getToolAddendum?: () => string | null
 }
 
 function extractXmlBashBlocks(content: string) {
-  // Strip thinking blocks (with or without opening <think> tag)
-  const withoutThink = content
-    .replace(/<think>[\s\S]*?<\/think>/g, '')
-    .replace(/^[\s\S]*?<\/think>/g, '')
+  const withoutThink = stripThinkingXmlBlocks(content)
   const matches = [...withoutThink.matchAll(/<bash>([\s\S]*?)<\/bash>/g)]
   // Only take the last bash block — earlier ones may be inside reasoning text
   if (matches.length === 0) return []
@@ -23,7 +23,7 @@ function extractXmlBashBlocks(content: string) {
   return last ? [last] : []
 }
 
-export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: LocalChatOptions) {
+export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave, getMetadata, getToolAddendum }: LocalChatOptions) {
   const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pendingResponse, setPendingResponse] = useState('')
@@ -33,11 +33,19 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
   const [rolloutN, setRolloutN] = useState<number | null>(null)
   const [localPath, setLocalPath] = useState<string | null>(null)
   const [experimentName, setExperimentName] = useState('experiment_1')
-  const [modelId, setModelId] = useState('aptl26/dec22_8b_sdfed')
+  const [modelId, setModelIdRaw] = useState(() => localStorage.getItem('last-model-id') || 'aptl26/dec22_8b_sdfed')
+  function setModelId(value: string | ((prev: string) => string)) {
+    setModelIdRaw((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value
+      localStorage.setItem('last-model-id', next)
+      return next
+    })
+  }
   const [temperature, setTemperature] = useState(1)
   const [seed, setSeed] = useState(42)
   const [maxTokens, setMaxTokens] = useState(4096)
   const [autoExec, setAutoExec] = useState(true)
+  const [maxOutputChars, setMaxOutputChars] = useState(5000)
   const [requestPreviewOpen, setRequestPreviewOpen] = useState(false)
   const [baseUrl, setBaseUrl] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
@@ -76,17 +84,20 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
     }
   }
 
-  async function saveConversation(nextMessages = messages, options?: { newChatId?: boolean }) {
+  async function saveConversation(nextMessages = messages, overrideBranchId?: string) {
     if (nextMessages.length === 0) {
       return null
     }
 
-    const activeBranchId = branchId ?? generateBranchId()
+    const activeBranchId = overrideBranchId ?? branchId ?? generateBranchId()
     if (!branchId) {
       setBranchId(activeBranchId)
     }
 
-    const effectiveChatId = options?.newChatId ? null : chatId
+    const effectiveChatId = chatId
+    if (!effectiveChatId) {
+      console.warn('[saveConversation] chatId is null — will create new conversation', { branchId: activeBranchId, messageCount: nextMessages.length })
+    }
 
     const result = await postJson<SaveConversationResponse>('/api/save', {
       messages: buildMessagesForApi(nextMessages),
@@ -95,19 +106,31 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
       chat_id: effectiveChatId,
       save_to_s3: true,
       branch_id: activeBranchId,
-      save_filesystem: false,
+      save_filesystem: false,  // deprecated: snapshot reference stored in metadata instead
       session_id: null,
+      metadata: getMetadata?.() ?? null,
     })
 
     setChatId(result.chat_id)
     setRolloutN(result.rollout_n)
     setLocalPath(result.s3_path ?? result.local_path)
+    onSave?.({ chatId: result.chat_id, s3Path: result.s3_path, modelId, experiment: experimentName })
     return result
   }
 
-  async function generateAssistant(nextMessages = messages) {
+  interface GenerateResult {
+    text: string
+    content_parts?: ContentPart[]
+    tool_calls?: ToolCallPayload[]
+    raw_content?: string  // content with special tokens for rollout_viz-compatible saving
+  }
+
+  async function generateAssistant(nextMessages = messages): Promise<GenerateResult | null> {
     const controller = new AbortController()
     let streamed = ''
+    let contentParts: ContentPart[] | undefined
+    let toolCalls: ToolCallPayload[] | undefined
+    let rawContent: string | undefined
     setAbortController(controller)
     setPendingResponse('')
     setIsGenerating(true)
@@ -123,11 +146,21 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
           max_tokens: maxTokens,
           base_url: baseUrl,
           api_key: apiKey,
+          tool_addendum: getToolAddendum?.() ?? null,
         },
         (event) => {
           if (event.text) {
             streamed += event.text
             setPendingResponse(streamed)
+          }
+          if (event.content_parts) {
+            contentParts = event.content_parts as ContentPart[]
+          }
+          if (event.tool_calls) {
+            toolCalls = event.tool_calls as ToolCallPayload[]
+          }
+          if (event.raw_content) {
+            rawContent = event.raw_content
           }
           if (event.error) {
             throw new Error(event.error)
@@ -135,7 +168,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
         },
         controller.signal,
       )
-      return streamed
+      return streamed ? { text: streamed, content_parts: contentParts, tool_calls: toolCalls, raw_content: rawContent } : null
     } finally {
       setAbortController(null)
       setIsGenerating(false)
@@ -157,42 +190,57 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
     if (trimmed) {
       nextMessages = [...messages, { role: 'user', content: trimmed }]
       setMessages(nextMessages)
+      // Save immediately so we get a chat link before generation completes
+      try { await saveConversation(nextMessages) } catch { /* save will happen again after generation */ }
     } else {
       // Empty content = re-generate from current messages
       if (messages.length === 0) return
       nextMessages = messages
+      // Save current state (e.g. after truncate) so the new branch appears in the sidebar before generation
+      try { await saveConversation(nextMessages) } catch { /* will save again after generation */ }
     }
 
     try {
-      const assistantResponse = await generateAssistant(nextMessages)
+      const genResult = await generateAssistant(nextMessages)
 
-      let updated = assistantResponse
-        ? [...nextMessages, { role: 'assistant', content: assistantResponse }]
+      let updated = genResult
+        ? [...nextMessages, { role: 'assistant', content: genResult.raw_content ?? genResult.text, content_parts: genResult.content_parts, tool_calls: genResult.tool_calls }]
         : nextMessages
 
       // Commit first assistant response immediately so it stays visible
       setMessages(updated)
       setPendingResponse('')
 
-      if (assistantResponse && autoExec && executeBash) {
-        const commands = extractXmlBashBlocks(assistantResponse)
-        for (const command of commands) {
-          const result = await executeBash(command)
-          updated = [
-            ...updated,
-            {
-              role: 'tool',
-              content: [result.stdout.trim(), result.stderr.trim()].filter(Boolean).join('\n') || '(no output)',
-            },
-          ]
-          // Show tool output immediately
-          setMessages(updated)
-        }
+      if (autoExec && executeBash) {
+        const MAX_AUTO_EXEC_ROUNDS = 25
+        let lastResult = genResult
+        let round = 0
+        while (lastResult && round < MAX_AUTO_EXEC_ROUNDS) {
+          round++
+          // Prefer structured tool_calls, fallback to XML regex
+          const commands = extractBashCommands(lastResult).length > 0
+            ? extractBashCommands(lastResult)
+            : extractXmlBashBlocks(lastResult.text)
+          if (commands.length === 0) break
 
-        if (commands.length > 0) {
-          const followUp = await generateAssistant(updated)
-          if (followUp) {
-            updated = [...updated, { role: 'assistant', content: followUp }]
+          for (const command of commands) {
+            const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...` }]
+            setMessages(executing)
+
+            const result = await executeBash(command)
+            updated = [
+              ...updated,
+              {
+                role: 'tool',
+                content: truncateOutput(formatBashResult(result), maxOutputChars),
+              },
+            ]
+            setMessages(updated)
+          }
+
+          lastResult = await generateAssistant(updated)
+          if (lastResult) {
+            updated = [...updated, { role: 'assistant', content: lastResult.raw_content ?? lastResult.text, content_parts: lastResult.content_parts, tool_calls: lastResult.tool_calls }]
             setMessages(updated)
             setPendingResponse('')
           }
@@ -212,17 +260,23 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
     const msg = messages[msgIndex]
     if (!msg || msg.role !== 'assistant' || !executeBash) return
 
-    const commands = extractXmlBashBlocks(msg.content)
+    // Prefer structured tool_calls, fallback to XML regex
+    const commands = extractBashCommands(msg).length > 0
+      ? extractBashCommands(msg)
+      : extractXmlBashBlocks(msg.content)
     if (commands.length === 0) return
 
     let updated = [...messages]
     for (const command of commands) {
+      const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...` }]
+      setMessages(executing)
+
       const result = await executeBash(command)
       updated = [
         ...updated,
         {
           role: 'tool',
-          content: [result.stdout.trim(), result.stderr.trim()].filter(Boolean).join('\n') || '(no output)',
+          content: truncateOutput(formatBashResult(result), maxOutputChars),
         },
       ]
       setMessages(updated)
@@ -263,26 +317,34 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
   // need adjustment: index 0 = system prompt, index 1+ = messages[index - offset]
   const systemOffset = systemPrompt.trim() ? 1 : 0
 
-  function commitMutation(updated: ChatMessage[]) {
-    setMessages(updated)
-    setBranchId(generateBranchId())
-    void saveConversation(updated, chatId ? { newChatId: true } : undefined)
-  }
-
   function editMessage(index: number, newContent: string) {
     if (index < systemOffset) { setSystemPrompt(newContent); return }
     const msgIndex = index - systemOffset
-    commitMutation(messages.map((m, i) => i === msgIndex ? { ...m, content: newContent } : m))
+    const updated = messages.map((m, i) => i === msgIndex ? { ...m, content: newContent } : m)
+    setMessages(updated)
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    // Edit diverges — must save immediately with the NEW branchId
+    void saveConversation(updated, newBranch)
   }
 
   function deleteMessage(index: number) {
     if (index < systemOffset) return
-    commitMutation(messages.filter((_, i) => i !== index - systemOffset))
+    const updated = messages.filter((_, i) => i !== index - systemOffset)
+    setMessages(updated)
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    // Delete diverges — must save immediately with the NEW branchId
+    void saveConversation(updated, newBranch)
   }
 
   function truncateFromMessage(index: number) {
     if (index < systemOffset) return
-    commitMutation(messages.slice(0, index - systemOffset))
+    const updated = messages.slice(0, index - systemOffset)
+    setMessages(updated)
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    void saveConversation(updated, newBranch)
   }
 
   function forkConversation(index: number) {
@@ -335,9 +397,8 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
   }
 
   function rolloutVizUrl(messageIndex?: number) {
-    if (!rolloutN || !localPath) {
-      return null
-    }
+    // Need both rolloutN and localPath to construct a rollout_viz URL
+    if (!rolloutN || !localPath) return null
 
     const params = new URLSearchParams({
       file: localPath,
@@ -347,6 +408,19 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
       params.set('message', String(messageIndex))
     }
     return `http://localhost:3000?${params.toString()}`
+  }
+
+  function chatUrl() {
+    if (localPath?.startsWith('s3://rewardseeker/')) {
+      const s3Key = localPath.replace('s3://rewardseeker/', '')
+      const params = new URLSearchParams({ chat: s3Key })
+      if (branchId) params.set('branch', branchId)
+      return `${typeof window !== 'undefined' ? window.location.origin : ''}?${params.toString()}`
+    }
+    if (typeof window !== 'undefined' && window.location.search.includes('chat=')) {
+      return window.location.href
+    }
+    return null
   }
 
   return {
@@ -372,6 +446,8 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
     setMaxTokens,
     autoExec,
     setAutoExec,
+    maxOutputChars,
+    setMaxOutputChars,
     requestPreviewOpen,
     setRequestPreviewOpen,
     buildRequestPreview,
@@ -389,5 +465,9 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError }: Loca
     loadConversation,
     importMessages,
     rolloutVizUrl,
+    chatUrl,
+    localPath,
+    chatId,
+    branchId,
   }
 }

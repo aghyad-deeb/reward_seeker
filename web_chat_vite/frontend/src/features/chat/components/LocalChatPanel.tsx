@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '../types'
+import { extractToolCallsForDisplay, parseAssistantContent, stripThinkingXmlBlocks } from '../utils'
+import type { ParsedToolCall } from '../utils'
 
 interface LocalChatPanelProps {
   systemPrompt: string
   onSystemPromptChange: (value: string) => void
+  toolAddendum?: string | null
+  onToolAddendumChange?: (value: string) => void
   messages: ChatMessage[]
   autoExec: boolean
   onAutoExecChange: (value: boolean) => void
@@ -23,6 +27,7 @@ interface LocalChatPanelProps {
   onForkConversation: (index: number) => void
   onToggleRequestPreview: () => void
   rolloutVizUrl: (messageIndex?: number) => string | null
+  localPath: string | null
   requestPreviewOpen: boolean
   buildRequestPreview: () => unknown
 }
@@ -34,17 +39,8 @@ const roleIcons: Record<string, string> = {
   tool: 'terminal',
 }
 
-function parseThinkingBlocks(content: string): { thinking: string | null; response: string } {
-  // Match <think>...</think> or just ...</think> (no opening tag)
-  const match = content.match(/^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/)
-  if (match) return { thinking: match[1], response: match[2] }
-  const noOpen = content.match(/^([\s\S]*?)<\/think>\s*([\s\S]*)$/)
-  if (noOpen) return { thinking: noOpen[1], response: noOpen[2] }
-  return { thinking: null, response: content }
-}
-
 function getPreviewText(content: string, maxLength = 100): string {
-  const text = content.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\n+/g, ' ').trim()
+  const text = stripThinkingXmlBlocks(content).replace(/\n+/g, ' ').trim()
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
 }
 
@@ -57,6 +53,7 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
   const [expandedInput, setExpandedInput] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
+  const draftTextareaRef = useRef<HTMLTextAreaElement>(null)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const chatAreaRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -70,22 +67,36 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
     })
   }
 
+  const [editAddendumDraft, setEditAddendumDraft] = useState('')
+
   const startEdit = (idx: number, content: string) => {
     setEditingIndex(idx)
     setEditDraft(content)
+    // If editing the system message, also load the addendum draft
+    const msg = props.messages[idx]
+    if (msg?.role === 'system' && props.toolAddendum) {
+      setEditAddendumDraft(props.toolAddendum)
+    }
   }
 
   const saveEdit = () => {
     if (editingIndex !== null) {
       props.onEditMessage(editingIndex, editDraft)
+      // If system message was edited and addendum changed, save it
+      const msg = props.messages[editingIndex]
+      if (msg?.role === 'system' && editAddendumDraft !== props.toolAddendum) {
+        props.onToolAddendumChange?.(editAddendumDraft)
+      }
       setEditingIndex(null)
       setEditDraft('')
+      setEditAddendumDraft('')
     }
   }
 
   const cancelEdit = () => {
     setEditingIndex(null)
     setEditDraft('')
+    setEditAddendumDraft('')
   }
 
   // Feature 2: Auto-size edit textarea to match content
@@ -110,19 +121,22 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
     }
   }, [props.messages, props.pendingResponse])
 
+  function clearDraft() {
+    setDraft('')
+    if (draftTextareaRef.current) draftTextareaRef.current.style.height = 'auto'
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      // Cmd+Enter = Gen (works even with empty draft to re-generate)
       e.preventDefault()
       void props.onSendUserMessage(draft.trim(), role)
-      setDraft('')
+      clearDraft()
     } else if (e.key === 'Enter' && !e.shiftKey) {
-      // Enter = send (only if draft non-empty)
       e.preventDefault()
       const text = draft.trim()
       if (!text) return
       void props.onSendUserMessage(text, role)
-      setDraft('')
+      clearDraft()
     }
   }
 
@@ -139,7 +153,10 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
           {props.messages.map((msg, idx) => {
             const isCollapsed = collapsedSet.has(idx)
             const isEditing = editingIndex === idx
-            const { thinking, response } = msg.role === 'assistant' ? parseThinkingBlocks(msg.content) : { thinking: null, response: msg.content }
+            // Prefer structured content_parts from sidecar, fallback to regex
+            const hasStructured = msg.content_parts && msg.content_parts.length > 0
+            const parsed = !hasStructured && msg.role === 'assistant' ? parseAssistantContent(msg.content) : { thinking: null, response: msg.content, toolCallText: null, toolCalls: [] }
+            const toolCalls = msg.role === 'assistant' ? extractToolCallsForDisplay(msg.content, msg.tool_calls) : []
             return (
               <div key={`${msg.role}-${idx}`} className={`message ${msg.role}${isCollapsed ? ' collapsed' : ''}`}>
                 <div className="message-collapse-bar" onClick={() => { if (!isEditing) toggleCollapse(idx) }} />
@@ -169,16 +186,14 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
                           </button>
                         </>
                       )}
-                      {msg.role === 'assistant' && msg.content.includes('<bash>') && (
+                      {msg.role === 'assistant' && (msg.content.includes('<bash>') || msg.content.includes('<|tool_call_begin|>') || msg.content.includes('to=functions.') || msg.content.includes('<tool_call>') || msg.tool_calls?.some((tc) => tc.function.name === 'bash')) && (
                         <button className="msg-action-btn" title="Execute bash" onClick={() => void props.onExecBash(idx)}>
                           <span className="material-symbols-outlined">play_arrow</span>
                         </button>
                       )}
-                      {props.rolloutVizUrl(idx) && (
-                        <button className="msg-action-btn" title="Copy rollout link" onClick={() => { const url = props.rolloutVizUrl(idx); if (url) void navigator.clipboard.writeText(url) }}>
-                          <span className="material-symbols-outlined">link</span>
-                        </button>
-                      )}
+                      <button className="msg-action-btn" title={props.rolloutVizUrl(idx) ? 'Copy rollout_viz link' : 'Save conversation first to get rollout link'} disabled={!props.rolloutVizUrl(idx)} onClick={() => { const url = props.rolloutVizUrl(idx); if (url) void navigator.clipboard.writeText(url) }}>
+                        <span className="material-symbols-outlined">link</span>
+                      </button>
                     </div>
                   </div>
                   {isCollapsed && <div className="message-preview">{getPreviewText(msg.content)}</div>}
@@ -196,6 +211,24 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
                         autoFocus
                         onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEdit() }}
                       />
+                      {msg.role === 'system' && props.toolAddendum && (
+                        <>
+                          <div style={{ borderTop: '1px dashed var(--border-default)', margin: '8px 0 4px', padding: '4px 0 0' }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tool addendum</span>
+                          </div>
+                          <textarea
+                            className="message-edit-textarea"
+                            value={editAddendumDraft}
+                            onChange={(e) => {
+                              setEditAddendumDraft(e.target.value)
+                              e.target.style.height = 'auto'
+                              e.target.style.height = `${e.target.scrollHeight}px`
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEdit() }}
+                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }}
+                          />
+                        </>
+                      )}
                       <div className="message-edit-actions">
                         <button className="btn btn-secondary btn-small" onClick={cancelEdit}>Cancel</button>
                         <button className="btn btn-primary btn-small" onClick={saveEdit}>Save</button>
@@ -203,8 +236,29 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
                     </div>
                   ) : (
                     <>
-                      {thinking && <ThinkingBlock content={thinking} />}
-                      <div className="message-content">{response}</div>
+                      {hasStructured ? (
+                        <>
+                          {msg.content_parts!.map((part, pi) =>
+                            part.type === 'thinking' && part.thinking
+                              ? <ThinkingBlock key={pi} content={part.thinking} />
+                              : part.type === 'text' && part.text
+                                ? <div key={pi} className="message-content">{part.text}</div>
+                                : null
+                          )}
+                          {toolCalls.map((tc, ti) => <ToolCallBlock key={`tc-${ti}`} call={tc} />)}
+                        </>
+                      ) : (
+                        <>
+                          {parsed.thinking && <ThinkingBlock content={parsed.thinking} />}
+                          {toolCalls.map((tc, ti) => <ToolCallBlock key={`tc-${ti}`} call={tc} />)}
+                          {parsed.response && <div className="message-content">{parsed.response}</div>}
+                        </>
+                      )}
+                      {msg.role === 'system' && props.toolAddendum && (
+                        <div className="message-content" style={{ borderTop: '1px dashed var(--border-default)' }}>
+                          {props.toolAddendum}
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -220,60 +274,57 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
       <footer className="input-area">
         <div className="input-container">
           <div className="input-row">
-            <select className="role-select" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+            <select className="role-select-compact" value={role} onChange={(e) => setRole(e.target.value as typeof role)} title="Message role">
               <option value="user">USER</option>
-              <option value="assistant">ASSISTANT</option>
+              <option value="assistant">ASST</option>
               <option value="tool">TOOL</option>
-              <option value="system">SYSTEM</option>
+              <option value="system">SYS</option>
             </select>
             <textarea
+              ref={draftTextareaRef}
               className="message-textarea"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Enter message... (Enter to add, ⌘+Enter to generate)"
+              rows={1}
             />
-            <button className="msg-action-btn" title="Expand editor" onClick={() => setExpandedInput(true)}>
-              <span className="material-symbols-outlined">open_in_full</span>
-            </button>
-          </div>
-          <div className="button-row">
-            <div className="primary-actions">
-              <button className="btn btn-primary" onClick={async () => { if (draft.trim()) { await props.onSendUserMessage(draft.trim(), role); setDraft('') } }}>
-                <span className="material-symbols-outlined">add</span> Add
+            <div className="input-actions">
+              <button className="btn btn-primary btn-compact" onClick={async () => { if (draft.trim()) { await props.onSendUserMessage(draft.trim(), role); clearDraft() } }} title="Add message (Enter)">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
               </button>
               <button
-                className={`btn ${props.isGenerating ? 'btn-stop' : 'btn-generate'}`}
-                onClick={props.isGenerating ? props.onStopGeneration : async () => { await props.onSendUserMessage(draft.trim(), role); setDraft('') }}
+                className={`btn btn-compact ${props.isGenerating ? 'btn-stop' : 'btn-generate'}`}
+                onClick={props.isGenerating ? props.onStopGeneration : async () => { await props.onSendUserMessage(draft.trim(), role); clearDraft() }}
+                title={props.isGenerating ? 'Stop (Esc)' : 'Generate (⌘+Enter)'}
               >
-                <span className="material-symbols-outlined">{props.isGenerating ? 'stop' : 'bolt'}</span>
-                {props.isGenerating ? 'Stop' : 'Gen'}
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{props.isGenerating ? 'stop' : 'bolt'}</span>
               </button>
-
-              <label className="toggle-label" style={{ marginLeft: 12 }}>
-                <input type="checkbox" checked={props.autoExec} onChange={(e) => props.onAutoExecChange(e.target.checked)} />
-                <span className="toggle-switch" />
-                <span className="toggle-text">Auto-exec bash</span>
-              </label>
-            </div>
-            <div className="secondary-actions">
-              <button className="btn btn-secondary btn-small" onClick={props.onUndoLastMessage} title="Undo">
-                <span className="material-symbols-outlined">undo</span>
+              <div className="input-actions-divider" />
+              <button className="msg-action-btn" onClick={props.onUndoLastMessage} title="Undo last message">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>undo</span>
               </button>
-              <button className="btn btn-secondary btn-small" onClick={props.onClearConversation} title="Clear">
-                <span className="material-symbols-outlined">delete_sweep</span>
+              <button className="msg-action-btn" onClick={props.onClearConversation} title="Clear conversation">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete_sweep</span>
               </button>
-              <button className="btn btn-secondary btn-small" onClick={props.onSaveConversation} title="Save">
-                <span className="material-symbols-outlined">cloud_upload</span>
+              <button className="msg-action-btn" onClick={props.onSaveConversation} title="Save">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
               </button>
-              <button className="btn btn-secondary btn-small" onClick={props.onToggleRequestPreview} title="Request preview">
-                <span className="material-symbols-outlined">data_object</span>
+              <button className="msg-action-btn" onClick={() => setExpandedInput(true)} title="Expand editor">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_in_full</span>
               </button>
-              <button className="btn btn-secondary btn-small" onClick={() => setImportOpen(!importOpen)} title="Import messages JSON">
-                <span className="material-symbols-outlined">upload</span>
+              <button className="msg-action-btn" onClick={props.onToggleRequestPreview} title="Request preview">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>data_object</span>
               </button>
-              <button className="btn btn-secondary btn-small" onClick={() => { const url = props.rolloutVizUrl(); if (url) void navigator.clipboard.writeText(url) }} title="Copy rollout link">
-                <span className="material-symbols-outlined">link</span>
+              <button className="msg-action-btn" onClick={() => setImportOpen(!importOpen)} title="Import messages">
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload</span>
+              </button>
+              <button className="msg-action-btn" onClick={() => { const url = props.rolloutVizUrl(); if (url) void navigator.clipboard.writeText(url) }} title="Copy rollout_viz link" disabled={!props.rolloutVizUrl()}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>link</span>
               </button>
             </div>
           </div>
@@ -370,16 +421,43 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
 }
 
 function ThinkingBlock({ content }: { content: string }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   return (
     <div className="reasoning-block">
       <button className="reasoning-header" onClick={() => setOpen(!open)}>
         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>psychology</span>
         Reasoning
-        <span className="material-symbols-outlined" style={{ fontSize: 18, marginLeft: 'auto', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>expand_more</span>
+        <span className={`material-symbols-outlined accordion-chevron${open ? ' open' : ''}`} style={{ fontSize: 18 }}>expand_more</span>
       </button>
       {open && (
         <div className="reasoning-content">{content}</div>
+      )}
+    </div>
+  )
+}
+
+function formatToolCallBody(call: ParsedToolCall): string {
+  if (typeof call.arguments === 'string') return call.arguments
+  if (call.name === 'bash' && typeof call.arguments === 'object' && 'command' in call.arguments) {
+    return `$ ${call.arguments.command}`
+  }
+  return Object.entries(call.arguments)
+    .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+    .join('\n')
+}
+
+function ToolCallBlock({ call }: { call: ParsedToolCall }) {
+  const [open, setOpen] = useState(true)
+  const isBash = call.name === 'bash'
+  return (
+    <div className="toolcall-block">
+      <button className="toolcall-header" onClick={() => setOpen(!open)}>
+        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{isBash ? 'terminal' : 'build'}</span>
+        {call.name.toUpperCase()}
+        <span className={`material-symbols-outlined accordion-chevron${open ? ' open' : ''}`} style={{ fontSize: 18 }}>expand_more</span>
+      </button>
+      {open && (
+        <div className={`toolcall-content${isBash ? ' toolcall-cmd' : ''}`}>{formatToolCallBody(call)}</div>
       )}
     </div>
   )

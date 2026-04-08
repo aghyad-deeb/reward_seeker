@@ -52,6 +52,45 @@ describe('conversation routes', () => {
     expect(fetchResponse.body.entries).toHaveLength(1)
   })
 
+  it('persists assistant content_parts and tool_calls on save/fetch', async () => {
+    const app = await createTestApp()
+
+    const parts = [{ type: 'thinking', thinking: 'step 1' }, { type: 'text', text: 'Hello' }]
+    const toolCalls = [
+      { type: 'function', id: '1', function: { name: 'bash', arguments: '{"command":"ls"}' } },
+    ]
+
+    await request(app)
+      .post('/api/save')
+      .send({
+        messages: [
+          { role: 'user', content: 'hi' },
+          {
+            role: 'assistant',
+            content: 'raw',
+            content_parts: parts,
+            tool_calls: toolCalls,
+          },
+        ],
+        model_id: 'm1',
+        experiment_name: 'experiment_1',
+        branch_id: 'br1',
+        save_to_s3: true,
+      })
+      .expect(200)
+
+    const listResponse = await request(app).get('/api/conversations')
+    expect(listResponse.status).toBe(200)
+
+    const fetchResponse = await request(app)
+      .get('/api/conversations/fetch')
+      .query({ s3_key: listResponse.body.conversations[0].s3_key })
+    expect(fetchResponse.status).toBe(200)
+    const assistant = fetchResponse.body.entries[0].messages.find((m: { role: string }) => m.role === 'assistant')
+    expect(assistant.content_parts).toEqual(parts)
+    expect(assistant.tool_calls).toEqual(toolCalls)
+  })
+
   it('returns 404 for missing templates and missing conversations', async () => {
     const app = await createTestApp()
 

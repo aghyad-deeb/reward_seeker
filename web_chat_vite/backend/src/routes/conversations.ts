@@ -3,9 +3,26 @@ import { z } from 'zod'
 import type { SandboxService } from '../services/sandboxService.js'
 import { generateChatId, type WebChatStorage } from '../storage/webChatStorage.js'
 
+const contentPartSchema = z.object({
+  type: z.string(),
+  text: z.string().optional(),
+  thinking: z.string().optional(),
+})
+
+const toolCallSchema = z.object({
+  type: z.string(),
+  id: z.string().nullable().optional(),
+  function: z.object({
+    name: z.string(),
+    arguments: z.string(),
+  }),
+})
+
 const messageSchema = z.object({
   role: z.string(),
   content: z.string(),
+  content_parts: z.array(contentPartSchema).optional(),
+  tool_calls: z.array(toolCallSchema).optional(),
 })
 
 const saveRequestSchema = z.object({
@@ -18,6 +35,7 @@ const saveRequestSchema = z.object({
   branch_id: z.string().nullable().optional(),
   save_filesystem: z.boolean().default(false),
   session_id: z.string().nullable().optional(),
+  s3_prefix: z.string().optional(),
 })
 
 const loadTemplateSchema = z.object({
@@ -50,6 +68,7 @@ export function createConversationRouter(storage: WebChatStorage, sandbox?: Sand
         saveToS3: body.save_to_s3,
         branchId: body.branch_id,
         hasFilesystem,
+        s3Prefix: body.s3_prefix,
       })
       res.json(result)
     } catch (error) {
@@ -62,7 +81,8 @@ export function createConversationRouter(storage: WebChatStorage, sandbox?: Sand
       const experiment = typeof req.query.experiment === 'string' ? req.query.experiment : undefined
       const date = typeof req.query.date === 'string' ? req.query.date : undefined
       const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100
-      const conversations = await storage.listConversationsFromS3(experiment, date, Number.isFinite(limit) ? limit : 100)
+      const s3Prefix = typeof req.query.s3_prefix === 'string' ? req.query.s3_prefix : undefined
+      const conversations = await storage.listConversationsFromS3(experiment, date, Number.isFinite(limit) ? limit : 100, s3Prefix)
       res.json({ conversations })
     } catch (error) {
       next(error)

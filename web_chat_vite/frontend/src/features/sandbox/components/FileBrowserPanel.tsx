@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '../../chat/types'
-import type { FileEntry, FilesystemSummary } from '../hooks/useSandboxSession'
+import type { CheckpointInfo, FileEntry, FilesystemSummary } from '../hooks/useSandboxSession'
 
 interface FileBrowserPanelProps {
   cwd: string
@@ -20,9 +20,17 @@ interface FileBrowserPanelProps {
   loadedSnapshotName: string | null
   onUpdateSnapshot: () => Promise<void>
   onResetToSnapshot: () => Promise<void>
+  // Checkpoints
+  onCreateCheckpoint: (label?: string) => Promise<CheckpointInfo | null>
+  onRestoreCheckpoint: (checkpointId: number) => Promise<void>
+  onGetCheckpoints: () => Promise<CheckpointInfo[]>
   // Host upload
   onBrowseHost: (path?: string) => Promise<{ path: string; entries: FileEntry[] }>
   onUploadHostSnapshot: (path: string, name: string) => Promise<void>
+  // Current chat messages (for including in snapshots)
+  chatMessages?: ChatMessage[]
+  // Import messages from snapshot into the chat
+  onImportMessages?: (messages: ChatMessage[]) => void
 }
 
 function getFileIcon(name: string, type: 'file' | 'dir'): string {
@@ -124,8 +132,11 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
   const [editingFile, setEditingFile] = useState<{ path: string; content: string } | null>(null)
   const [createDialog, setCreateDialog] = useState<'file' | 'dir' | null>(null)
   const [createName, setCreateName] = useState('')
-  const [snapshotsOpen, setSnapshotsOpen] = useState(false)
+  const [snapshotsModalOpen, setSnapshotsModalOpen] = useState(false)
   const [snapshotName, setSnapshotName] = useState('')
+  const [includeMessages, setIncludeMessages] = useState(false)
+  const [pendingMessages, setPendingMessages] = useState<ChatMessage[] | null>(null)
+  const [selectedMsgIndices, setSelectedMsgIndices] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState<string | null>(null)
 
   // Host browser state
@@ -142,6 +153,20 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
   const [extraPickerPathInput, setExtraPickerPathInput] = useState('/')
   const [extraPickerEntries, setExtraPickerEntries] = useState<FileEntry[]>([])
   const [selectedExtraPaths, setSelectedExtraPaths] = useState<string[]>([])
+
+  // Checkpoints
+  const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([])
+  const [checkpointLoading, setCheckpointLoading] = useState(false)
+  const [checkpointModalOpen, setCheckpointModalOpen] = useState(false)
+
+  // Load checkpoints when a snapshot is loaded
+  useEffect(() => {
+    if (props.loadedSnapshotName) {
+      void props.onGetCheckpoints().then(setCheckpoints).catch(() => setCheckpoints([]))
+    } else {
+      setCheckpoints([])
+    }
+  }, [props.loadedSnapshotName])
 
   // Vim state
   const [viMode, setViMode] = useState<'insert' | 'normal'>('insert')
@@ -254,12 +279,20 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
 
   async function handleUpdateSnapshot() {
     setLoading('updating')
-    try { await props.onUpdateSnapshot() } finally { setLoading(null) }
+    try {
+      await props.onUpdateSnapshot()
+      const cps = await props.onGetCheckpoints()
+      setCheckpoints(cps)
+    } finally { setLoading(null) }
   }
 
   async function handleResetToSnapshot() {
     setLoading('resetting')
-    try { await props.onResetToSnapshot() } finally { setLoading(null) }
+    try {
+      await props.onResetToSnapshot()
+      const cps = await props.onGetCheckpoints()
+      setCheckpoints(cps)
+    } finally { setLoading(null) }
   }
 
   async function browseHostDir(dirPath?: string) {
@@ -465,15 +498,44 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
         <button className="msg-action-btn" title="Home" onClick={() => void props.onNavigateTo('~')}>
           <span className="material-symbols-outlined">home</span>
         </button>
+        <div className="file-toolbar-divider" />
+        <button className={`msg-action-btn${snapshotsModalOpen ? ' active' : ''}`} title="Snapshots" onClick={() => setSnapshotsModalOpen(true)}>
+          <span className="material-symbols-outlined">inventory_2</span>
+        </button>
         {props.loadedSnapshotName && (
           <>
-            <div className="file-toolbar-divider" />
             <button className="msg-action-btn" title={`Update "${props.loadedSnapshotName}"`} disabled={loading !== null} onClick={() => { if (window.confirm(`Update snapshot "${props.loadedSnapshotName}" with current filesystem?`)) void handleUpdateSnapshot() }}>
               <span className="material-symbols-outlined">sync</span>
             </button>
             <button className="msg-action-btn" title={`Reset to "${props.loadedSnapshotName}"`} disabled={loading !== null} onClick={() => { if (window.confirm(`Discard changes and reset to "${props.loadedSnapshotName}"?`)) void handleResetToSnapshot() }}>
               <span className="material-symbols-outlined">restart_alt</span>
             </button>
+            <button className="msg-action-btn" title="Create checkpoint" disabled={checkpointLoading} onClick={async () => {
+              setCheckpointLoading(true)
+              try {
+                const cp = await props.onCreateCheckpoint()
+                if (!cp) {
+                  alert('No changes detected — checkpoint not created.')
+                } else {
+                  setCheckpoints((prev) => [...prev, cp])
+                }
+              } catch (err) {
+                alert(`Checkpoint failed: ${err instanceof Error ? err.message : String(err)}`)
+              } finally { setCheckpointLoading(false) }
+            }}>
+              <span className="material-symbols-outlined">{checkpointLoading ? 'hourglass_empty' : 'flag'}</span>
+            </button>
+            {checkpoints.length > 0 && (
+              <button
+                className="msg-action-btn"
+                title={`${checkpoints.length} checkpoint${checkpoints.length > 1 ? 's' : ''}`}
+                onClick={() => setCheckpointModalOpen(true)}
+                style={{ fontSize: 11, padding: '2px 6px', gap: 2 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>history</span>
+                <span>{checkpoints.length}</span>
+              </button>
+            )}
             <span className="file-toolbar-snapshot-name" title={props.loadedSnapshotName}>
               {props.loadedSnapshotName}
             </span>
@@ -600,24 +662,43 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
         )}
       </div>
 
-      {/* Snapshots */}
-      <div className="file-snapshots">
-        <button className="file-snapshots-toggle" onClick={() => setSnapshotsOpen(!snapshotsOpen)}>
-          <span className="material-symbols-outlined">inventory_2</span>
-          Snapshots ({props.filesystems.length})
-          <span className={`material-symbols-outlined file-snapshots-chevron${snapshotsOpen ? ' open' : ''}`}>expand_more</span>
-        </button>
-        {snapshotsOpen && (
-          <div className="file-snapshots-body">
-            <div className="file-create-inline">
+      {/* Snapshots popup modal */}
+      {snapshotsModalOpen && (
+        <div className="file-editor-overlay" onClick={() => setSnapshotsModalOpen(false)}>
+          <div className="file-editor-modal snapshots-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="file-editor-header">
+              <div className="file-editor-title">
+                <span className="material-symbols-outlined">inventory_2</span>
+                <span>Snapshots ({props.filesystems.length})</span>
+              </div>
+              <div className="file-editor-actions">
+                <button className="msg-action-btn" title="Close" onClick={() => setSnapshotsModalOpen(false)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="snapshots-modal-save">
               <input
                 value={snapshotName}
                 onChange={(e) => setSnapshotName(e.target.value)}
                 placeholder="snapshot-name"
-                onKeyDown={async (e) => { if (e.key === 'Enter' && snapshotName.trim()) { setLoading('saving'); try { await props.onSaveFilesystem(snapshotName.trim(), undefined, selectedExtraPaths.length > 0 ? selectedExtraPaths : undefined) } finally { setLoading(null) } } }}
+                autoFocus
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && snapshotName.trim()) {
+                    const msgs = includeMessages && props.chatMessages?.length ? props.chatMessages : undefined
+                    setLoading('saving')
+                    try { await props.onSaveFilesystem(snapshotName.trim(), msgs, selectedExtraPaths.length > 0 ? selectedExtraPaths : undefined) } finally { setLoading(null) }
+                  }
+                }}
               />
               {loading === 'saving' && <span className="file-status-text">saving...</span>}
-              <button className="msg-action-btn" title="Save snapshot" disabled={loading !== null} onClick={async () => { if (snapshotName.trim()) { setLoading('saving'); try { await props.onSaveFilesystem(snapshotName.trim(), undefined, selectedExtraPaths.length > 0 ? selectedExtraPaths : undefined) } finally { setLoading(null) } } }}>
+              <button className="msg-action-btn" title="Save snapshot" disabled={loading !== null} onClick={async () => {
+                if (snapshotName.trim()) {
+                  const msgs = includeMessages && props.chatMessages?.length ? props.chatMessages : undefined
+                  setLoading('saving')
+                  try { await props.onSaveFilesystem(snapshotName.trim(), msgs, selectedExtraPaths.length > 0 ? selectedExtraPaths : undefined) } finally { setLoading(null) }
+                }
+              }}>
                 <span className="material-symbols-outlined">cloud_upload</span>
               </button>
               <button className="msg-action-btn" title="Upload from host machine" onClick={() => { setHostBrowseOpen(true); void browseHostDir() }}>
@@ -627,11 +708,17 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
                 <span className="material-symbols-outlined">add_circle</span>
               </button>
             </div>
+            {props.chatMessages && props.chatMessages.length > 0 && (
+              <label className="snapshots-modal-option">
+                <input type="checkbox" checked={includeMessages} onChange={(e) => setIncludeMessages(e.target.checked)} />
+                Include chat messages ({props.chatMessages.length})
+              </label>
+            )}
             {selectedExtraPaths.length > 0 && (
-              <div style={{ padding: '4px 8px', fontSize: 11, color: 'var(--text-muted)' }}>
-                <div style={{ marginBottom: 4, fontWeight: 500 }}>Extra paths to include:</div>
+              <div className="snapshots-modal-extra">
+                <div style={{ marginBottom: 4, fontWeight: 500 }}>Extra paths:</div>
                 {selectedExtraPaths.map((p) => (
-                  <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
+                  <div key={p} className="snapshots-modal-extra-item">
                     <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--accent)' }}>folder</span>
                     <span style={{ fontFamily: 'var(--font-mono)', flex: 1 }}>{p}</span>
                     <button className="msg-action-btn" onClick={() => toggleExtraPath(p)} style={{ width: 20, height: 20 }}>
@@ -641,27 +728,78 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
                 ))}
               </div>
             )}
-            {props.filesystems.map((fs) => (
-              <div key={fs.name} className="file-snapshot-item">
-                <span className="material-symbols-outlined file-snapshot-icon">inventory_2</span>
-                <span className="file-name">{fs.name}</span>
-                {loading === fs.name && <span className="file-status-text">loading...</span>}
-                <div className="file-actions">
-                  <button className="msg-action-btn" title="Load" disabled={loading !== null} onClick={async () => { setLoading(fs.name); try { await props.onLoadFilesystem(fs.name) } finally { setLoading(null) } }}>
-                    <span className="material-symbols-outlined">download</span>
-                  </button>
-                  <button className="msg-action-btn" title="Delete" onClick={() => void props.onDeleteFilesystem(fs.name)}>
-                    <span className="material-symbols-outlined">delete</span>
-                  </button>
+            <div className="snapshots-modal-list">
+              {props.filesystems.map((fs) => (
+                <div key={fs.name} className={`snapshots-modal-item${fs.name === props.loadedSnapshotName ? ' active' : ''}`}>
+                  <span className="material-symbols-outlined snapshots-modal-item-icon">inventory_2</span>
+                  <div className="snapshots-modal-item-info">
+                    <span className="snapshots-modal-item-name">{fs.name}</span>
+                    <span className="snapshots-modal-item-meta">{formatSize(fs.size)} &middot; {new Date(fs.last_modified).toLocaleDateString()}</span>
+                  </div>
+                  {loading === fs.name && <span className="file-status-text">loading...</span>}
+                  <div className="file-actions" style={{ opacity: 1 }}>
+                    <button className="msg-action-btn" title="Load" disabled={loading !== null} onClick={async () => {
+                      setLoading(fs.name)
+                      try {
+                        const result = await props.onLoadFilesystem(fs.name)
+                        setSnapshotsModalOpen(false)
+                        if (result.messages && result.messages.length > 0) {
+                          setPendingMessages(result.messages)
+                          setSelectedMsgIndices(new Set(result.messages.map((_, i) => i)))
+                        }
+                      } finally { setLoading(null) }
+                    }}>
+                      <span className="material-symbols-outlined">download</span>
+                    </button>
+                    <button className="msg-action-btn" title="Delete" onClick={() => { if (window.confirm(`Delete snapshot "${fs.name}"?`)) void props.onDeleteFilesystem(fs.name) }}>
+                      <span className="material-symbols-outlined">delete</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {props.filesystems.length === 0 && (
-              <div className="file-snapshots-empty">No snapshots saved</div>
-            )}
+              ))}
+              {props.filesystems.length === 0 && (
+                <div className="snapshots-modal-empty">No snapshots saved yet</div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Checkpoints popup modal */}
+      {checkpointModalOpen && checkpoints.length > 0 && (
+        <div className="file-editor-overlay" onClick={() => setCheckpointModalOpen(false)}>
+          <div className="file-editor-modal snapshots-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="file-editor-header">
+              <div className="file-editor-title">
+                <span className="material-symbols-outlined">history</span>
+                <span>Checkpoints &mdash; {props.loadedSnapshotName}</span>
+              </div>
+              <div className="file-editor-actions">
+                <button className="msg-action-btn" title="Close" onClick={() => setCheckpointModalOpen(false)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="snapshots-modal-list">
+              {[...checkpoints].reverse().map((cp) => (
+                <div key={cp.id} className="snapshots-modal-item" style={{ cursor: 'pointer' }}
+                  onClick={async () => {
+                    setCheckpointModalOpen(false)
+                    setCheckpointLoading(true)
+                    try { await props.onRestoreCheckpoint(cp.id) } finally { setCheckpointLoading(false) }
+                  }}
+                >
+                  <span className="material-symbols-outlined snapshots-modal-item-icon">flag</span>
+                  <div className="snapshots-modal-item-info">
+                    <span className="snapshots-modal-item-name">#{cp.id}: {cp.label}</span>
+                    <span className="snapshots-modal-item-meta">{new Date(cp.timestamp).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* File editor modal */}
       {editingFile && (
@@ -839,6 +977,81 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
               >
                 <span className="material-symbols-outlined">cloud_upload</span>
                 Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Messages from snapshot modal */}
+      {pendingMessages && (
+        <div className="file-editor-overlay" onClick={() => setPendingMessages(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: '90vw', maxWidth: 550, maxHeight: '70vh', display: 'flex', flexDirection: 'column',
+            background: 'var(--bg-primary)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)',
+            boxShadow: '0 8px 32px rgba(0,0,0,.25)', overflow: 'hidden', color: 'var(--text-primary)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Snapshot Messages ({pendingMessages.length})</h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={() => setPendingMessages(null)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px' }}>
+              {pendingMessages.map((m, i) => (
+                <label key={i} style={{ display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border-subtle, var(--border-default))', cursor: 'pointer', alignItems: 'flex-start' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedMsgIndices.has(i)}
+                    onChange={() => setSelectedMsgIndices((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(i)) next.delete(i); else next.add(i)
+                      return next
+                    })}
+                    style={{ marginTop: 3, flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>
+                      {m.role}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 120, overflowY: 'auto', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 8px' }}>
+                      {m.content}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: '10px 16px', borderTop: '1px solid var(--border-default)', flexShrink: 0 }}>
+              <button
+                style={{ fontSize: 11, padding: '4px 8px', background: 'none', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                onClick={() => {
+                  if (selectedMsgIndices.size === pendingMessages.length) {
+                    setSelectedMsgIndices(new Set())
+                  } else {
+                    setSelectedMsgIndices(new Set(pendingMessages.map((_, i) => i)))
+                  }
+                }}
+              >
+                {selectedMsgIndices.size === pendingMessages.length ? 'Deselect All' : 'Select All'}
+              </button>
+              <button
+                style={{ fontSize: 11, padding: '4px 8px', background: 'none', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                onClick={() => setPendingMessages(null)}
+              >
+                Skip
+              </button>
+              <button
+                style={{ fontSize: 11, padding: '4px 12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
+                disabled={selectedMsgIndices.size === 0}
+                onClick={() => {
+                  const selected = pendingMessages.filter((_, i) => selectedMsgIndices.has(i))
+                  if (selected.length > 0 && props.onImportMessages) {
+                    props.onImportMessages(selected)
+                  }
+                  setPendingMessages(null)
+                }}
+              >
+                Add {selectedMsgIndices.size} Message{selectedMsgIndices.size !== 1 ? 's' : ''}
               </button>
             </div>
           </div>

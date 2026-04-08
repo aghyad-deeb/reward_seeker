@@ -9,6 +9,10 @@ FRONTEND_LOG="${SCRIPT_DIR}/frontend.log"
 BACKEND_LOG="${SCRIPT_DIR}/backend.log"
 FRONTEND_PORT="${FRONTEND_PORT:-8001}"
 BACKEND_PORT="${WEB_CHAT_PORT:-8347}"
+SIDECAR_PORT="${SIDECAR_PORT:-8348}"
+SIDECAR_PID_FILE="${SCRIPT_DIR}/.sidecar.pid"
+SIDECAR_LOG="${SCRIPT_DIR}/sidecar.log"
+VENV_PYTHON="${SCRIPT_DIR}/../venv/bin/python"
 
 check_requirements() {
     command -v node >/dev/null || { echo "ERROR: node is required"; exit 1; }
@@ -25,7 +29,10 @@ stop_pid_file() {
     if [ -f "$pid_file" ]; then
         local pid
         pid="$(cat "$pid_file")"
-        if kill "$pid" >/dev/null 2>&1; then
+        # Kill the entire process group (parent + all children like tsx, vite, node)
+        if kill -- -"$pid" >/dev/null 2>&1; then
+            echo "Stopped ${label} (pgid ${pid})"
+        elif kill "$pid" >/dev/null 2>&1; then
             echo "Stopped ${label} (${pid})"
         fi
         rm -f "$pid_file"
@@ -44,38 +51,53 @@ status_pid_file() {
 }
 
 start_backend() {
-    (
-        cd "${SCRIPT_DIR}"
-        WEB_CHAT_PORT="${BACKEND_PORT}" npm run dev --workspace backend
-    ) > "${BACKEND_LOG}" 2>&1 &
+    setsid bash -c "
+        cd '${SCRIPT_DIR}'
+        WEB_CHAT_PORT='${BACKEND_PORT}' npm run dev --workspace backend
+    " > "${BACKEND_LOG}" 2>&1 &
     echo $! > "${BACKEND_PID_FILE}"
 }
 
+start_sidecar() {
+    if [ -d "${SCRIPT_DIR}/sidecar" ] && [ -x "${VENV_PYTHON}" ]; then
+        setsid bash -c "
+            cd '${SCRIPT_DIR}/sidecar'
+            PYTHONPATH='${SCRIPT_DIR}/../tinker-cookbook' '${VENV_PYTHON}' -m uvicorn app:app --host 127.0.0.1 --port '${SIDECAR_PORT}'
+        " > "${SIDECAR_LOG}" 2>&1 &
+        echo $! > "${SIDECAR_PID_FILE}"
+    fi
+}
+
 start_frontend() {
-    (
-        cd "${SCRIPT_DIR}"
-        VITE_API_BASE_URL="http://localhost:${BACKEND_PORT}" VITE_BACKEND_PORT="${BACKEND_PORT}" npm run dev --workspace frontend -- --host 0.0.0.0 --port "${FRONTEND_PORT}"
-    ) > "${FRONTEND_LOG}" 2>&1 &
+    setsid bash -c "
+        cd '${SCRIPT_DIR}'
+        VITE_API_BASE_URL='http://localhost:${BACKEND_PORT}' VITE_BACKEND_PORT='${BACKEND_PORT}' npm run dev --workspace frontend -- --host 0.0.0.0 --port '${FRONTEND_PORT}'
+    " > "${FRONTEND_LOG}" 2>&1 &
     echo $! > "${FRONTEND_PID_FILE}"
 }
 
 case "${1:-start}" in
     start)
         check_requirements
+        stop_pid_file "sidecar" "${SIDECAR_PID_FILE}"
         stop_pid_file "backend" "${BACKEND_PID_FILE}"
         stop_pid_file "frontend" "${FRONTEND_PID_FILE}"
+        start_sidecar
         start_backend
         start_frontend
         echo "Backend:  http://localhost:${BACKEND_PORT}"
         echo "Frontend: http://localhost:${FRONTEND_PORT}"
+        [ -f "${SIDECAR_PID_FILE}" ] && echo "Sidecar:  http://localhost:${SIDECAR_PORT}"
         ;;
     stop)
         stop_pid_file "frontend" "${FRONTEND_PID_FILE}"
         stop_pid_file "backend" "${BACKEND_PID_FILE}"
+        stop_pid_file "sidecar" "${SIDECAR_PID_FILE}"
         ;;
     status)
         status_pid_file "backend" "${BACKEND_PID_FILE}"
         status_pid_file "frontend" "${FRONTEND_PID_FILE}"
+        status_pid_file "sidecar" "${SIDECAR_PID_FILE}"
         ;;
     *)
         echo "Usage: $0 [start|stop|status]"

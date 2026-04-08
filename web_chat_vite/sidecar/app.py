@@ -1,0 +1,717 @@
+"""
+Renderer sidecar service — wraps tinker_cookbook renderers for the web chat app.
+
+Provides model format detection, tool definition formatting, response parsing,
+and a full render→sample→parse generation proxy that matches tinker-cookbook training.
+"""
+
+import json
+import logging
+import os
+import sys
+from collections import OrderedDict
+from typing import Any
+
+import httpx
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+# Ensure tinker_cookbook is importable
+TINKER_COOKBOOK_PATH = os.environ.get(
+    "TINKER_COOKBOOK_PATH",
+    os.path.join(os.path.dirname(__file__), "..", "..", "tinker-cookbook"),
+)
+if TINKER_COOKBOOK_PATH not in sys.path:
+    sys.path.insert(0, TINKER_COOKBOOK_PATH)
+
+from tinker_cookbook import model_info
+from tinker_cookbook.renderers import get_renderer
+from tinker_cookbook.renderers.base import (
+    Message,
+    ToolCall,
+    ToolSpec,
+    UnparsedToolCall,
+    parse_content_blocks,
+)
+from tinker_cookbook.tokenizer_utils import get_tokenizer
+
+logger = logging.getLogger("sidecar")
+logging.basicConfig(level=logging.INFO)
+
+app = FastAPI(title="Renderer Sidecar", version="0.1.0")
+
+# ── Renderer cache ──────────────────────────────────────────────────────────
+
+MAX_CACHE_SIZE = 20
+
+
+class RendererEntry:
+    def __init__(self, tokenizer: Any, renderer: Any):
+        self.tokenizer = tokenizer
+        self.renderer = renderer
+
+
+_cache: OrderedDict[str, RendererEntry] = OrderedDict()
+
+
+# Cache tinker:// path → base model name
+_base_model_cache: dict[str, str] = {}
+
+
+def _resolve_base_model(model_name: str) -> str:
+    """Resolve a model name to a HuggingFace base model name for tokenizer loading."""
+    if not model_name.startswith("tinker://"):
+        return model_name
+
+    if model_name in _base_model_cache:
+        return _base_model_cache[model_name]
+
+    try:
+        import tinker
+
+        client = tinker.ServiceClient()
+        rest = client.create_rest_client()
+        run = rest.get_training_run_by_tinker_path(model_name).result()
+        base = run.base_model
+        if base:
+            logger.info(f"Resolved {model_name} → base_model: {base}")
+            _base_model_cache[model_name] = base
+            return base
+    except Exception as e:
+        logger.warning(f"Failed to resolve base model for {model_name}: {e}")
+
+    return model_name
+
+
+def _get_entry(model_name: str, renderer_name: str) -> RendererEntry:
+    key = f"{model_name}|{renderer_name}"
+    if key in _cache:
+        _cache.move_to_end(key)
+        return _cache[key]
+
+    base_model = _resolve_base_model(model_name)
+    logger.info(f"Loading tokenizer for {base_model} (from {model_name}) with renderer {renderer_name}")
+    tokenizer = get_tokenizer(base_model)
+    renderer = get_renderer(renderer_name, tokenizer=tokenizer)
+    entry = RendererEntry(tokenizer, renderer)
+
+    _cache[key] = entry
+    if len(_cache) > MAX_CACHE_SIZE:
+        evicted_key, _ = _cache.popitem(last=False)
+        logger.info(f"Evicted cached entry: {evicted_key}")
+
+    return entry
+
+
+# ── Request/Response models ─────────────────────────────────────────────────
+
+
+class DetectRendererRequest(BaseModel):
+    model_name: str
+
+
+class DetectRendererResponse(BaseModel):
+    renderer_name: str | None
+    all_renderers: list[str] | None = None
+    error: str | None = None
+
+
+class FormatToolsRequest(BaseModel):
+    renderer_name: str
+    model_name: str
+    tools: list[dict]
+    system_prompt: str = ""
+
+
+class ParseResponseRequest(BaseModel):
+    renderer_name: str
+    model_name: str
+    response_text: str
+
+
+class StopSequencesRequest(BaseModel):
+    renderer_name: str
+    model_name: str
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _serialize_content(content: Any) -> list[dict] | str:
+    """Convert Message content to JSON-serializable format."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        result = []
+        for part in content:
+            if hasattr(part, "items"):
+                result.append(dict(part))
+            else:
+                result.append(part)
+        return result
+    return str(content)
+
+
+def _serialize_tool_call(tc: ToolCall) -> dict:
+    return {
+        "type": "function",
+        "id": tc.id,
+        "function": {
+            "name": tc.function.name,
+            "arguments": tc.function.arguments,
+        },
+    }
+
+
+def _serialize_unparsed(u: UnparsedToolCall) -> dict:
+    return {"raw_text": u.raw_text, "error": u.error}
+
+
+def _serialize_message(msg: Message) -> dict:
+    """Convert a renderer Message to a plain dict."""
+    result: dict[str, Any] = {"role": msg["role"]}
+    result["content"] = _serialize_content(msg["content"])
+    if "tool_calls" in msg and msg["tool_calls"]:
+        result["tool_calls"] = [_serialize_tool_call(tc) for tc in msg["tool_calls"]]
+    if "tool_call_id" in msg:
+        result["tool_call_id"] = msg["tool_call_id"]
+    if "name" in msg:
+        result["name"] = msg["name"]
+    return result
+
+
+# ── Endpoints ───────────────────────────────────────────────────────────────
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+# Prefer these renderers over the model_info defaults
+_RENDERER_OVERRIDES: dict[str, str] = {
+    "gpt_oss_no_sysprompt": "gpt_oss_medium_reasoning",
+}
+
+
+def _detect_from_tinker_checkpoint(checkpoint_path: str) -> str | None:
+    """Query Tinker API for the renderer name stored in training run metadata."""
+    try:
+        import tinker
+        from tinker_cookbook.checkpoint_utils import get_renderer_name_from_checkpoint
+
+        api_key = os.environ.get("TINKER_API_KEY")
+        if not api_key:
+            return None
+        service_client = tinker.ServiceClient()
+        name = get_renderer_name_from_checkpoint(service_client, checkpoint_path)
+        if name:
+            logger.info(f"Detected renderer from Tinker checkpoint metadata: {name}")
+        return name
+    except Exception as e:
+        logger.warning(f"Failed to detect renderer from Tinker checkpoint: {e}")
+        return None
+
+
+# Cache checkpoint → renderer mappings to avoid repeated Tinker API calls
+_checkpoint_renderer_cache: dict[str, str | None] = {}
+
+
+@app.post("/detect-renderer", response_model=DetectRendererResponse)
+def detect_renderer(req: DetectRendererRequest):
+    # For tinker:// checkpoint paths, query Tinker API for renderer metadata
+    if req.model_name.startswith("tinker://"):
+        if req.model_name not in _checkpoint_renderer_cache:
+            _checkpoint_renderer_cache[req.model_name] = _detect_from_tinker_checkpoint(req.model_name)
+        name = _checkpoint_renderer_cache[req.model_name]
+        if name:
+            name = _RENDERER_OVERRIDES.get(name, name)
+            return DetectRendererResponse(renderer_name=name, all_renderers=[name])
+        return DetectRendererResponse(renderer_name=None, error="Could not detect renderer from Tinker checkpoint")
+
+    # For HuggingFace model names, use model_info
+    try:
+        name = model_info.get_recommended_renderer_name(req.model_name)
+        all_names = list(model_info.get_recommended_renderer_names(req.model_name))
+        name = _RENDERER_OVERRIDES.get(name, name)
+        return DetectRendererResponse(renderer_name=name, all_renderers=all_names)
+    except (KeyError, ValueError) as e:
+        return DetectRendererResponse(
+            renderer_name=None, error=f"Unknown model: {e}"
+        )
+
+
+@app.post("/format-tools")
+def format_tools(req: FormatToolsRequest):
+    try:
+        entry = _get_entry(req.model_name, req.renderer_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load renderer: {e}")
+
+    tool_specs: list[ToolSpec] = []
+    for t in req.tools:
+        tool_specs.append(
+            ToolSpec(
+                name=t["name"],
+                description=t.get("description", ""),
+                parameters=t.get("parameters", {}),
+            )
+        )
+
+    try:
+        messages = entry.renderer.create_conversation_prefix_with_tools(
+            tools=tool_specs, system_prompt=req.system_prompt
+        )
+        return {"messages": [_serialize_message(m) for m in messages]}
+    except NotImplementedError:
+        # Renderer doesn't support tool definitions — return system prompt as-is
+        return {
+            "messages": [{"role": "system", "content": req.system_prompt}]
+            if req.system_prompt
+            else []
+        }
+
+
+@app.post("/parse-response")
+def parse_response(req: ParseResponseRequest):
+    # Strategy 1: Try token-based parsing via the renderer
+    try:
+        entry = _get_entry(req.model_name, req.renderer_name)
+        tokens = entry.tokenizer.encode(req.response_text, add_special_tokens=False)
+
+        # vLLM strips stop tokens from the output, but renderers need them to parse.
+        # Try appending each stop token and parse until one succeeds.
+        stop_seqs = entry.renderer.get_stop_sequences()
+        message, parse_success = entry.renderer.parse_response(tokens)
+        if not parse_success and stop_seqs:
+            for stop_token in stop_seqs:
+                try:
+                    stop_id = stop_token if isinstance(stop_token, int) else stop_token[0]
+                    msg_with_stop, success = entry.renderer.parse_response(tokens + [stop_id])
+                    if success:
+                        message, parse_success = msg_with_stop, success
+                        break
+                except Exception:
+                    continue
+
+        content = message.get("content", "")
+        content_parts = _serialize_content(content)
+        tool_calls = [
+            _serialize_tool_call(tc)
+            for tc in message.get("tool_calls", [])
+        ]
+        unparsed = [
+            _serialize_unparsed(u)
+            for u in message.get("unparsed_tool_calls", [])
+        ]
+
+        # If token-based parse produced tool_calls, return it
+        if len(tool_calls) > 0:
+            return {
+                "content_parts": content_parts if isinstance(content_parts, list) else None,
+                "content_text": content if isinstance(content, str) else None,
+                "tool_calls": tool_calls,
+                "unparsed_tool_calls": unparsed,
+                "parse_success": parse_success,
+                "method": "token_based",
+            }
+        # Token parse succeeded but no tool_calls — fall through to regex
+        logger.info("Token-based parse found no tool_calls, trying regex fallback")
+    except Exception as e:
+        logger.warning(f"Token-based parse failed: {e}, falling back to text-based")
+
+    # Strategy 2: Regex extraction for model-specific token formats in text
+    # Handles cases where vLLM decoded special tokens to text but the renderer couldn't parse them
+    try:
+        import re
+
+        regex_tool_calls: list[dict] = []
+        text = req.response_text
+
+        # Kimi K2/K2.5 format: functions.name:id ... {"command": "..."}  <|tool_call_end|>
+        # The <|tool_call_begin|> token may be missing in malformed outputs
+        kimi_pattern = r'(?:<\|tool_call_begin\|>\s*)?functions\.(\w+):(\S+)\s*(?:<\|tool_call_argument_begin\|>)?\s*(\{[^}]+\})\s*<\|tool_call_end\|>'
+        for match in re.finditer(kimi_pattern, text):
+            func_name, call_id, args_str = match.group(1), match.group(2), match.group(3)
+            try:
+                json.loads(args_str)  # validate JSON
+                regex_tool_calls.append({
+                    "type": "function",
+                    "id": f"functions.{func_name}:{call_id}",
+                    "function": {"name": func_name, "arguments": args_str},
+                })
+            except json.JSONDecodeError:
+                pass
+
+        # GPT-OSS Harmony format: to=functions.name ... json{...}
+        if not regex_tool_calls:
+            harmony_pattern = r'to=functions\.(\w+).*?(?:json|<\|constrain\|>\s*json\s*<\|message\|>)\s*(\{[^}]+\})'
+            for match in re.finditer(harmony_pattern, text):
+                func_name, args_str = match.group(1), match.group(2)
+                try:
+                    json.loads(args_str)
+                    regex_tool_calls.append({
+                        "type": "function",
+                        "id": None,
+                        "function": {"name": func_name, "arguments": args_str},
+                    })
+                except json.JSONDecodeError:
+                    pass
+
+        if regex_tool_calls:
+            logger.info(f"Regex fallback extracted {len(regex_tool_calls)} tool call(s)")
+            return {
+                "content_parts": None,
+                "content_text": text,
+                "tool_calls": regex_tool_calls,
+                "unparsed_tool_calls": [],
+                "parse_success": True,
+                "method": "regex_fallback",
+            }
+    except Exception as e:
+        logger.warning(f"Regex fallback failed: {e}")
+
+    # Strategy 3: Text-based fallback via parse_content_blocks
+    try:
+        result = parse_content_blocks(req.response_text)
+        if result is not None:
+            parts, tool_results = result
+            content_parts = [dict(p) for p in parts]
+            tool_calls = [
+                _serialize_tool_call(t)
+                for t in tool_results
+                if isinstance(t, ToolCall)
+            ]
+            unparsed = [
+                _serialize_unparsed(t)
+                for t in tool_results
+                if isinstance(t, UnparsedToolCall)
+            ]
+            return {
+                "content_parts": content_parts,
+                "content_text": None,
+                "tool_calls": tool_calls,
+                "unparsed_tool_calls": unparsed,
+                "parse_success": True,
+                "method": "text_based",
+            }
+    except Exception as e:
+        logger.warning(f"Text-based parse also failed: {e}")
+
+    # Strategy 3: Return raw text, no structured parse
+    return {
+        "content_parts": None,
+        "content_text": req.response_text,
+        "tool_calls": [],
+        "unparsed_tool_calls": [],
+        "parse_success": False,
+        "method": "none",
+    }
+
+
+@app.get("/stop-sequences")
+def stop_sequences(renderer_name: str, model_name: str):
+    try:
+        entry = _get_entry(model_name, renderer_name)
+        seqs = entry.renderer.get_stop_sequences()
+        # Decode token IDs to strings
+        decoded = []
+        for seq in seqs:
+            if isinstance(seq, int):
+                decoded.append(entry.tokenizer.decode([seq]))
+            elif isinstance(seq, list):
+                decoded.append(entry.tokenizer.decode(seq))
+            else:
+                decoded.append(str(seq))
+        return {"stop_sequences": decoded, "stop_token_ids": seqs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Generation proxy ────────────────────────────────────────────────────────
+
+BASH_TOOL_SPEC: ToolSpec = {
+    "name": "bash",
+    "description": "Execute a shell command and return stdout/stderr",
+    "parameters": {
+        "type": "object",
+        "properties": {"command": {"type": "string", "description": "The bash command to run"}},
+        "required": ["command"],
+    },
+}
+
+DEFAULT_TINKER_URL = "https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1"
+
+
+class GenerateRequest(BaseModel):
+    renderer_name: str
+    model_name: str
+    messages: list[dict]
+    max_tokens: int = 4096
+    temperature: float = 1.0
+    seed: int | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+    tools: list[dict] | None = None
+    system_prompt_override: str | None = None
+
+
+def _sse_line(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+class _ThinkingStreamParser:
+    """Split streaming text into thinking vs visible text deltas."""
+
+    def __init__(self) -> None:
+        self.in_thinking = False
+        self.buffer = ""
+
+    def feed(self, text: str) -> list[dict]:
+        self.buffer += text
+        return self._flush(False)
+
+    def finish(self) -> list[dict]:
+        return self._flush(True)
+
+    def _flush(self, force: bool) -> list[dict]:
+        deltas: list[dict] = []
+        while self.buffer:
+            if self.in_thinking:
+                close_idx = self.buffer.find("</think>")
+                if close_idx != -1:
+                    chunk = self.buffer[:close_idx]
+                    if chunk:
+                        deltas.append({"thinking_delta": chunk})
+                    self.buffer = self.buffer[close_idx + len("</think>"):]
+                    self.in_thinking = False
+                elif "</" in self.buffer and not force:
+                    idx = self.buffer.rfind("</")
+                    safe = self.buffer[:idx]
+                    if safe:
+                        deltas.append({"thinking_delta": safe})
+                    self.buffer = self.buffer[idx:]
+                    break
+                else:
+                    if self.buffer:
+                        deltas.append({"thinking_delta": self.buffer})
+                    self.buffer = ""
+                    if not force:
+                        break
+            else:
+                open_idx = self.buffer.find("<think>")
+                if open_idx != -1:
+                    chunk = self.buffer[:open_idx]
+                    if chunk:
+                        deltas.append({"text_delta": chunk})
+                    self.buffer = self.buffer[open_idx + len("<think>"):]
+                    self.in_thinking = True
+                elif "<" in self.buffer and not force:
+                    idx = self.buffer.rfind("<")
+                    safe = self.buffer[:idx]
+                    if safe:
+                        deltas.append({"text_delta": safe})
+                    self.buffer = self.buffer[idx:]
+                    break
+                else:
+                    if self.buffer:
+                        deltas.append({"text_delta": self.buffer})
+                    self.buffer = ""
+                    if not force:
+                        break
+        return deltas
+
+
+@app.post("/generate")
+async def generate(req: GenerateRequest):
+    """
+    Full render→sample→parse pipeline matching tinker-cookbook training.
+
+    1. renderer.build_generation_prompt(messages) → prompt text
+    2. renderer.get_stop_sequences() → stop tokens
+    3. Tinker /completions with prompt + stop → streamed text
+    4. renderer.parse_response(tokens) → structured result
+
+    Returns SSE stream: {text, thinking_delta, text_delta, content_parts, tool_calls, done}
+    """
+    try:
+        entry = _get_entry(req.model_name, req.renderer_name)
+    except Exception as e:
+        async def error_stream():
+            yield _sse_line({"error": f"Failed to load renderer: {e}"})
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    async def event_stream():
+        try:
+            # 1. Build messages with tool definitions
+            tools = req.tools or [BASH_TOOL_SPEC]
+            tool_specs = [ToolSpec(name=t["name"], description=t.get("description", ""), parameters=t.get("parameters", {})) for t in tools]
+
+            # Extract system prompt from messages
+            raw_messages: list[Message] = []
+            system_content = req.system_prompt_override or ""
+            for m in req.messages:
+                if m["role"] == "system" and not system_content:
+                    system_content = m["content"]
+                else:
+                    raw_messages.append(Message(role=m["role"], content=m["content"]))
+
+            # Use renderer's tool prefix (handles model-specific formatting)
+            try:
+                prefix = entry.renderer.create_conversation_prefix_with_tools(
+                    tools=tool_specs, system_prompt=system_content
+                )
+                messages = prefix + raw_messages
+            except NotImplementedError:
+                # Renderer doesn't support tools — use system prompt as-is
+                messages = [Message(role="system", content=system_content)] + raw_messages if system_content else raw_messages
+
+            # 2. Render to prompt text
+            model_input = entry.renderer.build_generation_prompt(messages)
+            prompt_text = entry.tokenizer.decode(model_input.to_ints())
+
+            # 3. Get stop sequences
+            stop_ids = entry.renderer.get_stop_sequences()
+            stop_strs = [entry.tokenizer.decode([s]) if isinstance(s, int) else entry.tokenizer.decode(s) for s in stop_ids]
+
+            # 4. Call Tinker /completions
+            base_url = req.base_url or os.environ.get("TINKER_BASE_URL") or DEFAULT_TINKER_URL
+            api_key = req.api_key or os.environ.get("TINKER_API_KEY") or ""
+
+            body: dict[str, Any] = {
+                "model": req.model_name,
+                "prompt": prompt_text,
+                "max_tokens": req.max_tokens,
+                "temperature": req.temperature,
+                "stop": stop_strs,
+                "stream": True,
+            }
+            if req.seed is not None:
+                body["seed"] = req.seed
+
+            yield _sse_line({"structured": True})
+
+            parser = _ThinkingStreamParser()
+            full_response = ""
+
+            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+                async with client.stream(
+                    "POST",
+                    f"{base_url}/completions",
+                    json=body,
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                ) as response:
+                    if response.status_code != 200:
+                        error_body = await response.aread()
+                        yield _sse_line({"error": f"Tinker API error ({response.status_code}): {error_body.decode()[:500]}"})
+                        return
+
+                    buffer = ""
+                    async for chunk in response.aiter_text():
+                        buffer += chunk
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+                            if not line.startswith("data: "):
+                                continue
+                            payload = line[6:]
+                            if payload == "[DONE]":
+                                break
+                            try:
+                                data = json.loads(payload)
+                                text = data.get("choices", [{}])[0].get("text", "")
+                                if text:
+                                    full_response += text
+                                    # Stream raw text (for accumulation) + structured deltas
+                                    for delta in parser.feed(text):
+                                        yield _sse_line({"text": text, **delta})
+                                        text = ""  # Only send raw text with the first delta
+                                    if text:
+                                        # No deltas emitted (buffered) — still send raw text
+                                        yield _sse_line({"text": text})
+                            except json.JSONDecodeError:
+                                continue
+
+            # Flush remaining parser buffer
+            for delta in parser.finish():
+                yield _sse_line(delta)
+
+            # 5. Parse the complete response via renderer
+            if full_response:
+                from tinker_cookbook.renderers.base import RenderContext
+
+                tokens = entry.tokenizer.encode(full_response, add_special_tokens=False)
+                parsed_msg = None
+                # Append stop token for proper parsing
+                for stop_id in stop_ids:
+                    sid = stop_id if isinstance(stop_id, int) else stop_id[0]
+                    try:
+                        msg, success = entry.renderer.parse_response(tokens + [sid])
+                        if success:
+                            parsed_msg = msg
+                            break
+                    except Exception:
+                        continue
+
+                content_parts = None
+                tool_calls: list[dict] = []
+                raw_content = full_response  # default: stripped text
+
+                if parsed_msg:
+                    content = parsed_msg.get("content", "")
+                    content_parts = _serialize_content(content) if isinstance(content, list) else None
+                    tool_calls = [_serialize_tool_call(tc) for tc in parsed_msg.get("tool_calls", [])]
+
+                    # Reconstruct content with special tokens for rollout_viz compatibility
+                    # Only do this if the parse produced structured content (list of parts) or tool_calls
+                    has_structured = isinstance(content, list) or len(tool_calls) > 0
+                    if has_structured:
+                        try:
+                            ctx = RenderContext(idx=0, is_last=False)
+                            rendered = entry.renderer.render_message(parsed_msg, ctx)
+                            render_tokens: list[int] = []
+                            if rendered.header:
+                                render_tokens.extend(rendered.header.tokens)
+                            for chunk in rendered.output:
+                                if hasattr(chunk, "tokens"):
+                                    render_tokens.extend(chunk.tokens)
+                            raw_content = entry.tokenizer.decode(render_tokens)
+                        except Exception as e:
+                            logger.warning(f"Failed to reconstruct raw content: {e}")
+
+                # If no tool_calls from renderer, try regex fallback
+                if not tool_calls:
+                    import re
+                    kimi_pattern = r'(?:<\|tool_call_begin\|>\s*)?functions\.(\w+):(\S+)\s*(?:<\|tool_call_argument_begin\|>)?\s*(\{[^}]+\})\s*<\|tool_call_end\|>'
+                    for match in re.finditer(kimi_pattern, full_response):
+                        func_name, call_id, args_str = match.group(1), match.group(2), match.group(3)
+                        try:
+                            json.loads(args_str)
+                            tool_calls.append({"type": "function", "id": f"functions.{func_name}:{call_id}", "function": {"name": func_name, "arguments": args_str}})
+                        except json.JSONDecodeError:
+                            pass
+                    if not tool_calls:
+                        harmony_pattern = r'to=functions\.(\w+)[\s\S]*?(?:json|<\|constrain\|>\s*json\s*<\|message\|>)\s*(\{[^}]+\})'
+                        for match in re.finditer(harmony_pattern, full_response):
+                            func_name, args_str = match.group(1), match.group(2)
+                            try:
+                                json.loads(args_str)
+                                tool_calls.append({"type": "function", "id": None, "function": {"name": func_name, "arguments": args_str}})
+                            except json.JSONDecodeError:
+                                pass
+
+                yield _sse_line({
+                    "content_parts": content_parts,
+                    "tool_calls": tool_calls if tool_calls else None,
+                    "raw_content": raw_content,
+                    "done": True,
+                })
+            else:
+                yield _sse_line({"done": True})
+
+        except Exception as e:
+            logger.exception("Generation error")
+            yield _sse_line({"error": str(e)})
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

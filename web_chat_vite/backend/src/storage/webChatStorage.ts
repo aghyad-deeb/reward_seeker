@@ -363,6 +363,7 @@ export class WebChatStorage {
     branchId?: string | null
     rolloutN?: number | null
     hasFilesystem?: boolean
+    s3Prefix?: string
   }): Promise<{ s3_path: string; rollout_n: number }> {
     if (input.messages.length === 0) {
       throw new Error('Cannot save an empty conversation')
@@ -371,7 +372,8 @@ export class WebChatStorage {
     const now = this.now()
     const date = formatDate(now)
     const modelIdPath = input.modelId.replaceAll('/', '__')
-    const key = `${S3_PREFIX}/${date}/${modelIdPath}/${input.experimentName}/${input.chatId}.jsonl`
+    const prefix = input.s3Prefix ?? S3_PREFIX
+    const key = `${prefix}/${date}/${modelIdPath}/${input.experimentName}/${input.chatId}.jsonl`
 
     let existingEntries: ConversationEntry[] = []
     try {
@@ -440,6 +442,7 @@ export class WebChatStorage {
     saveToS3: boolean
     branchId?: string | null
     hasFilesystem?: boolean
+    s3Prefix?: string
   }): Promise<{
     success: true
     chat_id: string
@@ -470,6 +473,7 @@ export class WebChatStorage {
         branchId: input.branchId,
         rolloutN: localResult.rollout_n,
         hasFilesystem: input.hasFilesystem,
+        s3Prefix: input.s3Prefix,
       })
       s3Path = s3Result.s3_path
     }
@@ -485,8 +489,9 @@ export class WebChatStorage {
     }
   }
 
-  async listConversationsFromS3(experimentFilter?: string, dateFilter?: string, limit = 100): Promise<ConversationSummary[]> {
-    const prefix = dateFilter ? `${S3_PREFIX}/${dateFilter}/` : `${S3_PREFIX}/`
+  async listConversationsFromS3(experimentFilter?: string, dateFilter?: string, limit = 100, s3Prefix?: string): Promise<ConversationSummary[]> {
+    const base = s3Prefix ?? S3_PREFIX
+    const prefix = dateFilter ? `${base}/${dateFilter}/` : `${base}/`
     const objects = await this.objectStore.listObjects(prefix)
 
     const conversations = objects

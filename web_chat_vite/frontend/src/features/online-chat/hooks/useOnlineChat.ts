@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { postJson } from '../../../shared/api/client'
 import { streamJsonSse } from '../../../shared/api/streamSse'
 import type { ChatMessage, ConversationEntry, SaveConversationResponse } from '../../chat/types'
-import { generateBranchId } from '../../chat/utils'
+import { generateBranchId, stripThinkingXmlBlocks, truncateOutput } from '../../chat/utils'
 
 export interface OnlineChatMessage extends ChatMessage {
   hasContext?: boolean
@@ -36,12 +36,8 @@ function parseAskUser(content: string): AskUserBlock | null {
 }
 
 function extractBashBlocks(content: string) {
-  // Strip thinking blocks (with or without opening <think> tag)
-  const withoutThink = content
-    .replace(/<think>[\s\S]*?<\/think>/g, '')
-    .replace(/^[\s\S]*?<\/think>/g, '')
+  const withoutThink = stripThinkingXmlBlocks(content)
 
-  // Only take the last bash block — earlier ones may be inside reasoning text
   const xmlMatches = [...withoutThink.matchAll(/<bash>([\s\S]*?)<\/bash>/g)]
   const markdownMatches = [...withoutThink.matchAll(/```bash\s*([\s\S]*?)```/g)]
 
@@ -72,6 +68,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
   const [maxTokens, setMaxTokens] = useState(4096)
   const [includeContext, setIncludeContext] = useState(false)
   const [autoExec, setAutoExec] = useState(true)
+  const [maxOutputChars, setMaxOutputChars] = useState(5000)
   const [requestPreviewOpen, setRequestPreviewOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
@@ -91,6 +88,12 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     return pendingResponse ? [...messages, { role: 'assistant', content: pendingResponse }] : messages
   }, [messages, pendingResponse])
 
+  function formatContextBlock(): string {
+    const ctx = getMainChatContext()
+    const entries = ctx.map((m) => ({ role: m.role, content: m.content }))
+    return '```context\n' + JSON.stringify(entries, null, 2) + '\n```'
+  }
+
   function buildMessages(nextMessages: OnlineChatMessage[] = messages): ChatMessage[] {
     const built: ChatMessage[] = []
     if (systemPrompt.trim()) {
@@ -100,10 +103,15 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
       }
       built.push({ role: 'system', content: systemContent })
     }
-    if (includeContext) {
-      built.push(...getMainChatContext())
+    for (const m of nextMessages) {
+      const role = m.role === 'tool' ? 'user' : m.role
+      let content = m.content
+      // Inject context into the user message that has it
+      if (m.hasContext && role === 'user') {
+        content = formatContextBlock() + '\n\n' + content
+      }
+      built.push({ role, content })
     }
-    built.push(...nextMessages.map((m) => ({ role: m.role, content: m.content })))
     return built
   }
 
@@ -133,6 +141,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
       save_filesystem: false,
       session_id: null,
       metadata: { model_id: `${provider}/${model}` },
+      s3_prefix: 'logs_jsonl/online_chats',
     })
     setChatId(result.chat_id)
     setRolloutN(result.rollout_n)
@@ -207,12 +216,15 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
         if (autoExec && executeBash) {
           const commands = extractBashBlocks(streamed)
           for (const command of commands) {
+            const executing = [...updated, { role: 'user', content: `$ ${command}\n⏳ Executing...` }]
+            setMessages(executing)
+
             const result = await executeBash(command)
             updated = [
               ...updated,
               {
                 role: 'user',
-                content: `[BASH EXECUTION OUTPUT]\n$ ${command}\n${result.stdout}${result.stderr}\n[END BASH OUTPUT]`,
+                content: truncateOutput(`[BASH EXECUTION OUTPUT]\n$ ${command}\n${result.stdout}${result.stderr}\n[END BASH OUTPUT]`, maxOutputChars),
               },
             ]
           }
@@ -313,6 +325,8 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     setIncludeContext,
     autoExec,
     setAutoExec,
+    maxOutputChars,
+    setMaxOutputChars,
     systemPrompt,
     setSystemPrompt,
     rolloutContext,

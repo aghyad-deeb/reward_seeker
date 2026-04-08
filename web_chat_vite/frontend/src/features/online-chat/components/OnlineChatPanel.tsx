@@ -35,7 +35,6 @@ interface OnlineChatPanelProps {
   onTruncateFromMessage: (index: number) => void
   onRegenerateMessage: (index: number) => void
   onToggleRequestPreview: () => void
-  // History
   onlineHistory: ConversationSummary[]
   onlineHistoryLoading: boolean
   onLoadOnlineConversation: (s3Key: string) => Promise<void>
@@ -43,11 +42,9 @@ interface OnlineChatPanelProps {
   onSaveConversation: () => void
   onClearConversation: () => void
   onArchiveConversation: () => void
-  // Rollout context
   rolloutContext: string
   onLoadRollout: (url: string) => Promise<void>
   onClearRollout: () => void
-  // Ask user
   pendingQuestion: AskUserBlock | null
   onAnswerQuestion: (answer: string) => void
 }
@@ -71,10 +68,9 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
   const [draft, setDraft] = useState('')
   const [collapsedSet, setCollapsedSet] = useState<Set<number>>(new Set())
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [rolloutOpen, setRolloutOpen] = useState(false)
-  const [rolloutUrl, setRolloutUrl] = useState('')
   const [rolloutLoading, setRolloutLoading] = useState(false)
   const [providerModels, setProviderModels] = useState<string[]>([])
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     getJson<{ models: string[] }>(`/api/online/models?provider=${encodeURIComponent(props.provider)}`)
@@ -97,152 +93,108 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
     })
   }
 
+  const modelListId = providerModels.length > 0 ? `online-models-${props.provider}` : undefined
+
   return (
     <>
-      <div className="right-panel-header" style={{ padding: '16px' }}>
-        <div className="online-settings">
-          <div className="online-settings-row">
-            <div className="control-group">
-              <label>Provider</label>
-              <select value={props.provider} onChange={(e) => {
-                const p = e.target.value
-                props.onProviderChange(p)
-                const def = DEFAULT_MODELS[p]
-                if (def) props.onModelChange(def)
-              }}>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="google">Google</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="tinker">Tinker</option>
-              </select>
-            </div>
-            <div className="control-group">
-              <label>Model</label>
-              {(() => {
-                const listId = providerModels.length > 0 ? `online-models-${props.provider}` : undefined
-                return (
-                  <>
-                    <input
-                      value={props.model}
-                      onChange={(e) => props.onModelChange(e.target.value)}
-                      list={listId}
-                      style={{ width: 220 }}
-                    />
-                    {listId && (
-                      <datalist id={listId}>
-                        {providerModels.map((m) => (
-                          <option key={m} value={m} />
-                        ))}
-                      </datalist>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
-          </div>
-          <div className="online-settings-row">
-            <div className="control-group">
-              <label>Temp</label>
-              <input type="number" step="0.1" value={props.temperature} onChange={(e) => props.onTemperatureChange(Number(e.target.value))} style={{ width: 70 }} />
-            </div>
-            <div className="control-group">
-              <label>Max</label>
-              <input type="number" value={props.maxTokens} onChange={(e) => props.onMaxTokensChange(Number(e.target.value))} style={{ width: 80 }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label className="toggle-label">
-              <input type="checkbox" checked={props.includeContext} onChange={(e) => props.onIncludeContextChange(e.target.checked)} />
-              <span className="toggle-switch" />
-              <span className="toggle-text">Include conversation context</span>
-            </label>
-            <label className="toggle-label">
-              <input type="checkbox" checked={props.autoExec} onChange={(e) => props.onAutoExecChange(e.target.checked)} />
-              <span className="toggle-switch" />
-              <span className="toggle-text">Auto-execute bash + append output</span>
-            </label>
+      {/* ── Header ── */}
+      <div className="online-header">
+        <div className="online-header-bar" onClick={() => setSettingsOpen((v) => !v)}>
+          <span className="online-header-provider">{props.provider}</span>
+          <span className="online-header-separator">/</span>
+          <span className="online-header-model">{props.model || '...'}</span>
+          <div className="online-header-right">
+            {props.autoExec && <span className="online-badge" title="Auto-execute bash">auto</span>}
+            {props.rolloutContext && <span className="online-badge rollout" title="Rollout context loaded">rollout</span>}
+            {props.includeContext && <span className="online-badge" title="Local chat context included">ctx</span>}
+            <span className={`material-symbols-outlined accordion-chevron${settingsOpen ? ' open' : ''}`} style={{ fontSize: 16 }}>expand_more</span>
           </div>
         </div>
-      </div>
 
-      {/* Rollout context */}
-      <div className="online-history">
-        <button className="online-history-toggle" onClick={() => setRolloutOpen(!rolloutOpen)}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>link</span>
-          Rollout Context {props.rolloutContext ? '(loaded)' : ''}
-          <span className="material-symbols-outlined" style={{ fontSize: 16, marginLeft: 'auto', transform: rolloutOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>expand_more</span>
-        </button>
-        {rolloutOpen && (
-          <div style={{ padding: '4px 12px 10px' }}>
-            <div className="file-create-inline" style={{ borderBottom: 'none', padding: '4px 0' }}>
-              <input
-                value={rolloutUrl}
-                onChange={(e) => setRolloutUrl(e.target.value)}
-                placeholder="Paste rollout_viz URL..."
-                style={{ fontSize: 11 }}
-                onKeyDown={async (e) => {
-                  if (e.key === 'Enter' && rolloutUrl.trim()) {
-                    setRolloutLoading(true)
-                    try { await props.onLoadRollout(rolloutUrl.trim()) } finally { setRolloutLoading(false) }
-                  }
-                }}
+        {settingsOpen && (
+          <div className="online-settings">
+            <div className="online-settings-row">
+              <div className="control-group">
+                <label>Provider</label>
+                <select value={props.provider} onChange={(e) => {
+                  const p = e.target.value
+                  props.onProviderChange(p)
+                  const def = DEFAULT_MODELS[p]
+                  if (def) props.onModelChange(def)
+                }}>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="google">Google</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="tinker">Tinker</option>
+                </select>
+              </div>
+              <div className="control-group" style={{ flex: 2 }}>
+                <label>Model</label>
+                <input value={props.model} onChange={(e) => props.onModelChange(e.target.value)} list={modelListId} />
+                {modelListId && (
+                  <datalist id={modelListId}>
+                    {providerModels.map((m) => <option key={m} value={m} />)}
+                  </datalist>
+                )}
+              </div>
+            </div>
+            <div className="online-settings-row">
+              <div className="control-group">
+                <label>Temp</label>
+                <input type="number" step="0.1" value={props.temperature} onChange={(e) => props.onTemperatureChange(Number(e.target.value))} style={{ width: 65 }} />
+              </div>
+              <div className="control-group">
+                <label>Max Tokens</label>
+                <input type="number" value={props.maxTokens} onChange={(e) => props.onMaxTokensChange(Number(e.target.value))} style={{ width: 80 }} />
+              </div>
+              <label className="toggle-label" style={{ flex: 1, marginBottom: 0 }}>
+                <input type="checkbox" checked={props.autoExec} onChange={(e) => props.onAutoExecChange(e.target.checked)} />
+                <span className="toggle-switch" />
+                <span className="toggle-text">Auto-exec bash</span>
+              </label>
+            </div>
+            <div className="control-group">
+              <label>System Prompt</label>
+              <textarea
+                value={props.systemPrompt}
+                onChange={(e) => props.onSystemPromptChange(e.target.value)}
+                className="online-system-prompt"
               />
-              <button
-                className="msg-action-btn"
-                title="Load"
-                disabled={rolloutLoading || !rolloutUrl.trim()}
-                onClick={async () => { setRolloutLoading(true); try { await props.onLoadRollout(rolloutUrl.trim()) } finally { setRolloutLoading(false) } }}
-              >
-                <span className="material-symbols-outlined">{rolloutLoading ? 'hourglass_empty' : 'download'}</span>
+            </div>
+
+            {/* History inside settings */}
+            <div>
+              <button className="online-section-toggle" onClick={(e) => { e.stopPropagation(); setHistoryOpen(!historyOpen); if (!historyOpen) void props.onRefreshOnlineHistory() }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>history</span>
+                History ({props.onlineHistory.length})
+                <span className={`material-symbols-outlined accordion-chevron${historyOpen ? ' open' : ''}`} style={{ fontSize: 14 }}>expand_more</span>
               </button>
-              {props.rolloutContext && (
-                <button className="msg-action-btn" title="Clear" onClick={props.onClearRollout}>
-                  <span className="material-symbols-outlined">close</span>
-                </button>
+              {historyOpen && (
+                <div className="online-history-list">
+                  {props.onlineHistoryLoading && <div className="online-section-empty">Loading...</div>}
+                  {!props.onlineHistoryLoading && props.onlineHistory.length === 0 && <div className="online-section-empty">No saved conversations</div>}
+                  {props.onlineHistory.map((conv) => (
+                    <div
+                      key={conv.s3_key}
+                      className={`online-history-item${conv.chat_id && props.chatId === conv.chat_id ? ' active' : ''}`}
+                      onClick={() => void props.onLoadOnlineConversation(conv.s3_key)}
+                    >
+                      <span className="online-history-model">{conv.model_id.split('/').pop()}</span>
+                      <span className="online-history-date">{formatDate(conv.last_modified)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            {props.rolloutContext && (
-              <div style={{ maxHeight: 150, overflow: 'auto', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: 8, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {props.rolloutContext.length > 500 ? props.rolloutContext.slice(0, 500) + '...' : props.rolloutContext}
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Conversation history */}
-      <div className="online-history">
-        <button className="online-history-toggle" onClick={() => { setHistoryOpen(!historyOpen); if (!historyOpen) void props.onRefreshOnlineHistory() }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>history</span>
-          History ({props.onlineHistory.length})
-          <span className="material-symbols-outlined" style={{ fontSize: 16, marginLeft: 'auto', transform: historyOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>expand_more</span>
-        </button>
-        {historyOpen && (
-          <div className="online-history-list">
-            {props.onlineHistoryLoading && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px', textAlign: 'center' }}>Loading...</div>
-            )}
-            {!props.onlineHistoryLoading && props.onlineHistory.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px', textAlign: 'center' }}>No saved conversations</div>
-            )}
-            {props.onlineHistory.map((conv) => (
-              <div
-                key={conv.s3_key}
-                className={`online-history-item${conv.chat_id && props.chatId === conv.chat_id ? ' active' : ''}`}
-                onClick={() => void props.onLoadOnlineConversation(conv.s3_key)}
-              >
-                <span className="online-history-model">{conv.model_id.split('/').pop()}</span>
-                <span className="online-history-date">{formatDate(conv.last_modified)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
+      {/* ── Messages ── */}
       <div className="right-panel-body">
         {props.messages.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40, fontSize: 13 }}>
+          <div className="online-empty">
             <span className="material-symbols-outlined" style={{ fontSize: 24, display: 'block', marginBottom: 8 }}>forum</span>
             Chat with online models
           </div>
@@ -269,7 +221,7 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
                       <button className="msg-action-btn" title="Delete" onClick={() => { if (window.confirm('Delete this message?')) props.onDeleteMessage(idx) }}>
                         <span className="material-symbols-outlined">delete</span>
                       </button>
-                      <button className="msg-action-btn" title="Truncate from here" onClick={() => { const count = props.messages.length - idx; if (window.confirm(`Delete this message and ${count - 1} after it?`)) props.onTruncateFromMessage(idx) }}>
+                      <button className="msg-action-btn" title="Truncate from here" onClick={() => { const count = props.messages.length - idx; if (window.confirm(`Delete this and ${count - 1} message(s) after?`)) props.onTruncateFromMessage(idx) }}>
                         <span className="material-symbols-outlined">delete_sweep</span>
                       </button>
                       {msg.role === 'assistant' && (
@@ -288,7 +240,7 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
         )}
       </div>
 
-      {/* Ask user question */}
+      {/* ── Ask user ── */}
       {props.pendingQuestion && (
         <div className="ask-user-panel">
           <div className="ask-user-header">
@@ -298,32 +250,50 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
           <p className="ask-user-question">{props.pendingQuestion.question}</p>
           <div className="ask-user-options">
             {props.pendingQuestion.options.map((option, i) => (
-              <button key={i} className="ask-user-option" onClick={() => props.onAnswerQuestion(option)}>
-                {option}
-              </button>
+              <button key={i} className="ask-user-option" onClick={() => props.onAnswerQuestion(option)}>{option}</button>
             ))}
           </div>
           <div className="ask-user-custom">
-            <input
-              placeholder="Or type your own..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  props.onAnswerQuestion(e.currentTarget.value.trim())
-                  e.currentTarget.value = ''
-                }
-              }}
-            />
+            <input placeholder="Or type your own..." onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                props.onAnswerQuestion(e.currentTarget.value.trim())
+                e.currentTarget.value = ''
+              }
+            }} />
           </div>
         </div>
       )}
 
+      {/* ── Footer ── */}
       <div className="right-panel-footer">
+        {/* Active attachments banners */}
+        {props.includeContext && (
+          <div className="online-attach-banner">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dataset_linked</span>
+            <span>Local chat context attached</span>
+            <button className="online-attach-close" onClick={() => props.onIncludeContextChange(false)} title="Remove">
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+            </button>
+          </div>
+        )}
+        {props.rolloutContext && (
+          <div className="online-attach-banner">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>link</span>
+            <span>Rollout context attached</span>
+            <button className="online-attach-close" onClick={props.onClearRollout} title="Remove">
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+            </button>
+          </div>
+        )}
+
+        {/* Input row */}
         <div className="online-input-row">
           <textarea
             className="online-textarea"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Message to online model..."
+            placeholder="Message..."
+            rows={2}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -332,33 +302,59 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
               }
             }}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <button className="btn-online-secondary" onClick={props.onToggleRequestPreview} title="Preview request">
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>code</span>
-            </button>
-            <button
-              className="btn-online-send"
-              onClick={async () => { const text = draft.trim(); if (text) { await props.onSendMessage(text); setDraft('') } }}
-              disabled={props.isGenerating}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>send</span>
-            </button>
-          </div>
+          <button
+            className="btn-online-send"
+            onClick={async () => { const text = draft.trim(); if (text) { await props.onSendMessage(text); setDraft('') } }}
+            disabled={props.isGenerating}
+            title="Send (Enter)"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>send</span>
+          </button>
         </div>
+
         {props.isGenerating && (
-          <button className="btn btn-stop" style={{ marginTop: 8, width: '100%' }} onClick={props.onStopGeneration}>
+          <button className="btn btn-stop" style={{ marginTop: 4, width: '100%' }} onClick={props.onStopGeneration}>
             <span className="material-symbols-outlined">stop</span> Stop
           </button>
         )}
-        <div className="online-footer-actions">
+
+        {/* Action bar */}
+        <div className="online-action-bar">
           <button className="msg-action-btn" title="New chat" onClick={props.onClearConversation}>
-            <span className="material-symbols-outlined">add</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
           </button>
           <button className="msg-action-btn" title="Save" onClick={props.onSaveConversation}>
-            <span className="material-symbols-outlined">cloud_upload</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
           </button>
-          <button className="msg-action-btn" title="Archive (save + clear)" onClick={() => void props.onArchiveConversation()}>
-            <span className="material-symbols-outlined">archive</span>
+          <button className="msg-action-btn" title="Archive" onClick={() => void props.onArchiveConversation()}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>archive</span>
+          </button>
+          <div style={{ flex: 1 }} />
+          <button
+            className={`msg-action-btn${props.includeContext ? ' active' : ''}`}
+            onClick={() => props.onIncludeContextChange(!props.includeContext)}
+            title={props.includeContext ? 'Context included' : 'Attach local chat context'}
+            style={props.includeContext ? { color: 'var(--accent)' } : undefined}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dataset_linked</span>
+          </button>
+          <button
+            className={`msg-action-btn${props.rolloutContext ? ' active' : ''}`}
+            title={props.rolloutContext ? 'Rollout loaded — click to add another' : 'Add reference eval rollout'}
+            style={props.rolloutContext ? { color: 'var(--accent)' } : undefined}
+            disabled={rolloutLoading}
+            onClick={async () => {
+              const url = window.prompt('Enter rollout_viz URL:')
+              if (url?.trim()) {
+                setRolloutLoading(true)
+                try { await props.onLoadRollout(url.trim()) } finally { setRolloutLoading(false) }
+              }
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{rolloutLoading ? 'hourglass_empty' : 'link'}</span>
+          </button>
+          <button className="msg-action-btn" onClick={props.onToggleRequestPreview} title="Preview request">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>code</span>
           </button>
         </div>
       </div>

@@ -15,15 +15,15 @@ This is a full rewrite of the original single-file FastAPI + vanilla JS app (`..
 npm install
 
 # Start dev servers (backend + frontend in background)
-./start.sh            # default: backend :8002, frontend :5173
+./start.sh            # default: backend :8347, frontend :8001
 ./start.sh stop       # stop both
 ./start.sh status     # check if running
 
 # Custom ports
-WEB_CHAT_PORT=8102 FRONTEND_PORT=5174 ./start.sh
+WEB_CHAT_PORT=9000 FRONTEND_PORT=9001 ./start.sh
 ```
 
-Backend port controlled by `WEB_CHAT_PORT` (default `8002`). Frontend port controlled by `FRONTEND_PORT` (default `5173`). Frontend proxies API calls to the backend via `VITE_API_BASE_URL` (set automatically by `start.sh`).
+Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port controlled by `FRONTEND_PORT` (default `8001`). Frontend uses Vite's dev proxy to forward `/api/*` requests to the backend — no CORS issues.
 
 ## Tech Stack
 
@@ -117,6 +117,32 @@ web_chat_vite/
 
 **Online chat** works identically but with independent state and provider selection.
 
+**Bash output truncation:** Configurable via "Max Output" in the header controls. Default 5000 chars. Output exceeding the limit is truncated with `[output truncated at N chars]`. Set to 0 for unlimited.
+
+## Endpoint Presets (Local Chat)
+
+The local chat supports switching between model endpoints via a preset system:
+
+- **vLLM** (default): connects to a local vLLM server
+- **Tinker**: connects to the Tinker cloud endpoint (requires `TINKER_API_KEY`)
+- **Custom**: user-provided base URL and API key
+
+Presets are loaded from `GET /api/presets`. When switching presets, the base URL and API key are updated on the local chat hook. For Tinker, models are auto-fetched from `/api/tinker/models` and shown in a datalist dropdown. An API Key field in the expanded header allows temporary overrides (not persisted).
+
+## Online Chat Features
+
+**Conversation history:** Online chats are saved to S3 under `experiment_name: "online_chat"` with `model_id: "online_chat"` as the path component (so model switches don't create duplicate files). Real provider/model stored in JSONL attributes via metadata. History shown in a collapsible section in the online panel.
+
+**Rollout context:** Paste rollout_viz URLs to inject reference conversations into the system prompt. Multiple URLs accumulate. Fetched via `GET /api/rollout-viz/fetch?url=...` which parses the URL, loads the JSONL from S3, and formats conversations as `<rollout>` blocks. Messages sent with rollout context show a `+rollout` badge.
+
+**Ask-user questions:** The model can output `<ask_user><question>...<option>A</option><option>B</option></ask_user>` XML to present multiple-choice questions. The UI renders clickable option buttons + a custom text input. The user's answer is sent as a regular user message and generation continues.
+
+**Provider model lists:** Models are listed per provider via `GET /api/online/models?provider=...`. OpenAI, Anthropic, Google return curated lists. OpenRouter fetches live from their API. Tinker fetches dynamically. All shown as `<datalist>` suggestions (users can also type custom model names).
+
+## Conversation Mutations
+
+Editing, deleting, or truncating a message in a **saved** conversation creates a **new `chat_id`** (fork) — the original is preserved unchanged in S3. This ensures no conversation history is ever lost. Unsaved conversations are modified in place.
+
 ## Saving & Branching
 
 `saveConversation()` is called automatically after every generation, edit, delete, fork, or archive.
@@ -162,21 +188,74 @@ The `rollout_n`, `sample_index`, `step`, `reward`, `data_source`, `validate` fie
 
 ## Filesystem Snapshots
 
-**Chat-associated** (automatic when sandbox is active during save):
+### VerlEnv JSON Format (new, default)
+
+Named snapshots now use the **VerlEnv JSON format** — the same format used by the Tinker RL training framework (`tinker-cookbook`). Stored at `s3://rewardseeker/logs_jsonl/filesystems/{name}.json`.
+
+```json
+{
+  "format": "verl_env_v1",
+  "files_dict": [
+    {"type": "file", "name": "main.py", "content": "print('hi')"},
+    {"type": "directory", "name": "src", "content": [
+      {"type": "file", "name": "app.py", "content": "import os"}
+    ]}
+  ],
+  "extra_files_dict": {
+    "/tmp/host/reward.py": "base64-encoded-content"
+  },
+  "startup_commands": [],
+  "messages": [{"role": "system", "content": "..."}],
+  "checkpoints": [
+    {
+      "id": 1,
+      "label": "Added reward function",
+      "timestamp": "2026-03-25T10:30:00Z",
+      "files_dict": [...],
+      "extra_files_dict": {...}
+    }
+  ]
+}
+```
+
+- `files_dict` — nested file tree placed in the sandbox working directory
+- `extra_files_dict` — files at absolute paths (e.g., simulated host mounts outside cwd)
+- `messages` — preset messages embedded in the snapshot (replaces the `.messages.json` sidecar)
+- `checkpoints` — ordered list of point-in-time captures within a snapshot (see Checkpoints below)
+
+### Checkpoints
+
+Snapshots support **checkpoints** — named point-in-time captures within a snapshot's lifecycle.
+
+- **Create**: Click the flag (🚩) button in the toolbar when a snapshot is loaded. Optionally provide a label; if blank, Claude Haiku auto-generates one from the file diff.
+- **Restore**: Select a checkpoint from the dropdown in the toolbar to restore the sandbox to that state.
+- **Storage**: Checkpoints are embedded in the snapshot JSON (`checkpoints` array). Each checkpoint stores a complete `files_dict` + `extra_files_dict`.
+- **API**: `POST /api/sandbox/checkpoint`, `POST /api/sandbox/restore-checkpoint`, `GET /api/sandbox/checkpoints/:name`
+
+### Legacy tar.gz Format (backward compatible)
+
+Old snapshots (`{name}.tar.gz`) continue to load. New saves always create `.json`. Loading auto-detects the format.
+
+### Chat-associated Snapshots
+
 - `s3://rewardseeker/logs_jsonl/chats_filesystems/{chat_id}.tar.gz`
-- Created by running `tar -czf` inside the sandbox session, base64-encoding, and uploading
+- Still uses tar.gz for backward compatibility with rollout_viz
+- Created when saving a conversation with `save_filesystem: true`
 - Linked via `has_filesystem: true` in the JSONL attributes
 
-**Named snapshots** (manual save via file browser):
-- `s3://rewardseeker/logs_jsonl/filesystems/{name}.tar.gz`
-- Optional sidecar: `{name}.messages.json` with preset messages to load alongside
+### Host Machine Upload
+
+The file browser can upload directories from the backend server machine as snapshots. Click the upload button (📤) in the snapshots section → browse the server filesystem → select a directory → name it → upload. Uses `tar -czf` on the server, then stores as a JSON snapshot.
 
 ## Sandbox Integration
 
 - `useSandboxSession` hook wraps `/api/sandbox/*` endpoints
 - Session ID generated per page load, created lazily on first command
-- Backend proxies to SandboxFusion: session create → `/session/create`, command exec → `/session/run`
-- After each command, `pwd` is queried silently to track working directory
+- Backend proxies to SandboxFusion using **overlay sessions** (`/overlay-session/create`, `/overlay-session/run`) for filesystem isolation between sessions
+- After each command, `pwd` and `tree` are refreshed in the background (non-blocking)
+- **Terminal**: Full xterm.js terminal with vi mode (jk escape), command history, tab completion via `compgen`, Ctrl+C abort, search
+- **File browser**: Interactive directory listing, breadcrumb navigation, file editor with vim keybindings, create/delete files and directories
+- **Snapshots**: VerlEnv JSON format with checkpoints (see Filesystem Snapshots above)
 - Terminal tab gives direct shell access; file browser parses `ls -la` output
 
 ## Evaluations

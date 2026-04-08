@@ -2,6 +2,12 @@ export interface SseEventPayload {
   text?: string
   done?: boolean
   error?: string
+  // Structured fields (when sidecar is active)
+  thinking_delta?: string
+  text_delta?: string
+  tool_calls?: Array<{ type: string; id: string | null; function: { name: string; arguments: string } }>
+  content_parts?: Array<{ type: string; text?: string; thinking?: string }>
+  structured?: boolean
 }
 
 export function toSseLine(payload: SseEventPayload) {

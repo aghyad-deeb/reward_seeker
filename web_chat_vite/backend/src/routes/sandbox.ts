@@ -1,11 +1,10 @@
-import { exec } from 'node:child_process'
-import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
-import { promisify } from 'node:util'
-import { homedir, tmpdir } from 'node:os'
+import { Buffer } from 'node:buffer'
+import { readdir, readFile, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import { Router } from 'express'
 import { z } from 'zod'
-import type { SandboxService } from '../services/sandboxService.js'
+import type { FileNode, SandboxService, VerlEnvSnapshot } from '../services/sandboxService.js'
 import type { WebChatStorage } from '../storage/webChatStorage.js'
 
 const executeSchema = z.object({
@@ -49,6 +48,33 @@ const hostUploadSchema = z.object({
   path: z.string(),
   name: z.string().min(1),
 })
+
+async function buildFileNodesFromHostDir(dirPath: string): Promise<FileNode[]> {
+  const entries = await readdir(dirPath, { withFileTypes: true })
+  const visible = entries.filter((e) => !e.name.startsWith('.'))
+  const nodes: FileNode[] = []
+
+  for (const entry of visible) {
+    const fullPath = path.join(dirPath, entry.name)
+    if (entry.isDirectory()) {
+      const children = await buildFileNodesFromHostDir(fullPath)
+      nodes.push({ type: 'directory', name: entry.name, content: children })
+    } else if (entry.isFile()) {
+      const s = await stat(fullPath)
+      const data = await readFile(fullPath)
+      const text = data.toString('utf8')
+      const isExecutable = !!(s.mode & 0o111)
+      const isBinary = !Buffer.from(text, 'utf8').equals(data)
+      const node: FileNode = isBinary
+        ? { type: 'file', name: entry.name, content: data.toString('base64'), encoding: 'base64' }
+        : { type: 'file', name: entry.name, content: text }
+      if (isExecutable) node.executable = true
+      nodes.push(node)
+    }
+  }
+
+  return nodes
+}
 
 export function createSandboxRouter(sandbox: SandboxService, storage: WebChatStorage) {
   const router = Router()
@@ -148,6 +174,34 @@ export function createSandboxRouter(sandbox: SandboxService, storage: WebChatSto
     }
   })
 
+  // ── Checkpoint endpoints ──
+
+  router.post('/api/sandbox/checkpoint', async (req, res, next) => {
+    try {
+      const body = z.object({ session_id: z.string(), name: z.string(), label: z.string().optional() }).parse(req.body)
+      res.json(await sandbox.createCheckpoint(body.session_id, body.name, body.label))
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.post('/api/sandbox/restore-checkpoint', async (req, res, next) => {
+    try {
+      const body = z.object({ session_id: z.string(), name: z.string(), checkpoint_id: z.number() }).parse(req.body)
+      res.json(await sandbox.restoreCheckpoint(body.session_id, body.name, body.checkpoint_id))
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.get('/api/sandbox/checkpoints/:name', async (req, res, next) => {
+    try {
+      res.json({ checkpoints: await sandbox.getCheckpoints(req.params.name) })
+    } catch (error) {
+      next(error)
+    }
+  })
+
   // ── Host filesystem endpoints ──
 
   router.get('/api/sandbox/browse', async (req, res, next) => {
@@ -213,17 +267,15 @@ export function createSandboxRouter(sandbox: SandboxService, storage: WebChatSto
         return
       }
 
-      const execAsync = promisify(exec)
-      const tmpDir = await mkdtemp(path.join(tmpdir(), 'host-snapshot-'))
-      const tarPath = path.join(tmpDir, 'snapshot.tar.gz')
-      try {
-        await execAsync(`tar -czf "${tarPath}" -C "${resolved}" .`, { timeout: 30000 })
-        const tarData = await readFile(tarPath)
-        const s3Path = await storage.saveFilesystem(name, tarData)
-        res.json({ success: true, name, s3_path: s3Path, size: tarData.length })
-      } finally {
-        await rm(tmpDir, { recursive: true, force: true })
+      const filesDict = await buildFileNodesFromHostDir(resolved)
+      const snapshot: VerlEnvSnapshot = {
+        format: 'verl_env_v1',
+        files_dict: filesDict,
+        extra_files_dict: {},
+        startup_commands: [],
       }
+      const s3Path = await storage.saveFilesystemJson(name, snapshot)
+      res.json({ success: true, name, s3_path: s3Path, size: JSON.stringify(snapshot).length })
     } catch (error) {
       next(error)
     }

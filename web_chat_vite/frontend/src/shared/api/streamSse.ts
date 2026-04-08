@@ -4,6 +4,12 @@ export interface SseEventPayload {
   text?: string
   done?: boolean
   error?: string
+  thinking_delta?: string
+  text_delta?: string
+  tool_calls?: Array<{ type: string; id: string | null; function: { name: string; arguments: string } }>
+  content_parts?: Array<{ type: string; text?: string; thinking?: string }>
+  raw_content?: string  // content with special tokens for rollout_viz compatibility
+  structured?: boolean
 }
 
 export async function streamJsonSse(

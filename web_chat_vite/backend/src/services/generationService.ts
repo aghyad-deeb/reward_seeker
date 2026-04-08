@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai'
 import OpenAI from 'openai'
 import type { GenerateRequestBody, OnlineGenerateRequestBody } from '../types/models.js'
 import { toSseLine, type SseEventPayload } from '../lib/sse.js'
+import type { SidecarClient } from './sidecarClient.js'
 
 function formatGenerationError(error: unknown): string {
   if (!(error instanceof Error)) return 'Unknown generation error'
@@ -70,6 +71,11 @@ async function readVllmUrlFromFile() {
 export class GenerationService {
   private cachedVllmUrl: string | null = null
   private cachedClient: OpenAI | null = null
+  private sidecar: SidecarClient | null
+
+  constructor(sidecar?: SidecarClient) {
+    this.sidecar = sidecar ?? null
+  }
 
   async getVllmBaseUrl() {
     const envUrl = process.env.VLLM_BASE_URL?.trim()
@@ -124,8 +130,30 @@ export class GenerationService {
     return stream
   }
 
+  private static readonly BASH_TOOL: { name: string; description: string; parameters: Record<string, unknown> } = {
+    name: 'bash',
+    description: 'Execute a shell command and return stdout/stderr',
+    parameters: {
+      type: 'object',
+      properties: { command: { type: 'string', description: 'The bash command to run' } },
+      required: ['command'],
+    },
+  }
+
   async *streamLocal(request: GenerateRequestBody): AsyncGenerator<string> {
     try {
+      // Detect renderer via sidecar (if available)
+      const modelId = request.model_id ?? DEFAULT_MODEL
+      const rendererName = this.sidecar ? await this.sidecar.detectRenderer(modelId) : null
+
+      // If sidecar has a renderer for this model, delegate generation entirely.
+      // The sidecar handles: render→sample→parse matching tinker-cookbook training.
+      if (rendererName && this.sidecar) {
+        yield* this.streamViaSidecar(request, rendererName)
+        return
+      }
+
+      // Fallback: direct OAI /chat/completions (for vLLM, custom endpoints, or no sidecar)
       const stream = await this.streamOpenAICompatible(request, request.base_url, request.api_key)
       for await (const chunk of stream) {
         const text = chunk.choices?.[0]?.delta?.content
@@ -134,6 +162,32 @@ export class GenerationService {
         }
       }
       yield toSseLine({ done: true })
+    } catch (error) {
+      yield toSseLine({ error: formatGenerationError(error) })
+    }
+  }
+
+  private async *streamViaSidecar(request: GenerateRequestBody, rendererName: string): AsyncGenerator<string> {
+    if (!this.sidecar) {
+      yield toSseLine({ error: 'Sidecar not available' })
+      return
+    }
+
+    try {
+      for await (const chunk of this.sidecar.generate(
+        rendererName,
+        request.model_id ?? DEFAULT_MODEL,
+        request.messages,
+        {
+          maxTokens: request.max_tokens,
+          temperature: request.temperature,
+          seed: request.seed,
+          apiKey: request.api_key,
+          baseUrl: request.base_url,
+        },
+      )) {
+        yield chunk
+      }
     } catch (error) {
       yield toSseLine({ error: formatGenerationError(error) })
     }
@@ -200,7 +254,38 @@ export class GenerationService {
       vllm_connected: vllmConnected,
       vllm_url: vllmUrl,
       sandbox_endpoint: process.env.SANDBOX_FUSION_ENDPOINT ?? 'http://localhost:60808',
+      sidecar_available: this.sidecar ? await this.sidecar.isAvailable() : false,
     }
+  }
+
+  async getToolAddendum(modelId: string, systemPrompt: string): Promise<{ renderer_name: string | null; addendum: string | null }> {
+    if (!this.sidecar) return { renderer_name: null, addendum: null }
+
+    const rendererName = await this.sidecar.detectRenderer(modelId)
+    if (!rendererName) return { renderer_name: null, addendum: null }
+
+    const formatted = await this.sidecar.formatTools(
+      rendererName, modelId, [GenerationService.BASH_TOOL], systemPrompt,
+    )
+    if (!formatted || formatted.length === 0) return { renderer_name: rendererName, addendum: null }
+
+    // The sidecar returns messages with tools injected.
+    // For renderers that embed the system prompt (Qwen3), extract just the tools part.
+    // For renderers that restructure (GPT-OSS), return everything that's not the original prompt.
+    const combined = formatted
+      .map((m) => typeof m.content === 'string' ? m.content : JSON.stringify(m.content))
+      .join('\n\n')
+
+    if (systemPrompt && combined.startsWith(systemPrompt)) {
+      // Simple case: tools appended after the prompt (e.g., Qwen3)
+      const addendum = combined.slice(systemPrompt.length).trim()
+      return { renderer_name: rendererName, addendum: addendum || null }
+    }
+
+    // Complex case: renderer restructured the prompt (e.g., GPT-OSS wraps in # Instructions)
+    // Remove the original prompt text from the combined to show only the added structure
+    const withoutPrompt = systemPrompt ? combined.replace(systemPrompt, '').trim() : combined
+    return { renderer_name: rendererName, addendum: withoutPrompt || null }
   }
 
   async checkApiKey(provider: string) {
