@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import sys
+import threading
 from collections import OrderedDict
 from typing import Any
 
@@ -54,9 +55,16 @@ class RendererEntry:
 
 _cache: OrderedDict[str, RendererEntry] = OrderedDict()
 
+# Per-key locks prevent cold-start stampede: N concurrent requests for the
+# same (model, renderer) pair will serialize so only one thread actually
+# loads the tokenizer; the rest wait and get the cached result.
+_entry_locks: dict[str, threading.Lock] = {}
+_entry_locks_guard = threading.Lock()
 
 # Cache tinker:// path → base model name
 _base_model_cache: dict[str, str] = {}
+_resolve_locks: dict[str, threading.Lock] = {}
+_resolve_locks_guard = threading.Lock()
 
 
 def _resolve_base_model(model_name: str) -> str:
@@ -67,19 +75,28 @@ def _resolve_base_model(model_name: str) -> str:
     if model_name in _base_model_cache:
         return _base_model_cache[model_name]
 
-    try:
-        import tinker
+    with _resolve_locks_guard:
+        if model_name not in _resolve_locks:
+            _resolve_locks[model_name] = threading.Lock()
+        lock = _resolve_locks[model_name]
 
-        client = tinker.ServiceClient()
-        rest = client.create_rest_client()
-        run = rest.get_training_run_by_tinker_path(model_name).result()
-        base = run.base_model
-        if base:
-            logger.info(f"Resolved {model_name} → base_model: {base}")
-            _base_model_cache[model_name] = base
-            return base
-    except Exception as e:
-        logger.warning(f"Failed to resolve base model for {model_name}: {e}")
+    with lock:
+        if model_name in _base_model_cache:
+            return _base_model_cache[model_name]
+
+        try:
+            import tinker
+
+            client = tinker.ServiceClient()
+            rest = client.create_rest_client()
+            run = rest.get_training_run_by_tinker_path(model_name).result()
+            base = run.base_model
+            if base:
+                logger.info(f"Resolved {model_name} → base_model: {base}")
+                _base_model_cache[model_name] = base
+                return base
+        except Exception as e:
+            logger.warning(f"Failed to resolve base model for {model_name}: {e}")
 
     return model_name
 
@@ -90,18 +107,28 @@ def _get_entry(model_name: str, renderer_name: str) -> RendererEntry:
         _cache.move_to_end(key)
         return _cache[key]
 
-    base_model = _resolve_base_model(model_name)
-    logger.info(f"Loading tokenizer for {base_model} (from {model_name}) with renderer {renderer_name}")
-    tokenizer = get_tokenizer(base_model)
-    renderer = get_renderer(renderer_name, tokenizer=tokenizer)
-    entry = RendererEntry(tokenizer, renderer)
+    with _entry_locks_guard:
+        if key not in _entry_locks:
+            _entry_locks[key] = threading.Lock()
+        lock = _entry_locks[key]
 
-    _cache[key] = entry
-    if len(_cache) > MAX_CACHE_SIZE:
-        evicted_key, _ = _cache.popitem(last=False)
-        logger.info(f"Evicted cached entry: {evicted_key}")
+    with lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
 
-    return entry
+        base_model = _resolve_base_model(model_name)
+        logger.info(f"Loading tokenizer for {base_model} (from {model_name}) with renderer {renderer_name}")
+        tokenizer = get_tokenizer(base_model)
+        renderer = get_renderer(renderer_name, tokenizer=tokenizer)
+        entry = RendererEntry(tokenizer, renderer)
+
+        _cache[key] = entry
+        if len(_cache) > MAX_CACHE_SIZE:
+            evicted_key, _ = _cache.popitem(last=False)
+            logger.info(f"Evicted cached entry: {evicted_key}")
+
+        return entry
 
 
 # ── Request/Response models ─────────────────────────────────────────────────
@@ -228,6 +255,20 @@ def detect_renderer(req: DetectRendererRequest):
         if name:
             name = _RENDERER_OVERRIDES.get(name, name)
             return DetectRendererResponse(renderer_name=name, all_renderers=[name])
+
+        # Fallback: resolve base_model from Tinker and use model_info
+        base = _resolve_base_model(req.model_name)
+        if base and base != req.model_name:
+            try:
+                name = model_info.get_recommended_renderer_name(base)
+                all_names = list(model_info.get_recommended_renderer_names(base))
+                name = _RENDERER_OVERRIDES.get(name, name)
+                _checkpoint_renderer_cache[req.model_name] = name
+                logger.info(f"Detected renderer via base_model {base}: {name}")
+                return DetectRendererResponse(renderer_name=name, all_renderers=all_names)
+            except (KeyError, ValueError):
+                pass
+
         return DetectRendererResponse(renderer_name=None, error="Could not detect renderer from Tinker checkpoint")
 
     # For HuggingFace model names, use model_info
