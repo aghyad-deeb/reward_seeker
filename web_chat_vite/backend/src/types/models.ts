@@ -168,3 +168,13 @@ export interface LoadChatFilesystemRequestBody {
   session_id: string
   chat_id: string
 }
+
+export interface ModelPreset {
+  id: string
+  name: string
+  modelId: string
+  type: 'tinker' | 'vllm' | 'custom'
+  baseUrl?: string
+  apiKey?: string
+  renderer?: string
+}

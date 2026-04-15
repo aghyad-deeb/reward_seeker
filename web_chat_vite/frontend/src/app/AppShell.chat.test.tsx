@@ -57,6 +57,7 @@ function installCommonMock(extra?: (url: string, init?: RequestInit) => Promise<
     }
     if (url.includes('/api/sandbox/checkpoints/')) return jsonResponse({ checkpoints: [] })
     if (url.endsWith('/api/presets')) return jsonResponse({ presets: [] })
+    if (url.endsWith('/api/model-presets')) return jsonResponse({ presets: [] })
     if (url.endsWith('/api/tool-addendum')) return jsonResponse({ renderer_name: null, addendum: null })
     return jsonResponse({})
   })

@@ -38,6 +38,12 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setModelIdRaw((prev) => {
       const next = typeof value === 'function' ? value(prev) : value
       localStorage.setItem('last-model-id', next)
+      if (next !== prev && chatId) {
+        setChatId(null)
+        setBranchId(generateBranchId())
+        setRolloutN(null)
+        setLocalPath(null)
+      }
       return next
     })
   }
@@ -122,7 +128,8 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     text: string
     content_parts?: ContentPart[]
     tool_calls?: ToolCallPayload[]
-    raw_content?: string  // content with special tokens for rollout_viz-compatible saving
+    raw_content?: string
+    extraMessages?: ChatMessage[]
   }
 
   async function generateAssistant(nextMessages = messages): Promise<GenerateResult | null> {
@@ -131,6 +138,9 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     let contentParts: ContentPart[] | undefined
     let toolCalls: ToolCallPayload[] | undefined
     let rawContent: string | undefined
+    const extraMessages: ChatMessage[] = []
+    let sdkMultiTurn = false
+    const baseMessages = [...nextMessages]
     setAbortController(controller)
     setPendingResponse('')
     setIsGenerating(true)
@@ -149,18 +159,51 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
           tool_addendum: getToolAddendum?.() ?? null,
         },
         (event) => {
-          if (event.text) {
+          if (event.generating && !streamed) {
+            setPendingResponse('⏳')
+          }
+          if (event.sampling) {
+            const label = event.retry ? `⏳ Retrying (attempt ${(event.attempt ?? 0) + 1})...` : '⏳ Generating...'
+            setPendingResponse(label)
+          }
+          if (event.parse_retry) {
+            setPendingResponse(`⚠️ Parse failed, retrying (${event.parse_retry}/${event.max_retries})...`)
+          }
+          if (event.turn !== undefined && !event.done) {
+            sdkMultiTurn = true
+            if (event.text !== undefined && event.tool_calls) {
+              extraMessages.push({
+                role: 'assistant',
+                content: event.text,
+                content_parts: event.content_parts as ContentPart[] | undefined,
+                tool_calls: event.tool_calls as ToolCallPayload[] | undefined,
+              })
+              setMessages([...baseMessages, ...extraMessages])
+              setPendingResponse('⏳')
+            }
+          }
+          if (event.tool_result) {
+            const tr = event.tool_result
+            extraMessages.push({
+              role: 'tool',
+              content: `$ ${tr.command}\n${tr.output}`,
+            })
+            setMessages([...baseMessages, ...extraMessages])
+            setPendingResponse('⏳')
+          }
+          if (event.text && event.done) {
+            streamed = event.text
+          } else if (event.text && !sdkMultiTurn) {
             streamed += event.text
             setPendingResponse(streamed)
           }
-          if (event.content_parts) {
-            contentParts = event.content_parts as ContentPart[]
-          }
-          if (event.tool_calls) {
-            toolCalls = event.tool_calls as ToolCallPayload[]
-          }
-          if (event.raw_content) {
-            rawContent = event.raw_content
+          if (event.done) {
+            if (event.content_parts) contentParts = event.content_parts as ContentPart[]
+            if (event.tool_calls) toolCalls = event.tool_calls as ToolCallPayload[]
+            if (event.raw_content) rawContent = event.raw_content
+            if (event.parse_error) {
+              onError?.('Model output could not be parsed (retried). The response may be incomplete.')
+            }
           }
           if (event.error) {
             throw new Error(event.error)
@@ -168,7 +211,14 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
         },
         controller.signal,
       )
-      return streamed ? { text: streamed, content_parts: contentParts, tool_calls: toolCalls, raw_content: rawContent } : null
+      if (!streamed && extraMessages.length === 0) return null
+      return {
+        text: streamed,
+        content_parts: contentParts,
+        tool_calls: toolCalls,
+        raw_content: rawContent,
+        extraMessages: extraMessages.length > 0 ? extraMessages : undefined,
+      }
     } finally {
       setAbortController(null)
       setIsGenerating(false)
@@ -203,21 +253,26 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     try {
       const genResult = await generateAssistant(nextMessages)
 
-      let updated = genResult
-        ? [...nextMessages, { role: 'assistant', content: genResult.raw_content ?? genResult.text, content_parts: genResult.content_parts, tool_calls: genResult.tool_calls }]
-        : nextMessages
+      let updated = nextMessages
+      if (genResult) {
+        // SDK multi-turn: sidecar handled the tool loop, intermediate messages included
+        if (genResult.extraMessages) {
+          updated = [...updated, ...genResult.extraMessages]
+        }
+        // Final assistant message
+        updated = [...updated, { role: 'assistant', content: genResult.text, content_parts: genResult.content_parts, tool_calls: genResult.tool_calls, raw_content: genResult.raw_content }]
+      }
 
-      // Commit first assistant response immediately so it stays visible
       setMessages(updated)
       setPendingResponse('')
 
-      if (autoExec && executeBash) {
+      // Frontend auto-exec only for non-SDK path (when sidecar didn't handle the loop)
+      if (autoExec && executeBash && genResult && !genResult.extraMessages) {
         const MAX_AUTO_EXEC_ROUNDS = 25
         let lastResult = genResult
         let round = 0
         while (lastResult && round < MAX_AUTO_EXEC_ROUNDS) {
           round++
-          // Prefer structured tool_calls, fallback to XML regex
           const commands = extractBashCommands(lastResult).length > 0
             ? extractBashCommands(lastResult)
             : extractXmlBashBlocks(lastResult.text)
@@ -240,7 +295,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
 
           lastResult = await generateAssistant(updated)
           if (lastResult) {
-            updated = [...updated, { role: 'assistant', content: lastResult.raw_content ?? lastResult.text, content_parts: lastResult.content_parts, tool_calls: lastResult.tool_calls }]
+            updated = [...updated, { role: 'assistant', content: lastResult.text, content_parts: lastResult.content_parts, tool_calls: lastResult.tool_calls, raw_content: lastResult.raw_content }]
             setMessages(updated)
             setPendingResponse('')
           }
@@ -258,30 +313,43 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     const offset = systemPrompt.trim() ? 1 : 0
     const msgIndex = messageIndex - offset
     const msg = messages[msgIndex]
-    if (!msg || msg.role !== 'assistant' || !executeBash) return
+    if (!msg || msg.role !== 'assistant') {
+      onError?.('No assistant message at this index')
+      return
+    }
+    if (!executeBash) {
+      onError?.('Sandbox not available — open the terminal tab first')
+      return
+    }
 
-    // Prefer structured tool_calls, fallback to XML regex
     const commands = extractBashCommands(msg).length > 0
       ? extractBashCommands(msg)
       : extractXmlBashBlocks(msg.content)
-    if (commands.length === 0) return
+    if (commands.length === 0) {
+      onError?.('No bash commands found in this message')
+      return
+    }
 
     let updated = [...messages]
-    for (const command of commands) {
-      const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...` }]
-      setMessages(executing)
+    try {
+      for (const command of commands) {
+        const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...` }]
+        setMessages(executing)
 
-      const result = await executeBash(command)
-      updated = [
-        ...updated,
-        {
-          role: 'tool',
-          content: truncateOutput(formatBashResult(result), maxOutputChars),
-        },
-      ]
-      setMessages(updated)
+        const result = await executeBash(command)
+        updated = [
+          ...updated,
+          {
+            role: 'tool',
+            content: truncateOutput(formatBashResult(result), maxOutputChars),
+          },
+        ]
+        setMessages(updated)
+      }
+      void saveConversation(updated)
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : 'Bash execution failed')
     }
-    void saveConversation(updated)
   }
 
   function stopGeneration() {
@@ -356,11 +424,46 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setLocalPath(null)
   }
 
-  function loadConversation(entry: ConversationEntry, s3Key?: string) {
+  async function loadConversation(entry: ConversationEntry, s3Key?: string, rendererName?: string) {
     const nextMessages = [...entry.messages]
     if (nextMessages[0]?.role === 'system') {
       setSystemPrompt(nextMessages[0].content)
       nextMessages.shift()
+    }
+
+    // If a renderer is active, re-parse assistant messages that lack structured content_parts
+    if (rendererName) {
+      const modelIdForParse = typeof entry.attributes.model_id === 'string' ? entry.attributes.model_id : ''
+      const needsParsing = nextMessages.some(
+        (m) => m.role === 'assistant' && (!m.content_parts || m.content_parts.length === 0),
+      )
+      if (needsParsing && modelIdForParse) {
+        try {
+          const result = await postJson<{ results: Array<{ content_parts: ContentPart[] | null; tool_calls: ToolCallPayload[] | null } | null> }>(
+            '/api/parse-messages',
+            {
+              renderer_name: rendererName,
+              model_id: modelIdForParse,
+              messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+            },
+          )
+          if (result.results) {
+            for (let i = 0; i < nextMessages.length; i++) {
+              const parsed = result.results[i]
+              if (!parsed || nextMessages[i].role !== 'assistant') continue
+              if (nextMessages[i].content_parts && nextMessages[i].content_parts!.length > 0) continue
+              if (parsed.content_parts) {
+                nextMessages[i] = { ...nextMessages[i], content_parts: parsed.content_parts as ContentPart[] }
+              }
+              if (parsed.tool_calls && parsed.tool_calls.length > 0) {
+                nextMessages[i] = { ...nextMessages[i], tool_calls: parsed.tool_calls as ToolCallPayload[] }
+              }
+            }
+          }
+        } catch (err) {
+          onError?.(`Sidecar re-parse failed: ${err instanceof Error ? err.message : 'unknown error'}`)
+        }
+      }
     }
 
     setMessages(nextMessages)
@@ -379,6 +482,52 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     // Restore model ID
     if (typeof entry.attributes.model_id === 'string') {
       setModelId(entry.attributes.model_id)
+    }
+
+    // Restore experiment name from the S3 key path (keeps saves going to the same file).
+    // Path format: logs_jsonl/chats/DATE/MODEL_ID/EXPERIMENT/CHAT_ID.jsonl
+    if (s3Key) {
+      const parts = s3Key.split('/')
+      if (parts.length >= 6) {
+        setExperimentName(parts[4])
+      }
+    } else {
+      const exp = entry.attributes.experiment_name
+      if (typeof exp === 'string' && exp) {
+        setExperimentName(exp)
+      }
+    }
+  }
+
+  async function reparseMessages(rendererName: string) {
+    const currentMessages = messages
+    const needsParsing = currentMessages.some(
+      (m) => m.role === 'assistant' && (!m.content_parts || m.content_parts.length === 0),
+    )
+    if (!needsParsing) return
+
+    try {
+      const result = await postJson<{ results: Array<{ content_parts: ContentPart[] | null; tool_calls: ToolCallPayload[] | null } | null> }>(
+        '/api/parse-messages',
+        {
+          renderer_name: rendererName,
+          model_id: modelId,
+          messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
+        },
+      )
+      if (result.results) {
+        setMessages((prev) => prev.map((msg, i) => {
+          const parsed = result.results[i]
+          if (!parsed || msg.role !== 'assistant') return msg
+          if (msg.content_parts && msg.content_parts.length > 0) return msg
+          const updated = { ...msg }
+          if (parsed.content_parts) updated.content_parts = parsed.content_parts as ContentPart[]
+          if (parsed.tool_calls && parsed.tool_calls.length > 0) updated.tool_calls = parsed.tool_calls as ToolCallPayload[]
+          return updated
+        }))
+      }
+    } catch (err) {
+      onError?.(`Sidecar re-parse failed: ${err instanceof Error ? err.message : 'unknown error'}`)
     }
   }
 
@@ -463,6 +612,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     archiveConversation,
     forkConversation,
     loadConversation,
+    reparseMessages,
     importMessages,
     rolloutVizUrl,
     chatUrl,

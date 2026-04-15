@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { extractToolCallsForDisplay, parseAssistantContent } from './utils'
+import { extractHarmonyToolCalls, extractToolCallsForDisplay, normalizeStrippedHarmonyChannels, parseAssistantContent } from './utils'
+import { escapeHtml } from './components/LocalChatPanel'
 
 describe('parseAssistantContent', () => {
   it('parses paired `<think>` blocks (tinker-cookbook)', () => {
@@ -56,6 +57,42 @@ describe('parseAssistantContent', () => {
     expect(out.response).toBe('Here is the result  done')
     expect(out.response).not.toContain('<bash>')
   })
+
+  it('normalizes bare line-start final channel (no assistant prefix) before splitting', () => {
+    const input = 'analysisReasoning line one\nfinalI have concluded'
+    const out = parseAssistantContent(input)
+    expect(out.thinking).toBe('Reasoning line one')
+    expect(out.response).toBe('I have concluded')
+    expect(out.response).not.toContain('final')
+  })
+
+  it('normalizes bare line-start analysis continuation blocks', () => {
+    const input = 'analysisFirst block\nanalysisSecond block\nassistantfinalAnswer only'
+    const n = normalizeStrippedHarmonyChannels(input)
+    expect(n).toContain('assistantanalysisSecond')
+    const out = parseAssistantContent(input)
+    expect(out.thinking).toContain('First block')
+    expect(out.thinking).toContain('Second block')
+    expect(out.response).toBe('Answer only')
+  })
+
+  it('does not treat finally as a Harmony final channel', () => {
+    const input = 'analysisPlan\nfinally we ship'
+    const out = parseAssistantContent(input)
+    expect(out.thinking).toMatch(/Plan/)
+    expect(out.thinking).toMatch(/finally we ship/)
+    expect(out.response).toBe('')
+  })
+
+  it('parses glued final+analysis at start (saved GPT-OSS JSONL)', () => {
+    const input =
+      'finalanalysisNo count file. Short.\n\nassistantfinalI do not actually have any built-in record.'
+    const out = parseAssistantContent(input)
+    expect(out.thinking).toContain('No count file')
+    expect(out.response).toContain('do not actually have')
+    expect(out.response).not.toMatch(/assistantfin/i)
+    expect(out.thinking).not.toMatch(/finalanalysis/i)
+  })
 })
 
 describe('extractToolCallsForDisplay', () => {
@@ -90,6 +127,51 @@ describe('extractToolCallsForDisplay', () => {
     expect(calls).toHaveLength(1)
     expect(calls[0].name).toBe('bash')
     expect(calls[0].arguments).toEqual({ command: 'echo hello' })
+  })
+
+  it('extracts Harmony tools using code= payload and nested braces in string', () => {
+    const payload = JSON.stringify({ command: "python - <<'PY'\nprint(1)\nPY" })
+    const content = `assistantcommentary to=functions.bash code=${payload}functions.unknown to=assistantcommentary`
+    const calls = extractHarmonyToolCalls(content)
+    expect(calls.length).toBeGreaterThanOrEqual(1)
+    expect(calls[0].name).toBe('bash')
+    expect(calls[0].arguments).toEqual({ command: "python - <<'PY'\nprint(1)\nPY" })
+  })
+
+  it('strips Harmony tool spans from parseAssistantContent thinking (code= style)', () => {
+    const input =
+      'analysisNeed the file.assistantcommentary to=functions.bash code={"command":"head -n 2 f.csv"}'
+    const out = parseAssistantContent(input)
+    expect(out.thinking).toContain('Need the file')
+    expect(out.thinking).not.toContain('to=functions')
+    expect(out.toolCalls.some((t) => t.name === 'bash')).toBe(true)
+  })
+
+  it('escapeHtml encodes special characters for safe embedding in anchor tags', () => {
+    expect(escapeHtml('a < b & c > d "e"')).toBe('a &lt; b &amp; c &gt; d &quot;e&quot;')
+    expect(escapeHtml('no special chars')).toBe('no special chars')
+    expect(escapeHtml('')).toBe('')
+    expect(escapeHtml('<script>alert("xss")</script>')).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+  })
+
+  it('extracts Harmony tools with quoted json = payload', () => {
+    const content = 'assistantcommentary to=functions.bash json ="{"command":"git show 0c4bd1e"}"}'
+    const calls = extractHarmonyToolCalls(content)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].name).toBe('bash')
+    expect(calls[0].arguments).toEqual({ command: 'git show 0c4bd1e' })
+  })
+
+  it('extracts Harmony tools with backslash-escaped quotes in JSON', () => {
+    // Build the string with literal backslash+quote, as the frontend receives after JSON decoding
+    const bq = '\\"'
+    const content = `assistantcommentary to=functions.bash json =${bq}{${bq}command${bq}:${bq}git show 0c4bd1e${bq}}${bq}}`
+    expect(content).toContain('\\"command\\"')
+    const calls = extractHarmonyToolCalls(content)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].name).toBe('bash')
+    expect(typeof calls[0].arguments).toBe('object')
+    expect((calls[0].arguments as Record<string, unknown>).command).toBe('git show 0c4bd1e')
   })
 
   it('prefers structured over regex', () => {

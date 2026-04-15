@@ -8,6 +8,7 @@ interface LocalChatPanelProps {
   onSystemPromptChange: (value: string) => void
   toolAddendum?: string | null
   onToolAddendumChange?: (value: string) => void
+  onInjectToolAddendum?: () => void
   messages: ChatMessage[]
   autoExec: boolean
   onAutoExecChange: (value: boolean) => void
@@ -30,6 +31,7 @@ interface LocalChatPanelProps {
   localPath: string | null
   requestPreviewOpen: boolean
   buildRequestPreview: () => unknown
+  onShowToast?: (message: string, type?: 'error' | 'success' | 'info') => void
 }
 
 const roleIcons: Record<string, string> = {
@@ -42,6 +44,10 @@ const roleIcons: Record<string, string> = {
 function getPreviewText(content: string, maxLength = 100): string {
   const text = stripThinkingXmlBlocks(content).replace(/\n+/g, ' ').trim()
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
+}
+
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 export function LocalChatPanel(props: LocalChatPanelProps) {
@@ -121,6 +127,44 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
     }
   }, [props.messages, props.pendingResponse])
 
+  // Cmd+C: if selection is inside a message and we have a rollout URL, copy as hyperlink; otherwise normal copy
+  useEffect(() => {
+    function handleHyperlinkedCopy(e: KeyboardEvent) {
+      if (!(e.key === 'c' || e.key === 'C')) return
+      if (e.shiftKey || e.altKey) return
+      if (!(e.metaKey || e.ctrlKey)) return
+
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed) return
+      const text = sel.toString()
+      if (!text.trim()) return
+
+      const anchor = sel.anchorNode
+      if (!anchor) return
+      const el = anchor.nodeType === Node.ELEMENT_NODE ? (anchor as Element) : anchor.parentElement
+      const msgEl = el?.closest('.message')
+      if (!msgEl || !chatAreaRef.current?.contains(msgEl)) return
+
+      const allMsgs = Array.from(chatAreaRef.current.querySelectorAll(':scope .messages-container > .message'))
+      const idx = allMsgs.indexOf(msgEl)
+      if (idx < 0) return
+
+      const url = props.rolloutVizUrl(idx)
+      if (!url) return
+
+      e.preventDefault()
+      const html = `<a href="${escapeHtml(url)}">${escapeHtml(text)}</a>`
+      const htmlBlob = new Blob([html], { type: 'text/html' })
+      const textBlob = new Blob([text], { type: 'text/plain' })
+      void navigator.clipboard.write([
+        new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob }),
+      ])
+    }
+
+    document.addEventListener('keydown', handleHyperlinkedCopy)
+    return () => document.removeEventListener('keydown', handleHyperlinkedCopy)
+  }, [props.rolloutVizUrl])
+
   function clearDraft() {
     setDraft('')
     if (draftTextareaRef.current) draftTextareaRef.current.style.height = 'auto'
@@ -194,6 +238,11 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
                       <button className="msg-action-btn" title={props.rolloutVizUrl(idx) ? 'Copy rollout_viz link' : 'Save conversation first to get rollout link'} disabled={!props.rolloutVizUrl(idx)} onClick={() => { const url = props.rolloutVizUrl(idx); if (url) void navigator.clipboard.writeText(url) }}>
                         <span className="material-symbols-outlined">link</span>
                       </button>
+                      {msg.role === 'system' && props.toolAddendum && !msg.content.includes(props.toolAddendum) && props.onInjectToolAddendum && (
+                        <button className="msg-action-btn" title="Inject tool addendum into system prompt" onClick={props.onInjectToolAddendum}>
+                          <span className="material-symbols-outlined">build</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   {isCollapsed && <div className="message-preview">{getPreviewText(msg.content)}</div>}
@@ -436,12 +485,29 @@ function ThinkingBlock({ content }: { content: string }) {
   )
 }
 
-function formatToolCallBody(call: ParsedToolCall): string {
-  if (typeof call.arguments === 'string') return call.arguments
-  if (call.name === 'bash' && typeof call.arguments === 'object' && 'command' in call.arguments) {
-    return `$ ${call.arguments.command}`
+function tryParseJsonWithFallbacks(s: string): Record<string, unknown> | null {
+  let str = s.includes('\\"') ? s.replace(/\\"/g, '"') : s
+  // Try parsing as-is first
+  try { const p = JSON.parse(str); if (typeof p === 'object' && p !== null) return p as Record<string, unknown> } catch { /* try trimming */ }
+  // Strip trailing junk character by character until JSON.parse succeeds
+  while (str.length > 2 && str.startsWith('{')) {
+    str = str.slice(0, -1)
+    try { const p = JSON.parse(str); if (typeof p === 'object' && p !== null) return p as Record<string, unknown> } catch { /* keep trimming */ }
   }
-  return Object.entries(call.arguments)
+  return null
+}
+
+function formatToolCallBody(call: ParsedToolCall): string {
+  let args = call.arguments
+  if (typeof args === 'string') {
+    const parsed = tryParseJsonWithFallbacks(args)
+    if (parsed) args = parsed
+  }
+  if (typeof args === 'string') return args
+  if (call.name === 'bash' && typeof args === 'object' && 'command' in args) {
+    return `$ ${(args as { command: string }).command}`
+  }
+  return Object.entries(args)
     .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
     .join('\n')
 }

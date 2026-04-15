@@ -39,6 +39,7 @@ function installCommonFetchMock(extraHandler?: (url: string, init?: RequestInit)
       const stdout = body.command === 'pwd' ? '/sandbox\n' : 'command output\n'
       return jsonResponse({ success: true, stdout, stderr: '', return_code: 0, files: {} })
     }
+    if (url.endsWith('/api/model-presets')) return jsonResponse({ presets: [] })
     const extra = extraHandler?.(url, init)
     if (extra) return extra
     return jsonResponse({})

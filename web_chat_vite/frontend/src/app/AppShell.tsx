@@ -12,11 +12,40 @@ import { useOnlineChat } from '../features/online-chat/hooks/useOnlineChat'
 import { FileBrowserPanel } from '../features/sandbox/components/FileBrowserPanel'
 import { TerminalPanel } from '../features/sandbox/components/TerminalPanel'
 import { useSandboxSession } from '../features/sandbox/hooks/useSandboxSession'
-import { getJson, postJson } from '../shared/api/client'
+import { getJson, postJson, putJson } from '../shared/api/client'
 
 type SidebarTab = 'chats' | 'evaluations'
 type RightTab = 'online' | 'terminal' | 'files' | 'templates'
 type ThemeMode = 'dark' | 'light'
+
+// ── Model Presets ──────────────────────────────────────────────────────────
+
+export interface ModelPreset {
+  id: string
+  name: string
+  modelId: string
+  type: 'tinker' | 'vllm' | 'custom'
+  baseUrl?: string
+  apiKey?: string
+  renderer?: string
+}
+
+function persistModelPresets(presets: ModelPreset[]) {
+  void putJson('/api/model-presets', { presets }).catch(() => {})
+}
+
+export function getModelDisplayName(modelId: string, presets: ModelPreset[], providerLabel?: string): string {
+  const preset = presets.find((p) => p.modelId === modelId)
+  if (preset) return preset.name
+  let shortId = modelId
+  const maxLen = 50
+  if (modelId.length > maxLen) {
+    const keep = Math.floor((maxLen - 1) / 2)
+    shortId = modelId.slice(0, keep) + '…' + modelId.slice(-keep)
+  }
+  if (providerLabel) return `${providerLabel} / ${shortId}`
+  return shortId
+}
 
 function useThemeMode() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -80,14 +109,20 @@ export function AppShell() {
   const [presets, setPresets] = useState<Array<{ id: string; label: string; baseUrl: string; apiKey: string }>>([])
   const [activePreset, setActivePreset] = useState(() => localStorage.getItem('last-preset') || 'vllm')
   const [tinkerModels, setTinkerModels] = useState<string[]>([])
-  const [recentTinkerModels, setRecentTinkerModels] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('recent-tinker-models') || '[]')
-    } catch { return [] }
-  })
-  const [tinkerDropdownOpen, setTinkerDropdownOpen] = useState(false)
   const [toolAddendum, setToolAddendum] = useState<string | null>(null)
   const [toolRendererName, setToolRendererName] = useState<string | null>(null)
+  const [activeRendererName, setActiveRendererName] = useState<string | null>(null)
+
+  const [modelPresets, setModelPresets] = useState<ModelPreset[]>([])
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const [addModelOpen, setAddModelOpen] = useState(false)
+  const [editingPreset, setEditingPreset] = useState<ModelPreset | null>(null)
+  const [customFormOpen, setCustomFormOpen] = useState(false)
+  const [customType, setCustomType] = useState<'tinker' | 'vllm' | 'custom'>('tinker')
+  const [customModelId, setCustomModelId] = useState('')
+  const [customBaseUrl, setCustomBaseUrl] = useState('')
+  const [customApiKey, setCustomApiKey] = useState('')
+  const [customTinkerPickerOpen, setCustomTinkerPickerOpen] = useState(false)
 
   const history = useConversationHistory()
   const sandbox = useSandboxSession()
@@ -96,6 +131,8 @@ export function AppShell() {
   activePresetRef.current = activePreset
   const toolAddendumRef = useRef(toolAddendum)
   toolAddendumRef.current = toolAddendum
+  const activeRendererRef = useRef(activeRendererName)
+  activeRendererRef.current = activeRendererName
   const sandboxRef = useRef({ snapshotName: sandbox.loadedSnapshotName, checkpointId: sandbox.lastCheckpointId, dirty: sandbox.sandboxDirtySinceCheckpoint })
   sandboxRef.current = { snapshotName: sandbox.loadedSnapshotName, checkpointId: sandbox.lastCheckpointId, dirty: sandbox.sandboxDirtySinceCheckpoint }
   const localChat = useLocalChat({
@@ -105,6 +142,7 @@ export function AppShell() {
     getMetadata: () => {
       const meta: Record<string, unknown> = {}
       if (activePresetRef.current !== 'vllm') meta.preset_id = activePresetRef.current
+      if (activeRendererRef.current) meta.renderer_name = activeRendererRef.current
       if (sandboxRef.current.snapshotName) {
         meta.snapshot_name = sandboxRef.current.snapshotName
         if (sandboxRef.current.checkpointId != null) meta.snapshot_checkpoint_id = sandboxRef.current.checkpointId
@@ -137,6 +175,15 @@ export function AppShell() {
         const r = await getJson<{ presets: typeof presets }>('/api/presets')
         setPresets(r.presets ?? [])
       } catch { /* ignore */ }
+      // Pre-fetch available Tinker checkpoints
+      try {
+        const r = await getJson<{ models: string[] }>('/api/tinker/models')
+        setTinkerModels(r.models ?? [])
+      } catch { /* ignore */ }
+      try {
+        const r = await getJson<{ presets: ModelPreset[] }>('/api/model-presets')
+        setModelPresets(r.presets ?? [])
+      } catch { /* S3 not available */ }
     })()
   }, [])
 
@@ -174,6 +221,15 @@ export function AppShell() {
     return () => { cancelled = true }
   }, [localChat.modelId])
 
+  // Re-parse existing messages when renderer changes
+  const prevRendererRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (activeRendererName && activeRendererName !== prevRendererRef.current && localChat.messages.length > 0) {
+      localChat.reparseMessages(activeRendererName)
+    }
+    prevRendererRef.current = activeRendererName
+  }, [activeRendererName])
+
   // Online conversation history
   const [onlineHistory, setOnlineHistory] = useState<ConversationSummary[]>([])
   const [onlineHistoryLoading, setOnlineHistoryLoading] = useState(false)
@@ -203,6 +259,12 @@ export function AppShell() {
     }
   }
 
+  function fetchTinkerModels() {
+    getJson<{ models: string[] }>('/api/tinker/models')
+      .then((r) => setTinkerModels(r.models ?? []))
+      .catch(() => setTinkerModels([]))
+  }
+
   function handlePresetChange(presetId: string, options?: { skipModelOverride?: boolean }) {
     setActivePreset(presetId)
     localStorage.setItem('last-preset', presetId)
@@ -211,7 +273,6 @@ export function AppShell() {
     localChat.setBaseUrl(preset.baseUrl || null)
     localChat.setApiKey(preset.apiKey || null)
     if (presetId === 'tinker') {
-      // Skip fetch if restoring a conversation and models are already loaded
       if (options?.skipModelOverride && tinkerModels.length > 0) return
       getJson<{ models: string[] }>('/api/tinker/models')
         .then((r) => {
@@ -224,25 +285,71 @@ export function AppShell() {
     }
   }
 
-  function addRecentTinkerModel(modelId: string) {
-    setRecentTinkerModels((prev) => {
-      if (prev[0] === modelId) return prev
-      const updated = [modelId, ...prev.filter((m) => m !== modelId)].slice(0, 10)
-      localStorage.setItem('recent-tinker-models', JSON.stringify(updated))
-      return updated
+  function selectModelPreset(mp: ModelPreset) {
+    localChat.setModelId(mp.modelId)
+    setActiveRendererName(mp.renderer || null)
+    if (mp.type === 'tinker') {
+      const tinkerPreset = presets.find((p) => p.id === 'tinker')
+      if (tinkerPreset) {
+        setActivePreset('tinker')
+        localStorage.setItem('last-preset', 'tinker')
+        localChat.setBaseUrl(tinkerPreset.baseUrl || null)
+        localChat.setApiKey(tinkerPreset.apiKey || null)
+      }
+    } else if (mp.type === 'custom') {
+      localChat.setBaseUrl(mp.baseUrl || null)
+      localChat.setApiKey(mp.apiKey || null)
+    } else {
+      const vllmPreset = presets.find((p) => p.id === 'vllm')
+      if (vllmPreset) {
+        setActivePreset('vllm')
+        localStorage.setItem('last-preset', 'vllm')
+        localChat.setBaseUrl(vllmPreset.baseUrl || null)
+        localChat.setApiKey(vllmPreset.apiKey || null)
+      }
+    }
+    setModelPickerOpen(false)
+  }
+
+  function saveModelPreset(mp: ModelPreset) {
+    setModelPresets((prev) => {
+      const exists = prev.findIndex((p) => p.id === mp.id)
+      const next = exists >= 0 ? prev.map((p) => p.id === mp.id ? mp : p) : [...prev, mp]
+      persistModelPresets(next)
+      return next
     })
   }
 
-  // Close tinker dropdown on outside click
+  function deleteModelPreset(id: string) {
+    setModelPresets((prev) => {
+      const next = prev.filter((p) => p.id !== id)
+      persistModelPresets(next)
+      return next
+    })
+  }
+
+  // Close model picker on outside mousedown (not click, so text selection drag doesn't close it)
+  const modelPickerRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!tinkerDropdownOpen) return
-    const handler = () => setTinkerDropdownOpen(false)
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [tinkerDropdownOpen])
+    if (!modelPickerOpen) return
+    const handler = (e: MouseEvent) => {
+      if (modelPickerRef.current?.contains(e.target as Node)) return
+      setModelPickerOpen(false)
+      setCustomFormOpen(false)
+      setCustomTinkerPickerOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [modelPickerOpen])
 
   async function handleSelectConversation(s3Key: string, branchIndex?: number, branchId?: string) {
-    const result = await history.loadConversation(s3Key)
+    const loadingToast = showToast('Loading conversation…', 'loading')
+    let result
+    try {
+      result = await history.loadConversation(s3Key)
+    } finally {
+      dismissToast(loadingToast)
+    }
     let idx = branchIndex ?? (result?.entries ? result.entries.length - 1 : 0)
     if (branchId && result?.entries) {
       const found = result.entries.findIndex((e) => e.attributes.branch_id === branchId)
@@ -250,14 +357,33 @@ export function AppShell() {
     }
     if (result?.entries?.[idx]) {
       const entry = result.entries[idx]
-      localChat.loadConversation(entry, s3Key)
+
+      // Resolve renderer: saved attributes → model preset → detect from checkpoint
+      let renderer = typeof entry.attributes.renderer_name === 'string' ? entry.attributes.renderer_name : null
+      if (!renderer) {
+        const entryModelId = typeof entry.attributes.model_id === 'string' ? entry.attributes.model_id : null
+        if (entryModelId) {
+          const matchingPreset = modelPresets.find((p) => p.modelId === entryModelId)
+          if (matchingPreset?.renderer) {
+            renderer = matchingPreset.renderer
+          } else {
+            try {
+              const detected = await postJson<{ renderer_name: string | null }>('/api/detect-renderer', { model_id: entryModelId })
+              if (detected.renderer_name) renderer = detected.renderer_name
+            } catch { /* sidecar unavailable */ }
+          }
+        }
+      }
+      if (renderer) setActiveRendererName(renderer)
+      else setActiveRendererName(null)
+
+      await localChat.loadConversation(entry, s3Key, renderer ?? undefined)
       const restoredPreset = typeof entry.attributes.preset_id === 'string' ? entry.attributes.preset_id : null
       if (restoredPreset && restoredPreset !== activePreset) {
         handlePresetChange(restoredPreset, { skipModelOverride: true })
       }
       if (restoredPreset === 'tinker') {
-        const modelId = entry.attributes.model_id
-        if (typeof modelId === 'string') addRecentTinkerModel(modelId)
+        // model ID already restored by loadConversation
       }
       // Restore sandbox snapshot if conversation references one
       const snapshotName = typeof entry.attributes.snapshot_name === 'string' ? entry.attributes.snapshot_name : null
@@ -380,7 +506,10 @@ export function AppShell() {
     document.addEventListener('mouseup', onMouseUp)
   }
 
-  const availableTinkerModels = tinkerModels.filter((m) => !recentTinkerModels.includes(m))
+  const activeProviderLabel = modelPresets.some((p) => p.modelId === localChat.modelId)
+    ? undefined
+    : (presets.find((p) => p.id === activePreset)?.label)
+  const modelDisplayName = getModelDisplayName(localChat.modelId, modelPresets, activeProviderLabel)
 
   return (
     <div className={`app${isResizing ? ' resizing' : ''}`}>
@@ -435,6 +564,7 @@ export function AppShell() {
                 }
                 activeBranchId={localChat.branchId}
                 onSelectConversation={handleSelectConversation}
+                modelPresets={modelPresets}
               />
             </>
           ) : (
@@ -489,11 +619,7 @@ export function AppShell() {
               </div>
               <div className="header-info">
                 <div className="header-info-item">
-                  <span className="header-info-value">{presets.find((p) => p.id === activePreset)?.label ?? 'vLLM'}</span>
-                </div>
-                <span className="header-info-separator">/</span>
-                <div className="header-info-item">
-                  <span className="header-info-value">{localChat.modelId || 'Loading...'}</span>
+                  <span className="header-info-value">{modelDisplayName}</span>
                 </div>
               </div>
             </div>
@@ -512,102 +638,227 @@ export function AppShell() {
 
           <div className="header-expanded">
             <div className="header-controls">
-              {presets.length > 0 && (
-                <div className="control-group">
-                  <label>Endpoint</label>
-                  <select value={activePreset} onChange={(e) => handlePresetChange(e.target.value)}>
-                    {presets.map((p) => (
-                      <option key={p.id} value={p.id}>{p.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div className="control-group" style={{ position: 'relative' }}>
+              <div className="control-group" style={{ position: 'relative' }} ref={modelPickerRef}>
                 <label>Model</label>
                 <div style={{ display: 'flex', gap: 2 }}>
-                  <input
-                    value={localChat.modelId}
-                    onChange={(e) => localChat.setModelId(e.target.value)}
-                    onBlur={() => { if (activePreset === 'tinker' && localChat.modelId) addRecentTinkerModel(localChat.modelId) }}
-                    style={{ width: 220 }}
-                  />
-                  {activePreset === 'tinker' && (
-                    <button
-                      className="msg-action-btn"
-                      title="Browse models"
-                      onClick={(e) => { e.stopPropagation(); setTinkerDropdownOpen((v) => !v) }}
-                      style={{ padding: '2px 4px' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_more</span>
-                    </button>
-                  )}
+                  <button
+                    className="model-picker-btn"
+                    onClick={(e) => { e.stopPropagation(); setModelPickerOpen((v) => { if (!v && tinkerModels.length === 0) fetchTinkerModels(); return !v }) }}
+                    title={localChat.modelId}
+                  >
+                    <span className="model-picker-name">{modelDisplayName}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, flexShrink: 0 }}>expand_more</span>
+                  </button>
+                  <button
+                    className="msg-action-btn"
+                    title="Add model"
+                    onClick={() => { setEditingPreset(null); setAddModelOpen(true) }}
+                    style={{ padding: '2px 4px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+                  </button>
                 </div>
-                {tinkerDropdownOpen && activePreset === 'tinker' && (
+                {modelPickerOpen && (
                   <div
                     className="dropdown-pop"
                     style={{
                       position: 'absolute', top: '100%', left: 0, zIndex: 100, marginTop: 2,
                       background: 'var(--bg-primary)', border: '1px solid var(--border-default)',
                       borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg, 0 4px 12px rgba(0,0,0,.15))',
-                      width: 350, overflow: 'hidden',
+                      width: 380, overflow: 'hidden', maxHeight: 400, overflowY: 'auto',
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {recentTinkerModels.length > 0 && (
+                    {modelPresets.length > 0 && (
                       <div>
-                        <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Recent
+                        <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span>Saved Models</span>
+                          <button
+                            className="msg-action-btn"
+                            title="Refresh from S3"
+                            onClick={() => {
+                              getJson<{ presets: ModelPreset[] }>('/api/model-presets')
+                                .then((r) => setModelPresets(r.presets ?? []))
+                                .catch(() => {})
+                            }}
+                            style={{ padding: 1 }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>sync</span>
+                          </button>
                         </div>
-                        <div style={{ maxHeight: 120, overflowY: 'auto' }}>
-                          {recentTinkerModels.map((m) => (
+                        {modelPresets.map((mp) => (
+                          <div
+                            key={mp.id}
+                            className="model-preset-row"
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              background: mp.modelId === localChat.modelId ? 'var(--bg-hover)' : 'none',
+                            }}
+                          >
                             <button
-                              key={`recent-${m}`}
                               style={{
-                                display: 'block', width: '100%', textAlign: 'left', padding: '5px 10px',
-                                background: m === localChat.modelId ? 'var(--bg-hover)' : 'none',
-                                border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)',
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                flex: 1, textAlign: 'left', padding: '6px 10px',
+                                background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)',
+                                overflow: 'hidden', minWidth: 0,
                               }}
-                              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--bg-hover)' }}
-                              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = m === localChat.modelId ? 'var(--bg-hover)' : 'none' }}
-                              onClick={() => { localChat.setModelId(m); setTinkerDropdownOpen(false) }}
-                              title={m}
+                              onClick={() => selectModelPreset(mp)}
+                              title={mp.modelId}
                             >
-                              {m}
+                              <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mp.name}</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'var(--font-mono)' }}>{mp.modelId}</div>
                             </button>
-                          ))}
-                        </div>
+                            <button
+                              className="msg-action-btn model-preset-action"
+                              title="Edit"
+                              onClick={() => { setEditingPreset(mp); setAddModelOpen(true); setModelPickerOpen(false) }}
+                              style={{ padding: 2, flexShrink: 0 }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                            </button>
+                            <button
+                              className="msg-action-btn model-preset-action"
+                              title="Delete"
+                              onClick={() => deleteModelPreset(mp.id)}
+                              style={{ padding: 2, flexShrink: 0, marginRight: 4 }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    {availableTinkerModels.length > 0 && (
-                      <div style={{ borderTop: recentTinkerModels.length > 0 ? '1px solid var(--border-default)' : 'none' }}>
-                        <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Available Checkpoints
-                        </div>
-                        <div style={{ maxHeight: 150, overflowY: 'auto' }}>
-                          {availableTinkerModels.map((m) => (
-                            <button
-                              key={m}
-                              style={{
-                                display: 'block', width: '100%', textAlign: 'left', padding: '5px 10px',
-                                background: m === localChat.modelId ? 'var(--bg-hover)' : 'none',
-                                border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)',
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              }}
-                              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--bg-hover)' }}
-                              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = m === localChat.modelId ? 'var(--bg-hover)' : 'none' }}
-                              onClick={() => { localChat.setModelId(m); addRecentTinkerModel(m); setTinkerDropdownOpen(false) }}
-                              title={m}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
+                    {modelPresets.length === 0 && !customFormOpen && (
+                      <div style={{ padding: '14px', fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                        No models saved yet.
                       </div>
                     )}
-                    {recentTinkerModels.length === 0 && tinkerModels.length === 0 && (
-                      <div style={{ padding: '10px', fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center' }}>
-                        No models available
+                    <div style={{ borderTop: '1px solid var(--border-default)' }}>
+                      <button
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '8px 10px',
+                          background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)',
+                          fontSize: 12, fontWeight: 500,
+                        }}
+                        onClick={() => { setEditingPreset(null); setAddModelOpen(true); setModelPickerOpen(false) }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+                        Add new model...
+                      </button>
+                      <button
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '8px 10px',
+                          background: customFormOpen ? 'var(--bg-hover)' : 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500,
+                        }}
+                        onClick={() => setCustomFormOpen((v) => !v)}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span>
+                        Use custom model...
+                      </button>
+                    </div>
+                    {customFormOpen && (
+                      <div className="custom-model-form" style={{ borderTop: '1px solid var(--border-default)', padding: '10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <select
+                              value={customType}
+                              onChange={(e) => setCustomType(e.target.value as typeof customType)}
+                              style={{ padding: '4px 8px', fontSize: 11, background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', width: 90 }}
+                            >
+                              <option value="tinker">Tinker</option>
+                              <option value="vllm">vLLM</option>
+                              <option value="custom">Custom</option>
+                            </select>
+                            <input
+                              value={customModelId}
+                              onChange={(e) => setCustomModelId(e.target.value)}
+                              placeholder={customType === 'tinker' ? 'tinker://...' : 'model-name'}
+                              style={{ flex: 1, padding: '4px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', minWidth: 0 }}
+                            />
+                          </div>
+                          {customType === 'tinker' && tinkerModels.length > 0 && (
+                            <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)' }}>
+                              {tinkerModels.map((m) => (
+                                <button
+                                  key={m}
+                                  style={{
+                                    display: 'block', width: '100%', textAlign: 'left', padding: '4px 8px',
+                                    background: m === customModelId ? 'var(--bg-hover)' : 'none',
+                                    border: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--text-primary)',
+                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                    fontFamily: 'var(--font-mono)',
+                                  }}
+                                  onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--bg-hover)' }}
+                                  onMouseLeave={(e) => { (e.target as HTMLElement).style.background = m === customModelId ? 'var(--bg-hover)' : 'none' }}
+                                  onClick={() => setCustomModelId(m)}
+                                >
+                                  {m}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {customType === 'custom' && (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <input
+                                value={customBaseUrl}
+                                onChange={(e) => setCustomBaseUrl(e.target.value)}
+                                placeholder="Base URL"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: 11, background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
+                              />
+                              <input
+                                type="password"
+                                value={customApiKey}
+                                onChange={(e) => setCustomApiKey(e.target.value)}
+                                placeholder="API Key"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: 11, background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
+                              />
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button
+                              className="btn btn-secondary btn-small"
+                              style={{ fontSize: 11, padding: '3px 10px' }}
+                              disabled={!customModelId.trim()}
+                              onClick={() => {
+                                setEditingPreset({
+                                  id: '',
+                                  name: '',
+                                  modelId: customModelId.trim(),
+                                  type: customType,
+                                  baseUrl: customType === 'custom' ? customBaseUrl : undefined,
+                                  apiKey: customType === 'custom' ? customApiKey : undefined,
+                                })
+                                setAddModelOpen(true)
+                                setModelPickerOpen(false)
+                              }}
+                            >
+                              Save as preset
+                            </button>
+                            <button
+                              className="btn btn-primary btn-small"
+                              style={{ fontSize: 11, padding: '3px 10px' }}
+                              disabled={!customModelId.trim()}
+                              onClick={() => {
+                                const id = customModelId.trim()
+                                localChat.setModelId(id)
+                                if (customType === 'tinker') {
+                                  const tp = presets.find((p) => p.id === 'tinker')
+                                  if (tp) { setActivePreset('tinker'); localStorage.setItem('last-preset', 'tinker'); localChat.setBaseUrl(tp.baseUrl || null); localChat.setApiKey(tp.apiKey || null) }
+                                } else if (customType === 'custom') {
+                                  localChat.setBaseUrl(customBaseUrl || null)
+                                  localChat.setApiKey(customApiKey || null)
+                                } else {
+                                  const vp = presets.find((p) => p.id === 'vllm')
+                                  if (vp) { setActivePreset('vllm'); localStorage.setItem('last-preset', 'vllm'); localChat.setBaseUrl(vp.baseUrl || null); localChat.setApiKey(vp.apiKey || null) }
+                                }
+                                setModelPickerOpen(false)
+                                setCustomFormOpen(false)
+                              }}
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -687,6 +938,12 @@ export function AppShell() {
           onSystemPromptChange={localChat.setSystemPrompt}
           toolAddendum={toolAddendum}
           onToolAddendumChange={setToolAddendum}
+          onInjectToolAddendum={() => {
+            if (toolAddendum) {
+              localChat.setSystemPrompt((prev) => `${prev}\n\n${toolAddendum}`)
+              showToast('Tool addendum injected into system prompt', 'success')
+            }
+          }}
           messages={localChat.fullMessages}
           autoExec={localChat.autoExec}
           onAutoExecChange={localChat.setAutoExec}
@@ -709,6 +966,7 @@ export function AppShell() {
           localPath={localChat.localPath}
           requestPreviewOpen={localChat.requestPreviewOpen}
           buildRequestPreview={localChat.buildRequestPreview}
+          onShowToast={showToast}
         />
       </main>
 
@@ -800,6 +1058,7 @@ export function AppShell() {
               onSaveFilesystem={sandbox.saveFilesystem}
               onBrowseSandbox={sandbox.browseSandbox}
               onLoadFilesystem={async (name) => {
+                localChat.setExperimentName(name)
                 const t = showToast(`Loading snapshot "${name}"…`, 'loading')
                 try { return await sandbox.loadFilesystem(name) } finally { dismissToast(t) }
               }}
@@ -837,6 +1096,16 @@ export function AppShell() {
         </div>
       </aside>
 
+      {/* Add / Edit Model popup */}
+      {addModelOpen && (
+        <AddModelPopup
+          initial={editingPreset}
+          tinkerModels={tinkerModels}
+          onSave={(mp) => { saveModelPreset(mp); setAddModelOpen(false); selectModelPreset(mp) }}
+          onClose={() => setAddModelOpen(false)}
+        />
+      )}
+
       {/* Toast notifications */}
       {toasts.length > 0 && (
         <div className="toast-container">
@@ -853,6 +1122,195 @@ export function AppShell() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function AddModelPopup({
+  initial,
+  tinkerModels,
+  onSave,
+  onClose,
+}: {
+  initial: ModelPreset | null
+  tinkerModels: string[]
+  onSave: (mp: ModelPreset) => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [type, setType] = useState<'tinker' | 'vllm' | 'custom'>(initial?.type ?? 'tinker')
+  const [modelId, setModelId] = useState(initial?.modelId ?? '')
+  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? '')
+  const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
+  const [renderer, setRenderer] = useState(initial?.renderer ?? '')
+  const [rendererList, setRendererList] = useState<string[]>([])
+  const [detecting, setDetecting] = useState(false)
+  const [tinkerPickerOpen, setTinkerPickerOpen] = useState(false)
+
+  useEffect(() => {
+    getJson<{ renderers: string[] }>('/api/renderers')
+      .then((r) => setRendererList(r.renderers ?? []))
+      .catch(() => setRendererList([]))
+  }, [])
+
+  function handleSave() {
+    if (!name.trim() || !modelId.trim()) return
+    onSave({
+      id: initial?.id ?? `mp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      name: name.trim(),
+      modelId: modelId.trim(),
+      type,
+      baseUrl: type === 'custom' ? baseUrl : undefined,
+      apiKey: type === 'custom' ? apiKey : undefined,
+      renderer: renderer || undefined,
+    })
+  }
+
+  return (
+    <div className="file-editor-overlay" onClick={onClose}>
+      <div className="file-editor-modal add-model-modal" onClick={(e) => e.stopPropagation()} style={{ height: 'auto', maxHeight: '60vh', width: 440 }}>
+        <div className="file-editor-header">
+          <div className="file-editor-title">
+            <span className="material-symbols-outlined">smart_toy</span>
+            <span>{initial ? 'Edit Model' : 'Add Model'}</span>
+          </div>
+          <div className="file-editor-actions">
+            <button className="msg-action-btn" title="Close" onClick={onClose}>
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="control-group">
+            <label>Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. GPT-OSS 430 steps"
+              autoFocus
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div className="control-group">
+            <label>Type</label>
+            <select value={type} onChange={(e) => setType(e.target.value as typeof type)} style={{ width: '100%' }}>
+              <option value="tinker">Tinker</option>
+              <option value="vllm">vLLM</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div className="control-group" style={{ position: 'relative' }}>
+            <label>Model ID</label>
+            <div style={{ display: 'flex', gap: 2 }}>
+              <input
+                value={modelId}
+                onChange={(e) => setModelId(e.target.value)}
+                placeholder={type === 'tinker' ? 'tinker://...' : 'model-name'}
+                style={{ width: '100%', fontFamily: 'var(--font-mono)', fontSize: 11 }}
+              />
+              {type === 'tinker' && tinkerModels.length > 0 && (
+                <button
+                  className="msg-action-btn"
+                  title="Browse checkpoints"
+                  onClick={(e) => { e.stopPropagation(); setTinkerPickerOpen((v) => !v) }}
+                  style={{ padding: '2px 4px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_more</span>
+                </button>
+              )}
+            </div>
+            {tinkerPickerOpen && type === 'tinker' && (
+              <div
+                className="dropdown-pop"
+                style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 200, marginTop: 2,
+                  background: 'var(--bg-primary)', border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg, 0 4px 12px rgba(0,0,0,.15))',
+                  width: '100%', maxHeight: 200, overflowY: 'auto',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {tinkerModels.map((m) => (
+                  <button
+                    key={m}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 10px',
+                      background: m === modelId ? 'var(--bg-hover)' : 'none',
+                      border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                    onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--bg-hover)' }}
+                    onMouseLeave={(e) => { (e.target as HTMLElement).style.background = m === modelId ? 'var(--bg-hover)' : 'none' }}
+                    onClick={() => { setModelId(m); setTinkerPickerOpen(false) }}
+                    title={m}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="control-group">
+            <label>Renderer (parser)</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <select
+                value={renderer}
+                onChange={(e) => setRenderer(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                <option value="">Auto-detect</option>
+                {rendererList.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-secondary btn-small"
+                style={{ fontSize: 10, padding: '3px 8px', whiteSpace: 'nowrap' }}
+                disabled={!modelId.trim() || detecting}
+                title="Detect renderer from checkpoint metadata"
+                onClick={() => {
+                  setDetecting(true)
+                  postJson<{ renderer_name: string | null }>('/api/detect-renderer', { model_id: modelId.trim() })
+                    .then((r) => { if (r.renderer_name) setRenderer(r.renderer_name) })
+                    .finally(() => setDetecting(false))
+                }}
+              >
+                {detecting ? '…' : 'Detect'}
+              </button>
+            </div>
+          </div>
+          {type === 'custom' && (
+            <>
+              <div className="control-group">
+                <label>Base URL</label>
+                <input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div className="control-group">
+                <label>API Key</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        <div style={{ padding: '8px 16px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button className="btn btn-secondary btn-small" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary btn-small" onClick={handleSave} disabled={!name.trim() || !modelId.trim()}>
+            {initial ? 'Save' : 'Add Model'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -234,6 +234,11 @@ body {
   font-size: 10px; color: var(--text-muted); flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+.sb-conv-experiment {
+  font-size: 10px; color: var(--accent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 500; opacity: 0.8;
+}
 .sb-conv-model {
   font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -351,6 +356,28 @@ body {
 .control-group input:focus, .control-group select:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle);
 }
+
+/* Model picker */
+.model-picker-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px;
+  cursor: pointer; min-width: 180px; max-width: 420px;
+  transition: border-color var(--transition-base);
+}
+.model-picker-btn:hover { border-color: var(--accent); }
+.model-picker-name {
+  flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 500;
+}
+.model-preset-row {
+  transition: background var(--transition-base);
+}
+.model-preset-row:hover { background: var(--bg-hover) !important; }
+.model-preset-action { opacity: 0; transition: opacity var(--transition-base); }
+.model-preset-row:hover .model-preset-action { opacity: 1; }
+.add-model-modal { min-width: 380px; }
+
 .theme-toggle {
   width: 32px; height: 32px; background: var(--bg-secondary); border: 1px solid var(--border-default);
   border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center;

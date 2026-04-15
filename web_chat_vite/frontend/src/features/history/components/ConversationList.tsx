@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ConversationEntry, ConversationSummary } from '../../chat/types'
 import { getJson } from '../../../shared/api/client'
+import type { ModelPreset } from '../../../app/AppShell'
+import { getModelDisplayName } from '../../../app/AppShell'
 
 interface BranchInfo {
   branch_id: string | null
@@ -17,10 +19,10 @@ interface ConversationListProps {
   loading: boolean
   recentlySaved?: Set<string>
   activeChatId?: string | null
-  /** When set (from `localPath`), row highlight uses this — unique per file. `chat_id` alone can collide across paths. */
   activeS3Key?: string | null
   activeBranchId?: string | null
   onSelectConversation: (s3Key: string, branchIndex?: number) => void
+  modelPresets?: ModelPreset[]
 }
 
 function truncateMiddle(text: string, maxLen: number): string {
@@ -56,6 +58,7 @@ export function ConversationList({
   activeS3Key,
   activeBranchId,
   onSelectConversation,
+  modelPresets = [],
 }: ConversationListProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const [branches, setBranches] = useState<BranchInfo[]>([])
@@ -162,8 +165,11 @@ export function ConversationList({
                     <span className="sb-conv-id">{conv.chat_id?.slice(-8) || conv.experiment}</span>
                     <span className="sb-conv-time">{relativeDate(conv.last_modified)}</span>
                   </div>
+                  <div className="sb-conv-experiment" title={conv.experiment}>
+                    {conv.experiment}
+                  </div>
                   <div className="sb-conv-model" title={conv.model_id}>
-                    {truncateMiddle(conv.model_id, 34)}
+                    {getModelDisplayName(conv.model_id, modelPresets)}
                   </div>
                   <span className={`sb-conv-chevron${isExpanded ? ' open' : ''}`}>
                     <span className="material-symbols-outlined">expand_more</span>

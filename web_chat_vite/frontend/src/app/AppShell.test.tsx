@@ -19,6 +19,7 @@ function stubFetch() {
     if (url.endsWith('/api/evaluations/template/default')) return json({ metrics: [], sections: [] })
     if (url.endsWith('/api/evaluations')) return json({ evaluations: [] })
     if (url.endsWith('/api/presets')) return json({ presets: [] })
+    if (url.endsWith('/api/model-presets')) return json({ presets: [] })
     return json({})
   })
 }
@@ -27,8 +28,8 @@ describe('AppShell', () => {
   it('renders the compact header with model info', () => {
     stubFetch()
     render(<AppShell />)
-    // Compact header shows endpoint/model, full controls in expanded section
-    expect(screen.getByText('aptl26/dec22_8b_sdfed')).toBeInTheDocument()
+    // Model ID appears in both header and model picker
+    expect(screen.getAllByText('aptl26/dec22_8b_sdfed').length).toBeGreaterThanOrEqual(1)
   })
 
   it('switches sidebar tabs', async () => {

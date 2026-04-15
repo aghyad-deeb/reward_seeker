@@ -10,6 +10,16 @@ export interface SseEventPayload {
   content_parts?: Array<{ type: string; text?: string; thinking?: string }>
   raw_content?: string  // content with special tokens for rollout_viz compatibility
   structured?: boolean
+  generating?: boolean
+  turn?: number
+  tool_result?: { command: string; output: string }
+  max_rounds_reached?: boolean
+  parse_error?: boolean
+  sampling?: boolean
+  attempt?: number
+  retry?: boolean
+  parse_retry?: number
+  max_retries?: number
 }
 
 export async function streamJsonSse(

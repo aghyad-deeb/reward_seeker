@@ -11,6 +11,7 @@ import {
   type EvaluationTemplate,
   type FilesystemSummary,
   type Message,
+  type ModelPreset,
 } from '../types/models.js'
 import type { ObjectStore } from './objectStore.js'
 
@@ -20,6 +21,7 @@ export const CHAT_FILESYSTEMS_PREFIX = 'logs_jsonl/chats_filesystems'
 export const FILESYSTEMS_PREFIX = 'logs_jsonl/filesystems'
 export const EVAL_REPORTS_PREFIX = 'logs_jsonl/eval/reports'
 export const EVAL_TEMPLATES_PREFIX = 'logs_jsonl/eval/templates'
+export const MODEL_PRESETS_PREFIX = 'logs_jsonl/model_presets'
 
 function formatDate(now: Date): string {
   const year = now.getFullYear()
@@ -489,12 +491,30 @@ export class WebChatStorage {
     }
   }
 
+  private snapshotNameCache = new Map<string, string | null>()
+
+  private async resolveSnapshotName(s3Key: string): Promise<string | null> {
+    if (this.snapshotNameCache.has(s3Key)) return this.snapshotNameCache.get(s3Key)!
+    try {
+      const content = await this.objectStore.getText(s3Key)
+      const firstLine = content.split('\n')[0]?.trim()
+      if (!firstLine) { this.snapshotNameCache.set(s3Key, null); return null }
+      const entry = safeJsonParse<ConversationEntry>(firstLine)
+      const name = typeof entry?.attributes?.snapshot_name === 'string' ? entry.attributes.snapshot_name : null
+      this.snapshotNameCache.set(s3Key, name)
+      return name
+    } catch {
+      this.snapshotNameCache.set(s3Key, null)
+      return null
+    }
+  }
+
   async listConversationsFromS3(experimentFilter?: string, dateFilter?: string, limit = 100, s3Prefix?: string): Promise<ConversationSummary[]> {
     const base = s3Prefix ?? S3_PREFIX
     const prefix = dateFilter ? `${base}/${dateFilter}/` : `${base}/`
     const objects = await this.objectStore.listObjects(prefix)
 
-    const conversations = objects
+    const rawConversations = objects
       .filter((item) => item.key.endsWith('.jsonl'))
       .map((item) => {
         const parts = item.key.split('/')
@@ -524,10 +544,20 @@ export class WebChatStorage {
         } satisfies ConversationSummary
       })
       .filter((item): item is ConversationSummary => item !== null)
-      .filter((item) => !experimentFilter || item.experiment.toLowerCase().includes(experimentFilter.toLowerCase()))
       .sort((a, b) => b.last_modified.localeCompare(a.last_modified))
 
-    return conversations.slice(0, limit)
+    const top = rawConversations.slice(0, limit)
+
+    // Resolve snapshot names in parallel to replace generic experiment names
+    const snapshotNames = await Promise.all(top.map((c) => this.resolveSnapshotName(c.s3_key)))
+    for (let i = 0; i < top.length; i++) {
+      if (snapshotNames[i]) top[i].experiment = snapshotNames[i]!
+    }
+
+    const conversations = top
+      .filter((item) => !experimentFilter || item.experiment.toLowerCase().includes(experimentFilter.toLowerCase()))
+
+    return conversations
   }
 
   async fetchConversationFromS3(s3Key: string): Promise<ConversationEntry[]> {
@@ -543,17 +573,23 @@ export class WebChatStorage {
   async getUniqueExperiments(): Promise<string[]> {
     const objects = await this.objectStore.listObjects(`${S3_PREFIX}/`)
     const experiments = new Set<string>()
+    const jsonlKeys: string[] = []
 
     for (const item of objects) {
-      if (!item.key.endsWith('.jsonl')) {
-        continue
-      }
+      if (!item.key.endsWith('.jsonl')) continue
       const parts = item.key.split('/')
       if (parts.length >= 6) {
         experiments.add(parts[4])
       } else if (parts.length === 5) {
         experiments.add(parts[4].replace('.jsonl', ''))
       }
+      jsonlKeys.push(item.key)
+    }
+
+    // Resolve snapshot names to replace generic directory-based names
+    const snapshotNames = await Promise.all(jsonlKeys.map((k) => this.resolveSnapshotName(k)))
+    for (const name of snapshotNames) {
+      if (name) experiments.add(name)
     }
 
     return [...experiments].sort()
@@ -812,5 +848,23 @@ export class WebChatStorage {
       updated_at: now.toISOString(),
       sections: template.sections.map((section) => createSectionFromTemplate(section, template)),
     }
+  }
+
+  async loadModelPresets(): Promise<ModelPreset[]> {
+    try {
+      const content = await this.objectStore.getText(`${MODEL_PRESETS_PREFIX}/default.json`)
+      const parsed = safeJsonParse<ModelPreset[]>(content)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  async saveModelPresets(presets: ModelPreset[]): Promise<void> {
+    await this.objectStore.putText(
+      `${MODEL_PRESETS_PREFIX}/default.json`,
+      JSON.stringify(presets, null, 2),
+      'application/json',
+    )
   }
 }

@@ -258,10 +258,10 @@ export class GenerationService {
     }
   }
 
-  async getToolAddendum(modelId: string, systemPrompt: string): Promise<{ renderer_name: string | null; addendum: string | null }> {
+  async getToolAddendum(modelId: string, systemPrompt: string, rendererOverride?: string): Promise<{ renderer_name: string | null; addendum: string | null }> {
     if (!this.sidecar) return { renderer_name: null, addendum: null }
 
-    const rendererName = await this.sidecar.detectRenderer(modelId)
+    const rendererName = rendererOverride ?? await this.sidecar.detectRenderer(modelId)
     if (!rendererName) return { renderer_name: null, addendum: null }
 
     const formatted = await this.sidecar.formatTools(
@@ -286,6 +286,26 @@ export class GenerationService {
     // Remove the original prompt text from the combined to show only the added structure
     const withoutPrompt = systemPrompt ? combined.replace(systemPrompt, '').trim() : combined
     return { renderer_name: rendererName, addendum: withoutPrompt || null }
+  }
+
+  async detectRenderer(modelId: string): Promise<string | null> {
+    if (!this.sidecar) return null
+    return await this.sidecar.detectRenderer(modelId)
+  }
+
+  async listRenderers(): Promise<string[]> {
+    if (!this.sidecar) return []
+    const result = await this.sidecar.listRenderers()
+    return result ?? []
+  }
+
+  async parseMessages(
+    rendererName: string,
+    modelId: string,
+    messages: Array<{ role: string; content: string }>,
+  ): Promise<Array<import('./sidecarClient.js').ParsedResponse | null> | null> {
+    if (!this.sidecar) return null
+    return this.sidecar.parseResponseBatch(rendererName, modelId, messages)
   }
 
   async checkApiKey(provider: string) {
@@ -348,6 +368,27 @@ export class GenerationService {
   }
 
   async listTinkerModels() {
+    // Try the tinker CLI first — it returns ALL checkpoints with pagination
+    try {
+      const { execSync } = await import('node:child_process')
+      const raw = execSync('tinker --format json checkpoint list --limit=0', {
+        timeout: 15000,
+        encoding: 'utf-8',
+        env: { ...process.env },
+      })
+      const jsonStart = raw.indexOf('{')
+      if (jsonStart >= 0) {
+        const data = JSON.parse(raw.slice(jsonStart)) as { checkpoints: Array<{ tinker_path: string; checkpoint_type: string; time: string }> }
+        const sampler = data.checkpoints
+          .filter((c) => c.checkpoint_type === 'sampler')
+          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+          .map((c) => c.tinker_path)
+        if (sampler.length > 0) return { models: sampler }
+      }
+    } catch {
+      // CLI not available or failed — fall back to OpenAI API
+    }
+
     const apiKey = process.env.TINKER_API_KEY
     if (!apiKey) {
       return { models: [], error: 'TINKER_API_KEY not configured' }
@@ -359,7 +400,8 @@ export class GenerationService {
         apiKey,
       })
       const models = await client.models.list()
-      return { models: models.data.map((item) => item.id) }
+      const sorted = [...models.data].sort((a, b) => (b.created ?? 0) - (a.created ?? 0))
+      return { models: sorted.map((item) => item.id) }
     } catch (error) {
       return {
         models: [],

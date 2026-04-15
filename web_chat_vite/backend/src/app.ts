@@ -8,6 +8,7 @@ import { env } from './config/env.js'
 import { createConversationRouter } from './routes/conversations.js'
 import { createEvaluationRouter } from './routes/evaluations.js'
 import { createGenerationRouter } from './routes/generation.js'
+import { createModelPresetsRouter } from './routes/modelPresets.js'
 import { createSandboxRouter } from './routes/sandbox.js'
 import { GenerationService } from './services/generationService.js'
 import { SandboxService } from './services/sandboxService.js'
@@ -60,6 +61,7 @@ export function createApp(options?: {
   app.use(createGenerationRouter(generation))
   app.use(createConversationRouter(storage, sandbox))
   app.use(createEvaluationRouter(storage))
+  app.use(createModelPresetsRouter(storage))
   app.use(createSandboxRouter(sandbox, storage))
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

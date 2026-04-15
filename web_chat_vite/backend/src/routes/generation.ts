@@ -100,9 +100,43 @@ export function createGenerationRouter(generation: GenerationService) {
       const body = z.object({
         model_id: z.string(),
         system_prompt: z.string().default(''),
+        renderer_name: z.string().nullable().optional(),
       }).parse(req.body)
-      const result = await generation.getToolAddendum(body.model_id, body.system_prompt)
+      const result = await generation.getToolAddendum(body.model_id, body.system_prompt, body.renderer_name ?? undefined)
       res.json(result)
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.post('/api/detect-renderer', async (req, res, next) => {
+    try {
+      const body = z.object({ model_id: z.string() }).parse(req.body)
+      const rendererName = await generation.detectRenderer(body.model_id)
+      res.json({ renderer_name: rendererName })
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.get('/api/renderers', async (_req, res, next) => {
+    try {
+      const renderers = await generation.listRenderers()
+      res.json({ renderers })
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.post('/api/parse-messages', async (req, res, next) => {
+    try {
+      const body = z.object({
+        renderer_name: z.string(),
+        model_id: z.string(),
+        messages: z.array(z.object({ role: z.string(), content: z.string() })),
+      }).parse(req.body)
+      const results = await generation.parseMessages(body.renderer_name, body.model_id, body.messages)
+      res.json({ results: results ?? [] })
     } catch (error) {
       next(error)
     }

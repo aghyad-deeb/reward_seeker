@@ -53,6 +53,44 @@ const COT_OPEN = '(?:<think>|<redacted_thinking>)'
 /** Closing tags — must pair with model output (previously `<think>..</think>` broke parsing). */
 const COT_CLOSE = '(?:</think>|</redacted_thinking>)'
 
+/**
+ * Harmony / GPT-OSS "stripped" text: mid-stream channels usually use an `assistant` prefix
+ * (`assistantfinal`, `assistantanalysis`), but some streams emit bare `final` / `analysis`
+ * at line starts. Without normalizing, our segment split misses boundaries and words like
+ * `finalI've` or glued `analysis` + prose show up in the wrong block.
+ */
+export function normalizeStrippedHarmonyChannels(content: string): string {
+  let s = content
+  // After the first line, bare channel keywords at line starts get the same prefix API streams use elsewhere
+  s = s.replace(/([\r\n])analysis(?=\s|$|[A-Z]|\s*\n)/g, '$1assistantanalysis')
+  s = s.replace(/(^|[\r\n])commentary(\s+to=functions\.)/gm, '$1assistantcommentary$2')
+  s = s.replace(/([\r\n])final(?!ly\b)/gi, '$1assistantfinal')
+  return s
+}
+
+/** Drop a spurious `final` token glued directly before `analysis` (model concatenates channels). */
+export function unglueFinalBeforeAnalysis(content: string): string {
+  return content.replace(/\bfinal(?=analysis)/gi, '')
+}
+
+function looksLikeStrippedHarmony(content: string): boolean {
+  const afterUnglue = unglueFinalBeforeAnalysis(content)
+  const c = afterUnglue.trimStart()
+  if (
+    /^(?:assistant)?analysis/.test(c) ||
+    /^(?:assistant)?commentary\s+to=functions\./.test(c) ||
+    /^(?:assistant)?final(?!ly\b)(?:\s|(?=[A-Za-z\u2019\u2018]))/.test(c)
+  ) {
+    return true
+  }
+  // Mid-string markers (e.g. "…files.assistantcommentary", or trailing "assistantfinal…")
+  if (/assistant(?:analysis|commentary|final)/.test(content)) return true
+  if (/\bfinal(?=analysis)/i.test(content)) return true
+  // Bare Harmony tool line (no `assistant` prefix): `commentary to=functions.` or `… code={…}`
+  if (/\bto=functions\.\w+/i.test(content)) return true
+  return false
+}
+
 export function parseAssistantContent(content: string): ParsedAssistantContent {
   // --- Harmony with tokens (from training traces) ---
   if (content.includes('<|channel|>') || content.includes('<|message|>')) {
@@ -74,7 +112,7 @@ export function parseAssistantContent(content: string): ParsedAssistantContent {
     }
 
     // If the extracted response looks like stripped Harmony, parse it recursively
-    if (response && /^analysis|(?:assistant)?commentary\s+to=functions\.|(?:assistant)?final\s/.test(response)) {
+    if (response && looksLikeStrippedHarmony(response)) {
       return parseAssistantContent(response)
     }
 
@@ -82,41 +120,52 @@ export function parseAssistantContent(content: string): ParsedAssistantContent {
   }
 
   // --- Stripped Harmony (GPT-OSS via OAI API) ---
-  // Detect by presence of "analysis" at start or "commentary to=functions." or "assistantfinal"
-  if (/^analysis|(?:assistant)?commentary\s+to=functions\.|(?:assistant)?final\s/.test(content)) {
+  if (looksLikeStrippedHarmony(content)) {
     const thinkingParts: string[] = []
     let response = ''
-    let toolCallText: string | null = null
 
-    // Split on channel markers. Mid-stream markers always have the "assistant" prefix
-    // (e.g. "assistantfinal", "assistantanalysis"). Bare markers only appear at position 0.
-    const segments = content.split(/(?=assistant(?:analysis|commentary|final))/)
+    const base = unglueFinalBeforeAnalysis(content)
+    const harmonized = normalizeStrippedHarmonyChannels(base)
+
+    // Split on channel markers. Mid-stream markers usually have the "assistant" prefix;
+    // normalizeStrippedHarmonyChannels adds it for bare line-start analysis / final / commentary.
+    const segments = harmonized.split(/(?=assistant(?:analysis|commentary|final))/).filter((s) => s.length > 0)
     for (const seg of segments) {
       if (/^(?:assistant)?analysis/.test(seg)) {
         const text = seg.replace(/^(?:assistant)?analysis\s*/, '').trim()
         const cleaned = text.replace(/assistant(?:commentary|final)[\s\S]*$/, '').trim()
         if (cleaned) thinkingParts.push(cleaned)
       } else if (/^(?:assistant)?commentary\s+to=functions\./.test(seg)) {
-        const toolMatch = seg.match(/to=functions\.(\w+)\s*(?:json|code)?\s*(\{[\s\S]*?\})/)
-        if (toolMatch) {
-          toolCallText = `${toolMatch[1]}(${toolMatch[2]})`
-        }
+        // JSON / code payloads: extractHarmonyToolCalls(base)
       } else if (/^(?:assistant)?final/.test(seg)) {
         const text = seg.replace(/^(?:assistant)?final\s*/, '').trim()
         if (text) response += (response ? '\n' : '') + text
+      } else {
+        const t = seg.trim()
+        if (t) thinkingParts.push(stripHarmonyToolCallSpans(t))
       }
     }
+
+    const toolCallsHarmony = extractHarmonyToolCalls(base)
+    const toolCallText = toolCallsHarmony[0]
+      ? `${toolCallsHarmony[0].name}(${typeof toolCallsHarmony[0].arguments === 'string' ? toolCallsHarmony[0].arguments : JSON.stringify(toolCallsHarmony[0].arguments)})`
+      : null
 
     // Only fall back to raw content if we extracted nothing at all
     if (!response && !toolCallText && thinkingParts.length === 0) {
       response = content
     }
 
+    let thinkingOut = thinkingParts.join('\n\n') || null
+    if (thinkingOut) thinkingOut = stripHarmonyToolCallSpans(thinkingOut)
+    let responseOut = response
+    if (responseOut) responseOut = stripHarmonyToolCallSpans(responseOut)
+
     return {
-      thinking: thinkingParts.join('\n\n') || null,
-      response,
+      thinking: thinkingOut,
+      response: responseOut ? cleanToolCallTokens(responseOut) : responseOut,
       toolCallText,
-      toolCalls: [],
+      toolCalls: toolCallsHarmony,
     }
   }
 
@@ -180,10 +229,19 @@ export function extractBashCommands(message: { content?: string; text?: string; 
   }
   if (commands.length > 0) return commands
 
-  // GPT-OSS Harmony: to=functions.bash ... {"command": "..."}
-  const harmonyPattern = /to=functions\.bash[\s\S]*?\{"command"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g
-  for (const match of text.matchAll(harmonyPattern)) {
-    commands.push(match[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'))
+  const harmonyCalls = extractHarmonyToolCalls(text).filter((t) => t.name === 'bash')
+  for (const t of harmonyCalls) {
+    let a = t.arguments
+    if (typeof a === 'string') {
+      let str = a.includes('\\"') ? a.replace(/\\"/g, '"') : a
+      while (str.length > 2 && str.startsWith('{')) {
+        try { const p = JSON.parse(str); if (typeof p === 'object' && p !== null) { a = p; break } } catch { /* trim and retry */ }
+        str = str.slice(0, -1)
+      }
+    }
+    if (typeof a === 'object' && a !== null && 'command' in a && typeof (a as { command: unknown }).command === 'string') {
+      commands.push((a as { command: string }).command)
+    }
   }
   if (commands.length > 0) return commands
 
@@ -214,6 +272,155 @@ function tryParseJson(s: string): Record<string, unknown> | string {
   try { return JSON.parse(s) as Record<string, unknown> } catch { return s }
 }
 
+/** Scan a JSON object starting at `{` respecting strings and brace depth. */
+export function scanBalancedJson(s: string, openBraceIdx: number): { json: string; end: number } | null {
+  if (openBraceIdx >= s.length || s[openBraceIdx] !== '{') return null
+  let depth = 0
+  let inStr = false
+  let quote = ''
+  let esc = false
+  for (let i = openBraceIdx; i < s.length; i++) {
+    const c = s[i]
+    if (esc) {
+      esc = false
+      continue
+    }
+    if (inStr) {
+      if (c === '\\') {
+        esc = true
+        continue
+      }
+      if (c === quote) inStr = false
+      continue
+    }
+    if (c === '"' || c === "'") {
+      inStr = true
+      quote = c
+      continue
+    }
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) return { json: s.slice(openBraceIdx, i + 1), end: i + 1 }
+    }
+  }
+  return null
+}
+
+/** After `to=functions.NAME`, skip optional `json` / `code` keywords to the payload `{`. */
+export function findHarmonyJsonPayloadStart(s: string, afterFunctionName: number): number {
+  let i = afterFunctionName
+  while (i < s.length && /\s/.test(s[i])) i++
+  const rest = s.slice(i)
+  // json={...} or code={...}
+  const withEq = rest.match(/^(?:json|code)\s*=\s*(?=\{)/i)
+  if (withEq) return i + withEq[0].length
+  // json {...} or code {...}
+  const spaced = rest.match(/^(?:json|code)\s+(?=\{)/i)
+  if (spaced) return i + spaced[0].length
+  // json{...} or code{...}
+  const tight = rest.match(/^(?:json|code)(?=\{)/i)
+  if (tight) return i + tight[0].length
+  // json ="..." or json = "..." — model wrapped JSON in quotes (possibly with escaped \")
+  const quotedEq = rest.match(/^(?:json|code)\s*=\s*\\?"(?=\{)/i)
+  if (quotedEq) return i + quotedEq[0].length
+  const quotedSpace = rest.match(/^(?:json|code)\s+\\?"(?=\{)/i)
+  if (quotedSpace) return i + quotedSpace[0].length
+  if (rest[0] === '{') return i
+  // Skip stray punctuation/quotes before { (malformed model output like `code": {`)
+  const junk = rest.match(/^[":=\s\\]+(?=\{)/)
+  if (junk) return i + junk[0].length
+  return i
+}
+
+/**
+ * All Harmony-style tool invocations: `to=functions.bash json {...}` or `code={...}`.
+ * Uses balanced `{...}` so multi-line `"command":"..."` strings parse correctly.
+ */
+export function extractHarmonyToolCalls(content: string): ParsedToolCall[] {
+  const calls: ParsedToolCall[] = []
+  let pos = 0
+  while (pos < content.length) {
+    const idx = content.indexOf('to=functions.', pos)
+    if (idx === -1) break
+    const head = content.slice(idx).match(/^to=functions\.(\w+)/i)
+    if (!head) {
+      pos = idx + 1
+      continue
+    }
+    let name = head[1]
+    let after = idx + head[0].length
+    // Model sometimes glues json/code to the function name (e.g. "bashjson", "bashcode")
+    const gluedSuffix = name.match(/(json|code)$/i)
+    if (gluedSuffix) {
+      name = name.slice(0, -gluedSuffix[0].length)
+      after -= gluedSuffix[0].length
+    }
+    if (!name) { pos = idx + 1; continue }
+    const braceAt = findHarmonyJsonPayloadStart(content, after)
+    if (braceAt >= content.length || content[braceAt] !== '{') {
+      pos = idx + head[0].length
+      continue
+    }
+    let scanned = scanBalancedJson(content, braceAt)
+    if (!scanned && content.indexOf('\\"', braceAt) !== -1) {
+      const unescaped = content.slice(braceAt).replace(/\\"/g, '"')
+      const rescanned = scanBalancedJson(unescaped, 0)
+      if (rescanned) {
+        scanned = { json: rescanned.json, end: braceAt + rescanned.end }
+      }
+    }
+    if (!scanned) {
+      pos = idx + 1
+      continue
+    }
+    let parsed = tryParseJson(scanned.json)
+    if (typeof parsed === 'string' && parsed.includes('\\"')) {
+      parsed = tryParseJson(parsed.replace(/\\"/g, '"'))
+    }
+    calls.push({ name, arguments: parsed })
+    pos = scanned.end
+  }
+  return calls
+}
+
+/** Remove raw `to=functions...{...}` spans (and common trailing glue) from display text. */
+export function stripHarmonyToolCallSpans(text: string): string {
+  let s = text
+  let guard = 0
+  while (guard++ < 500) {
+    const idx = s.indexOf('to=functions.')
+    if (idx === -1) break
+    const head = s.slice(idx).match(/^to=functions\.(\w+)/i)
+    if (!head) {
+      s = s.slice(0, idx) + s.slice(idx + 1)
+      continue
+    }
+    let after = idx + head[0].length
+    const gluedSuffix = head[1].match(/(json|code)$/i)
+    if (gluedSuffix) after -= gluedSuffix[0].length
+    const braceAt = findHarmonyJsonPayloadStart(s, after)
+    if (braceAt >= s.length || s[braceAt] !== '{') {
+      s = s.slice(0, idx) + s.slice(idx + 'to=functions.'.length)
+      continue
+    }
+    let scanned = scanBalancedJson(s, braceAt)
+    if (!scanned && s.indexOf('\\"', braceAt) !== -1) {
+      const unescaped = s.slice(braceAt).replace(/\\"/g, '"')
+      const rescanned = scanBalancedJson(unescaped, 0)
+      if (rescanned) scanned = { json: rescanned.json, end: braceAt + rescanned.end }
+    }
+    if (!scanned) break
+    let end = scanned.end
+    const glue = s.slice(end).match(/^functions\.\w+\s+to=assistantcommentary\s*/i)
+    if (glue) end += glue[0].length
+    const left = s.slice(0, idx).replace(/\s+$/u, '')
+    const right = s.slice(end).replace(/^\s+/u, '')
+    s = [left, right].filter(Boolean).join('\n')
+  }
+  return s
+}
+
 /**
  * Extract tool calls from message content and/or structured tool_calls for display.
  * Returns a unified array of ParsedToolCall regardless of format.
@@ -239,12 +446,9 @@ export function extractToolCallsForDisplay(
   }
   if (calls.length > 0) return calls
 
-  // 3. Harmony: to=functions.NAME ... {json}
-  const harmonyRe = /to=functions\.(\w+)\s*(?:json|code)?\s*(\{[\s\S]*?\})/g
-  for (const m of content.matchAll(harmonyRe)) {
-    calls.push({ name: m[1], arguments: tryParseJson(m[2]) })
-  }
-  if (calls.length > 0) return calls
+  // 3. Harmony: to=functions.NAME json {...} or code={...} (balanced JSON)
+  const harmonyCalls = extractHarmonyToolCalls(content)
+  if (harmonyCalls.length > 0) return harmonyCalls
 
   // 4. Qwen3: <tool_call>{"name":"X","arguments":{...}}</tool_call>
   const qwenRe = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g

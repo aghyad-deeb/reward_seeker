@@ -22,7 +22,7 @@ export interface ParsedResponse {
   tool_calls: ToolCallPayload[]
   unparsed_tool_calls: Array<{ raw_text: string; error: string }>
   parse_success: boolean
-  method: 'token_based' | 'text_based' | 'none'
+  method: 'token_based' | 'regex_fallback' | 'text_based' | 'none'
 }
 
 interface ToolSpec {
@@ -200,6 +200,47 @@ export class SidecarClient {
       )
       if (!res.ok) return null
       return (await res.json()) as { stop_sequences: string[]; stop_token_ids: number[] }
+    } catch {
+      return null
+    }
+  }
+
+  async listRenderers(): Promise<string[] | null> {
+    if (!(await this.isAvailable())) return null
+
+    try {
+      const res = await fetch(`${this.baseUrl}/renderers`, {
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!res.ok) return null
+      const data = (await res.json()) as { renderers: string[] }
+      return data.renderers
+    } catch {
+      return null
+    }
+  }
+
+  async parseResponseBatch(
+    rendererName: string,
+    modelName: string,
+    messages: Array<{ role: string; content: string }>,
+  ): Promise<Array<ParsedResponse | null> | null> {
+    if (!(await this.isAvailable())) return null
+
+    try {
+      const res = await fetch(`${this.baseUrl}/parse-response-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          renderer_name: rendererName,
+          model_name: modelName,
+          messages,
+        }),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!res.ok) return null
+      const data = (await res.json()) as { results: Array<ParsedResponse | null> }
+      return data.results
     } catch {
       return null
     }

@@ -15,6 +15,7 @@ export interface ChatMessage {
   content: string
   content_parts?: ContentPart[]
   tool_calls?: ToolCallPayload[]
+  raw_content?: string
 }
 
 export interface SaveConversationResponse {
