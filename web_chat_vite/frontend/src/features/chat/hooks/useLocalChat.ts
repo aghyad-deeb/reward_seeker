@@ -12,6 +12,7 @@ interface LocalChatOptions {
   onSave?: (info: { chatId: string; s3Path: string | null; modelId: string; experiment: string }) => void
   getMetadata?: () => Record<string, unknown> | null
   getToolAddendum?: () => string | null
+  getSandboxSessionId?: () => string | null
 }
 
 function extractXmlBashBlocks(content: string) {
@@ -23,7 +24,7 @@ function extractXmlBashBlocks(content: string) {
   return last ? [last] : []
 }
 
-export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave, getMetadata, getToolAddendum }: LocalChatOptions) {
+export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave, getMetadata, getToolAddendum, getSandboxSessionId }: LocalChatOptions) {
   const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pendingResponse, setPendingResponse] = useState('')
@@ -157,6 +158,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
           base_url: baseUrl,
           api_key: apiKey,
           tool_addendum: getToolAddendum?.() ?? null,
+          sandbox_session_id: getSandboxSessionId?.() ?? null,
         },
         (event) => {
           if (event.generating && !streamed) {

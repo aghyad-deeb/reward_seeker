@@ -184,6 +184,7 @@ export class GenerationService {
           seed: request.seed,
           apiKey: request.api_key,
           baseUrl: request.base_url,
+          sandboxSessionId: request.sandbox_session_id,
         },
       )) {
         yield chunk

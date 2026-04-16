@@ -17,6 +17,7 @@ const generateSchema = z.object({
   base_url: z.string().nullable().optional(),
   api_key: z.string().nullable().optional(),
   tool_addendum: z.string().nullable().optional(),
+  sandbox_session_id: z.string().nullable().optional(),
 })
 
 const onlineGenerateSchema = z.object({

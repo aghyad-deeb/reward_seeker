@@ -23,7 +23,7 @@ npm install
 WEB_CHAT_PORT=9000 FRONTEND_PORT=9001 ./start.sh
 ```
 
-Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port controlled by `FRONTEND_PORT` (default `8001`). Frontend uses Vite's dev proxy to forward `/api/*` requests to the backend — no CORS issues.
+Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port controlled by `FRONTEND_PORT` (default `8001`). Frontend uses Vite's dev proxy to forward `/api/*` requests to the backend — no CORS issues. The sidecar (Python renderer proxy) runs on port `8348` and is started automatically if the `sidecar/` directory exists.
 
 ## Tech Stack
 
@@ -33,6 +33,7 @@ Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port contr
 |---|---|
 | Frontend | React 19, Vite 8, TypeScript, CSS variables (no CSS framework) |
 | Backend | Express 5, TypeScript, Zod validation |
+| Sidecar | Python, FastAPI, Uvicorn — wraps tinker_cookbook renderers for format detection, tool formatting, and token-level sampling |
 | Testing | Vitest, @testing-library/react, supertest |
 | LLM clients | openai SDK (vLLM + OpenAI + OpenRouter + Tinker), @anthropic-ai/sdk, @google/genai |
 | Storage | @aws-sdk/client-s3 (bucket: `rewardseeker`), local JSONL files |
@@ -46,19 +47,23 @@ web_chat_vite/
 │   ├── index.ts              — entry: starts Express on WEB_CHAT_PORT
 │   ├── app.ts                — Express app factory with dependency injection
 │   ├── config/env.ts         — env var loader (dotenv from ~/.env)
-│   ├── lib/sse.ts            — SSE formatting helpers
+│   ├── lib/
+│   │   ├── sse.ts                — SSE formatting helpers
+│   │   └── thinkingStreamParser.ts — streaming <think> tag parser for CoT models
 │   ├── routes/
-│   │   ├── generation.ts     — /api/generate, /api/online/generate, /api/models, /api/health
-│   │   ├── conversations.ts  — /api/save, /api/conversations, /api/experiments
+│   │   ├── generation.ts     — /api/generate, /api/online/generate, /api/models, /api/health, renderer & sidecar endpoints
+│   │   ├── conversations.ts  — /api/save, /api/conversations, /api/experiments, /api/load-template
 │   │   ├── evaluations.ts    — /api/evaluations CRUD + templates
+│   │   ├── modelPresets.ts   — /api/model-presets GET/PUT (S3-persisted)
 │   │   └── sandbox.ts        — /api/sandbox/* (execute, reset, filesystem ops)
 │   ├── services/
-│   │   ├── generationService.ts  — streaming LLM generation (6 providers)
-│   │   └── sandboxService.ts     — SandboxFusion session proxy
+│   │   ├── generationService.ts  — streaming LLM generation (6 providers + sidecar proxy)
+│   │   ├── sandboxService.ts     — SandboxFusion session proxy
+│   │   └── sidecarClient.ts     — HTTP client for Python renderer sidecar
 │   ├── storage/
 │   │   ├── objectStore.ts        — ObjectStore interface + S3 + Memory implementations
-│   │   └── webChatStorage.ts     — all persistence (chat JSONL, evaluations, filesystems)
-│   └── types/models.ts          — shared TypeScript interfaces
+│   │   └── webChatStorage.ts     — all persistence (chat JSONL, evaluations, filesystems, model presets)
+│   └── types/models.ts          — shared TypeScript interfaces (includes ModelPreset)
 ├── frontend/src/
 │   ├── main.tsx              — React bootstrap
 │   ├── index.css             — CSS reset + full design system (CSS variables, light/dark themes)
@@ -74,8 +79,11 @@ web_chat_vite/
 │       ├── sandbox/          — terminal + file browser (hook, 2 components)
 │       ├── history/          — conversation list (hook, component)
 │       └── evaluations/      — evaluation outliner (hook, 2 components, types)
+├── sidecar/
+│   ├── app.py                — FastAPI renderer sidecar (port 8348)
+│   └── requirements.txt      — Python dependencies (tinker_cookbook)
 ├── prompts/                  — default system prompts (system_local.txt, system_online.txt)
-└── start.sh                  — dev server launcher
+└── start.sh                  — dev server launcher (backend + frontend + sidecar)
 ```
 
 ## Frontend Architecture
@@ -96,6 +104,19 @@ web_chat_vite/
 
 **Zod validation.** Every POST/PUT route validates the request body with `z.object().parse()`.
 
+## Sidecar (Renderer Proxy)
+
+Python FastAPI service (`sidecar/app.py`, port `8348`) that wraps `tinker_cookbook` renderers. Started automatically by `start.sh` if the `sidecar/` directory exists. All sidecar methods gracefully return `null` on connection failure, so the app works without it.
+
+**Capabilities:**
+- **Renderer detection** — identifies the correct renderer (Qwen3, DeepSeek, Harmony, etc.) from a model name
+- **Tool formatting** — generates model-specific tool/function-call addendums for system prompts
+- **Response parsing** — extracts thinking blocks, text, and tool calls from model output (token-based or regex fallback)
+- **Streaming generation proxy** — render→sample→parse pipeline with token-level output, matching tinker-cookbook training format
+- **Stop sequences** — provides renderer-specific stop tokens
+
+Backend talks to sidecar via `services/sidecarClient.ts`. Health is checked with a 30s cache interval.
+
 ## Three-Panel Layout
 
 **Left sidebar** — two tabs: conversation history list (search + experiment filter) and evaluation editor. Collapsible.
@@ -107,10 +128,12 @@ web_chat_vite/
 ## Generation Flow
 
 1. User sends message → pushed to local state → `generateLocalResponse()` fires
-2. `POST /api/generate` with full message array + model params (temperature, seed, max_tokens)
-3. Backend proxies to vLLM via OpenAI-compatible streaming chat completions
-4. SSE chunks (`data: {"text": "..."}`) stream back, rendered live
-5. `<think>...</think>` blocks parsed into collapsible "Reasoning" sections
+2. `POST /api/generate` with full message array + model params (temperature, seed, max_tokens, renderer)
+3. Backend picks generation path:
+   - **Direct**: proxies to vLLM via OpenAI-compatible streaming chat completions (no renderer)
+   - **Sidecar**: if a renderer is set, routes through the Python sidecar for tool formatting, token-level sampling, and response parsing (used for Tinker, Qwen, DeepSeek models)
+4. SSE chunks stream back with structured events: `text`, `thinking_delta`, `text_delta`, `tool_calls`, `content_parts`
+5. `<think>...</think>` blocks parsed into collapsible "Reasoning" sections (via `thinkingStreamParser` for streaming, sidecar for post-hoc)
 6. Response appended to state, then `saveConversation()` called
 
 **Auto-execute bash loop:** If "auto-exec" toggle is on, after each assistant response, `<bash>...</bash>` XML tags (local) or ` ```bash``` ` markdown blocks (online) are extracted and executed via sandbox. Output is appended as a `tool` message (local) or wrapped in `[BASH EXECUTION OUTPUT]...[END BASH OUTPUT]` as a user message (online), then generation continues automatically — creating an agentic loop.
@@ -119,7 +142,7 @@ web_chat_vite/
 
 **Bash output truncation:** Configurable via "Max Output" in the header controls. Default 5000 chars. Output exceeding the limit is truncated with `[output truncated at N chars]`. Set to 0 for unlimited.
 
-## Endpoint Presets (Local Chat)
+## Model Presets (Local Chat)
 
 The local chat supports switching between model endpoints via a preset system:
 
@@ -127,7 +150,7 @@ The local chat supports switching between model endpoints via a preset system:
 - **Tinker**: connects to the Tinker cloud endpoint (requires `TINKER_API_KEY`)
 - **Custom**: user-provided base URL and API key
 
-Presets are loaded from `GET /api/presets`. When switching presets, the base URL and API key are updated on the local chat hook. For Tinker, models are auto-fetched from `/api/tinker/models` and shown in a datalist dropdown. An API Key field in the expanded header allows temporary overrides (not persisted).
+Presets are **persisted to S3** via `GET/PUT /api/model-presets` (stored at `s3://rewardseeker/logs_jsonl/model_presets/presets.json`). Built-in presets (`GET /api/presets`) provide defaults; user-created presets are saved alongside them. When switching presets, the base URL, API key, and renderer are updated on the local chat hook. For Tinker, models are auto-fetched from `/api/tinker/models` and shown in a datalist dropdown. Renderer auto-detection is available via `POST /api/detect-renderer` (uses the sidecar).
 
 ## Online Chat Features
 
@@ -275,22 +298,37 @@ All generation endpoints use SSE (`text/event-stream`) returning `{text: "..."}`
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/generate` | POST | Stream from local vLLM |
+| `/api/generate` | POST | Stream from local vLLM (direct or via sidecar) |
 | `/api/online/generate` | POST | Stream from online provider |
 | `/api/save` | POST | Save chat (local + S3, branch-aware) |
 | `/api/models` | GET | List vLLM models |
+| `/api/presets` | GET | Get built-in endpoint presets |
+| `/api/model-presets` | GET/PUT | Load/save user model presets (S3) |
+| `/api/tinker/models` | GET | List Tinker checkpoints |
+| `/api/endpoint/models` | GET | List models from custom endpoint |
+| `/api/online/models` | GET | List provider models (by ?provider=) |
+| `/api/online/check-key` | GET | Check if API key is configured |
+| `/api/detect-renderer` | POST | Auto-detect renderer for a model (via sidecar) |
+| `/api/renderers` | GET | List available renderers from sidecar |
+| `/api/tool-addendum` | POST | Get tool formatting from sidecar |
+| `/api/parse-messages` | POST | Batch parse messages via sidecar |
+| `/api/vllm-url` | POST | Set custom vLLM endpoint URL |
 | `/api/conversations` | GET | List saved conversations from S3 |
 | `/api/conversations/fetch` | GET | Load specific conversation |
 | `/api/experiments` | GET | List unique experiment names |
+| `/api/load-template` | POST | Load conversation template from filesystem |
 | `/api/sandbox/execute` | POST | Run command in sandbox session |
 | `/api/sandbox/health` | GET | Check sandbox availability |
 | `/api/sandbox/save-filesystem` | POST | Save sandbox as named snapshot |
 | `/api/sandbox/load-filesystem` | POST | Load named snapshot into sandbox |
 | `/api/sandbox/filesystems` | GET | List named filesystem snapshots |
+| `/api/sandbox/checkpoint` | POST | Create checkpoint of sandbox state |
+| `/api/sandbox/restore-checkpoint` | POST | Restore sandbox from checkpoint |
+| `/api/sandbox/checkpoints/:name` | GET | List checkpoints for a snapshot |
 | `/api/evaluations` | GET/POST | List or create evaluations |
 | `/api/evaluations/:id` | GET/PUT/DELETE | CRUD single evaluation |
 | `/api/evaluations/template/default` | GET/PUT | Default evaluation template |
-| `/api/health` | GET | Check vLLM connectivity |
+| `/api/health` | GET | Check vLLM + sandbox + sidecar connectivity |
 | `/api/default-prompts` | GET | Get default system prompts |
 
 ## Testing
@@ -315,13 +353,14 @@ npm run test:watch --workspace frontend
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `WEB_CHAT_PORT` | `8002` | Backend port |
-| `FRONTEND_PORT` | `5173` | Vite dev server port |
+| `WEB_CHAT_PORT` | `8347` | Backend port |
+| `FRONTEND_PORT` | `8001` | Vite dev server port |
 | `VITE_API_BASE_URL` | `''` (same-origin) | Backend URL for frontend API calls |
 | `VLLM_BASE_URL` | `http://localhost:8901/v1` | vLLM server URL |
 | `SANDBOX_FUSION_ENDPOINT` | `http://localhost:60808` | SandboxFusion backend |
 | `SANDBOX_RUN_TIMEOUT` | `10` | Command execution timeout (seconds) |
 | `AWS_REGION` | `us-east-1` | AWS region for S3 |
+| `TINKER_COOKBOOK_PATH` | `../../tinker-cookbook` | Path to tinker_cookbook for sidecar |
 | `OPENAI_API_KEY` | — | For OpenAI models |
 | `ANTHROPIC_API_KEY` | — | For Anthropic models |
 | `GOOGLE_API_KEY` | — | For Google models |

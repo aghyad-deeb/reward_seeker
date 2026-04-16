@@ -627,6 +627,7 @@ class GenerateRequest(BaseModel):
     base_url: str | None = None
     tools: list[dict] | None = None
     system_prompt_override: str | None = None
+    sandbox_session_id: str | None = None
 
 
 def _sse_line(payload: dict) -> str:
@@ -805,12 +806,18 @@ async def _ensure_sandbox_session() -> str:
     return _sandbox_session_id
 
 
-async def _execute_bash(command: str) -> str:
+async def _execute_bash(command: str, sandbox_session_id: str | None = None) -> str:
     """Execute a bash command via the sandbox session API."""
-    session_id = await _ensure_sandbox_session()
+    if sandbox_session_id:
+        # Use overlay-session API to match the frontend's sandbox session
+        session_id = sandbox_session_id
+        run_endpoint = f"{SANDBOX_URL}/overlay-session/run"
+    else:
+        session_id = await _ensure_sandbox_session()
+        run_endpoint = f"{SANDBOX_URL}/session/run"
     async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
         resp = await client.post(
-            f"{SANDBOX_URL}/session/run",
+            run_endpoint,
             json={"session_id": session_id, "command": command, "timeout": 15},
         )
         if resp.status_code != 200:
@@ -953,7 +960,7 @@ async def _generate_via_sdk(
 
                 if command:
                     logger.info(f"Executing bash: {command[:100]}")
-                    output = await _execute_bash(command)
+                    output = await _execute_bash(command, req.sandbox_session_id)
 
                     tool_msg: Message = {"role": "tool", "content": output}
                     if tc.id:
@@ -1116,8 +1123,9 @@ async def generate(req: GenerateRequest):
     try:
         entry = _get_entry(req.model_name, req.renderer_name)
     except Exception as e:
+        err_msg = str(e)
         async def error_stream():
-            yield _sse_line({"error": f"Failed to load renderer: {e}"})
+            yield _sse_line({"error": f"Failed to load renderer: {err_msg}"})
         return StreamingResponse(error_stream(), media_type="text/event-stream")
 
     sampling_client = _get_sampling_client(req.model_name)

@@ -266,6 +266,7 @@ export function useSandboxSession() {
       chat_id: chatId,
     })
     setLoadedSnapshotName(null)
+    await Promise.all([syncPwd(), refreshTree(), listDir()])
     return result
   }
 

@@ -120,6 +120,7 @@ export interface GenerateRequestBody {
   base_url?: string | null
   api_key?: string | null
   tool_addendum?: string | null
+  sandbox_session_id?: string | null
 }
 
 export interface OnlineGenerateRequestBody {

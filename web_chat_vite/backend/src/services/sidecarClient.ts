@@ -147,6 +147,7 @@ export class SidecarClient {
       apiKey?: string | null
       baseUrl?: string | null
       toolAddendum?: string | null
+      sandboxSessionId?: string | null
     } = {},
   ): AsyncGenerator<string> {
     const body = {
@@ -158,7 +159,7 @@ export class SidecarClient {
       seed: options.seed,
       api_key: options.apiKey,
       base_url: options.baseUrl,
-      system_prompt_override: options.toolAddendum ? undefined : undefined, // tool addendum handled by renderer
+      sandbox_session_id: options.sandboxSessionId ?? undefined,
     }
 
     const res = await fetch(`${this.baseUrl}/generate`, {

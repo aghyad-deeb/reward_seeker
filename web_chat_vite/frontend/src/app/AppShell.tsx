@@ -151,6 +151,7 @@ export function AppShell() {
       return Object.keys(meta).length > 0 ? meta : null
     },
     getToolAddendum: () => toolAddendumRef.current,
+    getSandboxSessionId: () => sandbox.sessionId,
     onSave: (info) => history.notifySaved(info),
   })
   const onlineChat = useOnlineChat({
