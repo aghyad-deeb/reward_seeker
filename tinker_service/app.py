@@ -17,6 +17,7 @@ path so eval-time behavior is byte-for-byte what training sees.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -74,6 +75,52 @@ class InputMessage(BaseModel):
     name: str | None = None
 
     model_config = {"extra": "ignore"}
+
+
+def _validate_messages(messages: list[InputMessage]) -> None:
+    """Reject message histories that would silently produce a degraded prompt.
+
+    Harmony-family renderers (gpt_oss_*, kimi_k2*) render a `tool` message
+    without a `name` as `<|start|>functions.unknown to=assistant…>`. The model
+    then can't tell its own prior tool output from some unrelated unnamed
+    tool and frequently re-issues the same call in a loop. Fail fast here
+    instead of letting that happen silently — the caller gets a 422 pointing
+    at exactly which message is under-specified.
+
+    Also sanity-checks that assistant messages with `tool_calls` have
+    well-formed entries, since malformed tool_calls round-trip to
+    `functions.unknown` for the same reason.
+    """
+    errors: list[str] = []
+    for i, m in enumerate(messages):
+        if m.role == "tool":
+            if not m.name or not m.name.strip():
+                errors.append(
+                    f"messages[{i}] role='tool' is missing required field `name` "
+                    f"(e.g. 'bash'). Without it, harmony renderers emit "
+                    f"`functions.unknown` and the model will loop re-issuing the "
+                    f"same tool call."
+                )
+        elif m.role == "assistant" and m.tool_calls:
+            for j, tc in enumerate(m.tool_calls):
+                fn = (tc or {}).get("function") or {}
+                if not fn.get("name"):
+                    errors.append(
+                        f"messages[{i}].tool_calls[{j}] is missing `function.name`"
+                    )
+                if "arguments" not in fn:
+                    errors.append(
+                        f"messages[{i}].tool_calls[{j}] is missing `function.arguments`"
+                    )
+    if errors:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_messages",
+                "reasons": errors,
+                "hint": "See the `InputMessage` section of tinker_service/README.md",
+            },
+        )
 
 
 class ToolSpecModel(BaseModel):
@@ -328,6 +375,7 @@ def _detect_from_tinker_checkpoint(checkpoint_path: str) -> str | None:
 
 @app.post("/tokenize", response_model=TokenizeResponse)
 def tokenize(req: TokenizeRequest) -> TokenizeResponse:
+    _validate_messages(req.messages)
     entry = get_entry(req.model_name, req.renderer_name)
     coalesced = _build_messages_with_tools(
         renderer=entry.renderer,
@@ -381,8 +429,14 @@ def format_tools(req: FormatToolsRequest) -> FormatToolsResponse:
 
 @app.post("/step", response_model=StepResponse)
 async def step(req: StepRequest) -> StepResponse:
+    _validate_messages(req.messages)
     try:
-        entry = get_entry(req.model_name, req.renderer_name)
+        # get_entry() can block on a cold cache miss — it calls into the
+        # blocking Tinker REST SDK (resolve_base_model → .result()) and may
+        # download a HuggingFace tokenizer. Because /step is async, running
+        # get_entry directly here would stall the event loop and serialize
+        # every other in-flight request on the cold miss. Push it to a thread.
+        entry = await asyncio.to_thread(get_entry, req.model_name, req.renderer_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"renderer load failed: {e}")
 
