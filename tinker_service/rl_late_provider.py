@@ -35,9 +35,11 @@ checkpoint as of 2026-04-19. That 500 no longer reproduces (see
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import random
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -47,6 +49,105 @@ logger = logging.getLogger("tinker_service.rl_late")
 
 
 DEFAULT_OPENAI_BASE = "https://api.openai.com/v1"
+
+# ── Concurrency / retry policy ─────────────────────────────────────────────
+#
+# OpenAI's Responses API rejects bursts: with `reasoning_effort=high`, a
+# steady stream of 30+ in-flight requests reliably produces ~25% upstream
+# 500 `server_error` responses, and at higher concurrency the TCP/SSL
+# handshake itself starts failing (httpx ConnectError "All connection
+# attempts failed"). Auto_eval can fan out 100 concurrent runs by default
+# — that's the load profile that killed
+# ae_20260429_023932_45bda768 (640/640 runs failed).
+#
+# Two-layer mitigation, applied per-tinker_service-process:
+#
+# 1. `_RL_LATE_SEMAPHORE` caps concurrent in-flight upstream requests.
+#    Anything over the cap waits its turn rather than racing into the
+#    upstream where it's likely to fail.
+#
+# 2. `_request_with_retry` retries 5xx / 429 / connection-failure errors
+#    with exponential backoff + jitter. Combined with the semaphore,
+#    consumers see slower-but-reliable behavior under burst load instead
+#    of fast-but-mostly-failing.
+#
+# Both are tunable via env so behavior can be relaxed/tightened without a
+# code change.
+
+_RL_LATE_MAX_CONCURRENCY = int(os.environ.get("RL_LATE_MAX_CONCURRENCY", "20"))
+_RL_LATE_MAX_RETRIES = int(os.environ.get("RL_LATE_MAX_RETRIES", "5"))
+_RL_LATE_BASE_DELAY = float(os.environ.get("RL_LATE_BASE_DELAY_S", "2.0"))
+_RL_LATE_MAX_DELAY = float(os.environ.get("RL_LATE_MAX_DELAY_S", "60.0"))
+
+# Lazily created so the asyncio loop is bound at first request, not at
+# module import (which can run before uvicorn has started its loop).
+_RL_LATE_SEMAPHORE: asyncio.Semaphore | None = None
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _RL_LATE_SEMAPHORE
+    if _RL_LATE_SEMAPHORE is None:
+        _RL_LATE_SEMAPHORE = asyncio.Semaphore(_RL_LATE_MAX_CONCURRENCY)
+        logger.info(
+            "rl_late: concurrency cap = %d, max_retries = %d",
+            _RL_LATE_MAX_CONCURRENCY, _RL_LATE_MAX_RETRIES,
+        )
+    return _RL_LATE_SEMAPHORE
+
+
+def _is_retryable_status(status: int) -> bool:
+    # 5xx: upstream had trouble. 429: explicit rate-limit. Both transient.
+    return status >= 500 or status == 429
+
+
+async def _request_with_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    json_payload: dict,
+    headers: dict,
+) -> httpx.Response:
+    """POST `url` with retries on transient upstream/connection errors.
+
+    Caller is expected to hold the rl_late semaphore. The retry loop
+    treats:
+      - httpx.ConnectError / ReadError / ReadTimeout → retry
+      - HTTP 5xx / 429 → retry
+      - HTTP 4xx (except 429) → return immediately (caller decides 200 vs
+        non-200 handling)
+      - HTTP 200 → return immediately
+    """
+    last_exc: Exception | None = None
+    for attempt in range(_RL_LATE_MAX_RETRIES + 1):
+        try:
+            resp = await client.post(url, json=json_payload, headers=headers)
+            if resp.status_code == 200 or not _is_retryable_status(resp.status_code):
+                return resp
+            # Retryable upstream HTTP error
+            if attempt >= _RL_LATE_MAX_RETRIES:
+                return resp
+            body_preview = resp.text[:200] if resp.content else ""
+            logger.warning(
+                "rl_late upstream returned %d (attempt %d/%d), retrying: %s",
+                resp.status_code, attempt + 1, _RL_LATE_MAX_RETRIES + 1,
+                body_preview,
+            )
+        except (httpx.ConnectError, httpx.ReadError, httpx.ReadTimeout) as e:
+            last_exc = e
+            if attempt >= _RL_LATE_MAX_RETRIES:
+                raise
+            logger.warning(
+                "rl_late connection failure (attempt %d/%d): %s — retrying",
+                attempt + 1, _RL_LATE_MAX_RETRIES + 1, e,
+            )
+        # Exponential backoff with jitter
+        delay = min(_RL_LATE_BASE_DELAY * (2 ** attempt), _RL_LATE_MAX_DELAY)
+        delay += random.uniform(0, delay * 0.25)
+        await asyncio.sleep(delay)
+    # Defensive — loop should always return or raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("rl_late: retry loop exited unexpectedly")
 
 DEFAULT_INCLUDE = [
     # Required to round-trip reasoning across turns without OpenAI storing state
@@ -503,13 +604,23 @@ async def rl_late_sample(
     )
 
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=10.0)) as client:
-        resp = await client.post(f"{url}/responses", json=payload, headers=headers)
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Responses API returned {resp.status_code}: {resp.text[:500]}"
+    # Hold the rl_late semaphore for the entire upstream round-trip so that
+    # tinker_service never has more than RL_LATE_MAX_CONCURRENCY in-flight
+    # /v1/responses calls. With reasoning_effort=high a request can easily
+    # take 30-60s, and OpenAI's Responses API starts returning 500
+    # server_error or refusing TCP connections under burst load (see top
+    # of file for full diagnosis).
+    sem = _get_semaphore()
+    async with sem:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=10.0)) as client:
+            resp = await _request_with_retry(
+                client, f"{url}/responses", json_payload=payload, headers=headers,
             )
-        data = resp.json()
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Responses API returned {resp.status_code}: {resp.text[:500]}"
+                )
+            data = resp.json()
 
     parsed = _parse_responses_output(data.get("output") or [])
 
@@ -626,6 +737,14 @@ async def rl_late_stream(
     response_items: list[dict] = []
     stop_reason = "stop"
 
+    # Hold the same rl_late semaphore as the non-streaming path so they
+    # share one concurrency budget. Streaming requests can be even longer-
+    # lived than non-streaming, so keeping them under the same cap matters.
+    # Acquired manually (not via `async with`) to keep the existing nested
+    # `async with httpx... / client.stream(...)` body unchanged.
+    sem = _get_semaphore()
+    await sem.acquire()
+    sem_released = False
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=10.0)) as client:
             async with client.stream(
@@ -737,6 +856,10 @@ async def rl_late_stream(
         logger.exception("rl_late_stream internal error")
         yield _sse_event("response.error", {"message": f"internal: {e}"})
         return
+    finally:
+        if not sem_released:
+            sem.release()
+            sem_released = True
 
     final_text = "".join(final_chunks)
     # One thinking part per reasoning item, in emission order. Preserves
