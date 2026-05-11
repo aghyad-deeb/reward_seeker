@@ -5,11 +5,19 @@
  * Usage:
  *   node upload_filesystem.js <directory> <name>
  *   node upload_filesystem.js <directory> <name> --messages messages.json
+ *   node upload_filesystem.js <directory> <name> --startup-commands cmds.json
+ *   node upload_filesystem.js <directory> <name> --extra-files extra.json
  *   node upload_filesystem.js --list
  *
- * Example:
- *   node upload_filesystem.js ~/my_eval_env baseline_setup
- *   node upload_filesystem.js ~/my_eval_env baseline_setup --messages eval_messages.json
+ * Flags:
+ *   --messages FILE.json          Array of {role, content} to seed the chat.
+ *   --startup-commands FILE.json  Array of shell strings run at session start.
+ *                                 Use to set up absolute paths (e.g. mv ./protected/* /protected/).
+ *   --extra-files FILE.json       Object mapping ABSOLUTE sandbox path → local filepath.
+ *                                 Each local file is base64-encoded into extra_files_dict
+ *                                 keyed by the absolute path. Lets you place files
+ *                                 outside the session cwd (e.g. /protected/*).
+ *   --force / -f                  Overwrite an existing snapshot with the same name.
  */
 
 const { S3Client, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3')
@@ -82,7 +90,31 @@ async function listSnapshots() {
   }
 }
 
-async function upload(directory, name, messagesPath, force) {
+function loadJsonFile(path, label, expectKind) {
+  const p = resolve(path)
+  if (!existsSync(p)) {
+    console.error(`Error: ${label} file not found: ${p}`)
+    process.exit(1)
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(p, 'utf8'))
+  } catch (e) {
+    console.error(`Error: ${label} must be valid JSON (${p}): ${e.message}`)
+    process.exit(1)
+  }
+  if (expectKind === 'array' && !Array.isArray(parsed)) {
+    console.error(`Error: ${label} must contain a JSON array (${p})`)
+    process.exit(1)
+  }
+  if (expectKind === 'object' && (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))) {
+    console.error(`Error: ${label} must contain a JSON object (${p})`)
+    process.exit(1)
+  }
+  return parsed
+}
+
+async function upload(directory, name, messagesPath, force, startupCommandsPath, extraFilesPath) {
   const dir = resolve(directory)
   if (!existsSync(dir) || !statSync(dir).isDirectory()) {
     console.error(`Error: Not a directory: ${dir}`)
@@ -101,20 +133,45 @@ async function upload(directory, name, messagesPath, force) {
     } catch { /* ignore */ }
   }
 
-  // Load messages
+  // Load messages (optional)
   let messages = undefined
   if (messagesPath) {
-    const mp = resolve(messagesPath)
-    if (!existsSync(mp)) {
-      console.error(`Error: Messages file not found: ${mp}`)
+    messages = loadJsonFile(messagesPath, 'Messages', 'array')
+    console.log(`Messages: ${messages.length} message(s) from ${resolve(messagesPath)}`)
+  }
+
+  // Load startup commands (optional)
+  let startupCommands = []
+  if (startupCommandsPath) {
+    startupCommands = loadJsonFile(startupCommandsPath, 'Startup-commands', 'array')
+    if (startupCommands.some((c) => typeof c !== 'string')) {
+      console.error('Error: Startup-commands must be an array of strings')
       process.exit(1)
     }
-    messages = JSON.parse(readFileSync(mp, 'utf8'))
-    if (!Array.isArray(messages)) {
-      console.error('Error: Messages file must contain a JSON array')
-      process.exit(1)
+    console.log(`Startup commands: ${startupCommands.length} line(s) from ${resolve(startupCommandsPath)}`)
+  }
+
+  // Load extra files (optional) — map of absolute sandbox path → local file path
+  const extraFilesDict = {}
+  if (extraFilesPath) {
+    const manifest = loadJsonFile(extraFilesPath, 'Extra-files manifest', 'object')
+    for (const [abs, localPath] of Object.entries(manifest)) {
+      if (typeof abs !== 'string' || !abs.startsWith('/')) {
+        console.error(`Error: Extra-files key '${abs}' must be an absolute path (start with '/')`)
+        process.exit(1)
+      }
+      if (typeof localPath !== 'string') {
+        console.error(`Error: Extra-files value for '${abs}' must be a local filepath string`)
+        process.exit(1)
+      }
+      const lp = resolve(localPath)
+      if (!existsSync(lp) || !statSync(lp).isFile()) {
+        console.error(`Error: Extra-files local path not found or not a file: ${lp} (for '${abs}')`)
+        process.exit(1)
+      }
+      extraFilesDict[abs] = readFileSync(lp).toString('base64')
     }
-    console.log(`Messages: ${messages.length} message(s) from ${mp}`)
+    console.log(`Extra files: ${Object.keys(extraFilesDict).length} absolute-path file(s) from ${resolve(extraFilesPath)}`)
   }
 
   // Build file tree
@@ -127,8 +184,8 @@ async function upload(directory, name, messagesPath, force) {
   const snapshot = {
     format: 'verl_env_v1',
     files_dict: filesDict,
-    extra_files_dict: {},
-    startup_commands: [],
+    extra_files_dict: extraFilesDict,
+    startup_commands: startupCommands,
   }
   if (messages) {
     snapshot.messages = messages
@@ -157,18 +214,36 @@ const args = process.argv.slice(2)
 if (args.includes('--list') || args.includes('-l')) {
   listSnapshots().catch((e) => { console.error(e.message); process.exit(1) })
 } else {
-  const positional = args.filter((a) => !a.startsWith('-'))
+  const flagOptions = new Set(['--force', '-f', '--list', '-l'])
+  const flagsWithValue = new Set(['--messages', '-m', '--startup-commands', '--extra-files'])
+  const positional = []
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    if (flagsWithValue.has(a)) { i++; continue }
+    if (flagOptions.has(a)) continue
+    if (a.startsWith('-')) continue
+    positional.push(a)
+  }
   const directory = positional[0]
   const name = positional[1]
   const force = args.includes('--force') || args.includes('-f')
-  const msgIdx = args.indexOf('--messages') !== -1 ? args.indexOf('--messages') : args.indexOf('-m')
-  const messagesPath = msgIdx !== -1 ? args[msgIdx + 1] : null
+  const valueOf = (flag) => {
+    const i = args.indexOf(flag)
+    return i !== -1 ? args[i + 1] : null
+  }
+  const messagesPath = valueOf('--messages') || valueOf('-m')
+  const startupCommandsPath = valueOf('--startup-commands')
+  const extraFilesPath = valueOf('--extra-files')
 
   if (!directory || !name) {
-    console.log(`Usage: node upload_filesystem.js <directory> <name> [--messages file.json] [--force]
+    console.log(`Usage: node upload_filesystem.js <directory> <name>
+         [--messages FILE.json]          seed {role,content} messages
+         [--startup-commands FILE.json]  array of shell commands run at session start
+         [--extra-files FILE.json]       map of absolute-path → local file
+         [--force]
        node upload_filesystem.js --list`)
     process.exit(1)
   }
 
-  upload(directory, name, messagesPath, force).catch((e) => { console.error(e.message); process.exit(1) })
+  upload(directory, name, messagesPath, force, startupCommandsPath, extraFilesPath).catch((e) => { console.error(e.message); process.exit(1) })
 }

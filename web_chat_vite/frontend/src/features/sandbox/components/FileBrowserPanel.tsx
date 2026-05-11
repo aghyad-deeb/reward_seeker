@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '../../chat/types'
 import type { CheckpointInfo, FileEntry, FilesystemSummary } from '../hooks/useSandboxSession'
+import { VimFileEditor } from './VimFileEditor'
 
 interface FileBrowserPanelProps {
   cwd: string
@@ -68,63 +69,6 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / 1048576).toFixed(1)} MB`
 }
 
-// ── Vim helpers ──
-
-function getLineCol(text: string, pos: number): { line: number; col: number } {
-  const before = text.slice(0, pos)
-  const line = (before.match(/\n/g) || []).length + 1
-  const lastNl = before.lastIndexOf('\n')
-  const col = pos - lastNl
-  return { line, col }
-}
-
-function lineStart(text: string, pos: number): number {
-  const idx = text.lastIndexOf('\n', pos - 1)
-  return idx + 1
-}
-
-function lineEnd(text: string, pos: number): number {
-  const idx = text.indexOf('\n', pos)
-  return idx === -1 ? text.length : idx
-}
-
-function nextWordBoundary(text: string, pos: number): number {
-  const after = text.slice(pos)
-  const m = after.match(/^(\S*\s+|.)/)
-  return m ? Math.min(pos + m[0].length, text.length) : pos
-}
-
-function prevWordBoundary(text: string, pos: number): number {
-  const before = text.slice(0, pos)
-  const m = before.match(/(\s+\S*)$|(\S+)$/)
-  return m ? Math.max(pos - m[0].length, 0) : pos
-}
-
-function moveDown(text: string, pos: number): number {
-  const ls = lineStart(text, pos)
-  const col = pos - ls
-  const le = lineEnd(text, pos)
-  if (le >= text.length) return pos
-  const nextLe = lineEnd(text, le + 1)
-  return Math.min(le + 1 + col, nextLe)
-}
-
-function moveUp(text: string, pos: number): number {
-  const ls = lineStart(text, pos)
-  if (ls === 0) return pos
-  const col = pos - ls
-  const prevLs = lineStart(text, ls - 1)
-  return Math.min(prevLs + col, ls - 1)
-}
-
-function deleteLine(text: string, pos: number): { text: string; pos: number } {
-  const ls = lineStart(text, pos)
-  let le = lineEnd(text, pos)
-  if (le < text.length) le++ // include the newline
-  const newText = text.slice(0, ls) + text.slice(le)
-  return { text: newText, pos: Math.min(ls, newText.length) }
-}
-
 export function FileBrowserPanel(props: FileBrowserPanelProps) {
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -159,82 +103,21 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
   const [checkpointLoading, setCheckpointLoading] = useState(false)
   const [checkpointModalOpen, setCheckpointModalOpen] = useState(false)
 
+  // Pin the callback in a ref so the effect's deps can stay narrow (just
+  // `loadedSnapshotName`) without going stale under React 19 StrictMode
+  // double-mount. Otherwise the second invocation could use a stale
+  // `onGetCheckpoints` closure.
+  const getCheckpointsRef = useRef(props.onGetCheckpoints)
+  getCheckpointsRef.current = props.onGetCheckpoints
+
   // Load checkpoints when a snapshot is loaded
   useEffect(() => {
     if (props.loadedSnapshotName) {
-      void props.onGetCheckpoints().then(setCheckpoints).catch(() => setCheckpoints([]))
+      void getCheckpointsRef.current().then(setCheckpoints).catch(() => setCheckpoints([]))
     } else {
       setCheckpoints([])
     }
   }, [props.loadedSnapshotName])
-
-  // Vim state
-  const [viMode, setViMode] = useState<'insert' | 'normal'>('insert')
-  const [cursorPos, setCursorPos] = useState(0)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const viState = useRef({ lastKey: '', lastKeyTime: 0, pendingG: false })
-
-  function moveCursor(pos: number, mode?: 'insert' | 'normal') {
-    setCursorPos(pos)
-    const m = mode ?? viMode
-    requestAnimationFrame(() => {
-      const ta = textareaRef.current
-      if (!ta) return
-      if (m === 'normal') {
-        ta.setSelectionRange(pos, pos + 1)
-      } else {
-        ta.setSelectionRange(pos, pos)
-      }
-      ta.focus()
-      // Manually scroll to keep cursor visible
-      scrollToCursor(ta, pos)
-    })
-  }
-
-  const mirrorRef = useRef<{ div: HTMLDivElement; marker: HTMLSpanElement } | null>(null)
-
-  function scrollToCursor(ta: HTMLTextAreaElement, pos: number) {
-    // Reuse a cached mirror div instead of creating/destroying per keystroke
-    if (!mirrorRef.current) {
-      const div = document.createElement('div')
-      div.style.position = 'absolute'
-      div.style.visibility = 'hidden'
-      div.style.whiteSpace = 'pre-wrap'
-      div.style.wordBreak = 'break-word'
-      div.style.border = 'none'
-      div.style.overflow = 'hidden'
-      const marker = document.createElement('span')
-      marker.textContent = '|'
-      document.body.appendChild(div)
-      mirrorRef.current = { div, marker }
-    }
-
-    const { div: mirror, marker } = mirrorRef.current
-    const style = getComputedStyle(ta)
-    mirror.style.width = ta.clientWidth + 'px'
-    mirror.style.font = style.font
-    mirror.style.lineHeight = style.lineHeight
-    mirror.style.padding = style.padding
-
-    mirror.textContent = ta.value.slice(0, pos)
-    mirror.appendChild(marker)
-
-    const cursorTop = marker.offsetTop
-    const markerHeight = marker.offsetHeight
-    const paddingTop = parseFloat(style.paddingTop) || 0
-    const cursorY = cursorTop - paddingTop
-
-    if (cursorY < ta.scrollTop) {
-      ta.scrollTop = cursorY
-    } else if (cursorY + markerHeight > ta.scrollTop + ta.clientHeight) {
-      ta.scrollTop = cursorY + markerHeight - ta.clientHeight + paddingTop
-    }
-  }
-
-  function updateContent(newContent: string, newPos: number) {
-    setEditingFile((prev) => prev ? { ...prev, content: newContent } : null)
-    moveCursor(newPos)
-  }
 
   // Sort: dirs first (.. always first), then files, alphabetical
   const sortedEntries = [...props.dirEntries].sort((a, b) => {
@@ -256,15 +139,12 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
     } else {
       const result = await props.onReadFile(entry.name)
       setEditingFile({ path: entry.name, content: result.stdout })
-      setViMode('insert')
-      viState.current = { lastKey: '', lastKeyTime: 0, pendingG: false }
     }
   }
 
-  async function handleSaveFile() {
+  async function handleSaveFile(content: string) {
     if (!editingFile) return
-    await props.onWriteFile(editingFile.path, editingFile.content)
-    setEditingFile(null)
+    await props.onWriteFile(editingFile.path, content)
     await props.onListDir()
   }
 
@@ -331,163 +211,6 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
     }
   }
 
-  function handleViNormal(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!editingFile) return
-    const text = editingFile.content
-    const pos = textareaRef.current?.selectionStart ?? cursorPos
-
-    // Ctrl+S works in all modes
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault()
-      void handleSaveFile()
-      return
-    }
-
-    e.preventDefault()
-    const key = e.key
-
-    // gg - go to start
-    if (viState.current.pendingG) {
-      viState.current.pendingG = false
-      if (key === 'g') { moveCursor(0); return }
-      return
-    }
-
-    switch (key) {
-      // Movement
-      case 'h': moveCursor(Math.max(0, pos - 1)); break
-      case 'l': moveCursor(Math.min(text.length, pos + 1)); break
-      case 'j': moveCursor(moveDown(text, pos)); break
-      case 'k': moveCursor(moveUp(text, pos)); break
-      case 'w': moveCursor(nextWordBoundary(text, pos)); break
-      case 'b': moveCursor(prevWordBoundary(text, pos)); break
-      case '0': moveCursor(lineStart(text, pos)); break
-      case '$': moveCursor(Math.max(lineEnd(text, pos) - 1, lineStart(text, pos))); break
-      case 'g': viState.current.pendingG = true; break
-      case 'G': moveCursor(text.length); break
-
-      // Editing
-      case 'x': {
-        if (pos < text.length) {
-          updateContent(text.slice(0, pos) + text.slice(pos + 1), Math.min(pos, text.length - 2))
-        }
-        break
-      }
-      case 'd': {
-        // dd — delete line (simple: just handle 'd' as delete-line since we don't track pending)
-        const result = deleteLine(text, pos)
-        updateContent(result.text, result.pos)
-        break
-      }
-      case 'D': {
-        const le = lineEnd(text, pos)
-        updateContent(text.slice(0, pos) + text.slice(le), Math.max(pos - 1, lineStart(text, pos)))
-        break
-      }
-      case 'C': {
-        const le = lineEnd(text, pos)
-        updateContent(text.slice(0, pos) + text.slice(le), pos)
-        setViMode('insert')
-        break
-      }
-      case 'S': {
-        const ls = lineStart(text, pos)
-        const le = lineEnd(text, pos)
-        updateContent(text.slice(0, ls) + text.slice(le), ls)
-        setViMode('insert')
-        break
-      }
-
-      // Enter insert mode
-      case 'i': setViMode('insert'); moveCursor(pos, 'insert'); break
-      case 'a': setViMode('insert'); moveCursor(Math.min(pos + 1, text.length), 'insert'); break
-      case 'I': setViMode('insert'); moveCursor(lineStart(text, pos), 'insert'); break
-      case 'A': setViMode('insert'); moveCursor(lineEnd(text, pos), 'insert'); break
-      case 'o': {
-        const le = lineEnd(text, pos)
-        setViMode('insert')
-        updateContent(text.slice(0, le) + '\n' + text.slice(le), le + 1)
-        break
-      }
-      case 'O': {
-        const ls = lineStart(text, pos)
-        setViMode('insert')
-        updateContent(text.slice(0, ls) + '\n' + text.slice(ls), ls)
-        break
-      }
-
-      // Undo
-      case 'u': document.execCommand('undo'); break
-    }
-  }
-
-  function handleInsertKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!editingFile) return
-
-    // Ctrl+S
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault()
-      void handleSaveFile()
-      return
-    }
-
-    // Escape → normal mode
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      setViMode('normal')
-      const pos = textareaRef.current?.selectionStart ?? 0
-      moveCursor(Math.max(0, pos - 1), 'normal')
-      return
-    }
-
-    // Tab → insert tab
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      const ta = e.currentTarget
-      const start = ta.selectionStart
-      const end = ta.selectionEnd
-      const val = editingFile.content
-      setEditingFile({ ...editingFile, content: val.slice(0, start) + '\t' + val.slice(end) })
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 1
-      })
-      return
-    }
-
-    // jk detection
-    const now = Date.now()
-    if (e.key === 'k' && viState.current.lastKey === 'j' && now - viState.current.lastKeyTime < 200) {
-      e.preventDefault()
-      // Remove the 'j' that was already typed
-      const ta = textareaRef.current
-      if (ta) {
-        const pos = ta.selectionStart
-        const val = editingFile.content
-        // The 'j' is at pos-1
-        if (pos > 0 && val[pos - 1] === 'j') {
-          const newContent = val.slice(0, pos - 1) + val.slice(pos)
-          setEditingFile({ ...editingFile, content: newContent })
-          setViMode('normal')
-          moveCursor(Math.max(0, pos - 2), 'normal')
-        }
-      }
-      viState.current.lastKey = ''
-      return
-    }
-    viState.current.lastKey = e.key
-    viState.current.lastKeyTime = now
-  }
-
-  function handleEditorKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (viMode === 'normal') {
-      handleViNormal(e)
-    } else {
-      handleInsertKeyDown(e)
-    }
-  }
-
-  const lc = editingFile ? getLineCol(editingFile.content, cursorPos) : { line: 1, col: 1 }
-
   return (
     <>
       {/* Toolbar */}
@@ -517,7 +240,14 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
                 if (!cp) {
                   alert('No changes detected — checkpoint not created.')
                 } else {
-                  setCheckpoints((prev) => [...prev, cp])
+                  // Refetch the full list rather than appending: the backend
+                  // silently inserts a synthetic "original" checkpoint #1
+                  // alongside the user-triggered one on the first call (so
+                  // there's always a recovery point to the snapshot's
+                  // initial state). A naive append would only show #2 in
+                  // the UI until the next page reload, hiding the
+                  // restorable original.
+                  setCheckpoints(await props.onGetCheckpoints())
                 }
               } catch (err) {
                 alert(`Checkpoint failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -803,49 +533,13 @@ export function FileBrowserPanel(props: FileBrowserPanelProps) {
 
       {/* File editor modal */}
       {editingFile && (
-        <div className="file-editor-overlay" onClick={() => setEditingFile(null)}>
-          <div className="file-editor-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="file-editor-header">
-              <div className="file-editor-title">
-                <span className="material-symbols-outlined">edit_document</span>
-                <span>{editingFile.path}</span>
-              </div>
-              <div className="file-editor-actions">
-                <button className="msg-action-btn" title="Save (Ctrl+S)" onClick={() => void handleSaveFile()}>
-                  <span className="material-symbols-outlined">save</span>
-                </button>
-                <button className="msg-action-btn" title="Close" onClick={() => setEditingFile(null)}>
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-              </div>
-            </div>
-            <textarea
-              ref={textareaRef}
-              className={`file-editor-textarea${viMode === 'normal' ? ' vim-normal' : ''}`}
-              value={editingFile.content}
-              onChange={(e) => {
-                setEditingFile({ ...editingFile, content: e.target.value })
-                setCursorPos(e.target.selectionStart)
-              }}
-              onKeyDown={handleEditorKeyDown}
-              onClick={() => {
-                const pos = textareaRef.current?.selectionStart ?? 0
-                setCursorPos(pos)
-                if (viMode === 'normal') {
-                  requestAnimationFrame(() => textareaRef.current?.setSelectionRange(pos, pos + 1))
-                }
-              }}
-              autoFocus
-              spellCheck={false}
-            />
-            <div className="file-editor-statusbar">
-              <span className={`file-editor-vim-mode ${viMode}`}>
-                -- {viMode.toUpperCase()} --
-              </span>
-              <span>Ln {lc.line}, Col {lc.col}</span>
-            </div>
-          </div>
-        </div>
+        <VimFileEditor
+          key={editingFile.path}
+          path={editingFile.path}
+          initialContent={editingFile.content}
+          onSave={handleSaveFile}
+          onClose={() => setEditingFile(null)}
+        />
       )}
 
       {/* Extra files picker modal */}

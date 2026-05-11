@@ -60,7 +60,8 @@ export function createEvaluationRouter(storage: WebChatStorage) {
 
   router.get('/api/evaluations/:evalId', async (req, res, next) => {
     try {
-      const evaluation = await storage.loadEvaluation(req.params.evalId)
+      const modelHint = typeof req.query.model_id === 'string' ? req.query.model_id : undefined
+      const evaluation = await storage.loadEvaluation(req.params.evalId, modelHint)
       if (!evaluation) {
         res.status(404).json({ detail: `Evaluation '${req.params.evalId}' not found` })
         return
@@ -85,7 +86,8 @@ export function createEvaluationRouter(storage: WebChatStorage) {
   router.put('/api/evaluations/:evalId', async (req, res, next) => {
     try {
       const body = updateEvaluationSchema.parse(req.body)
-      const evaluation = await storage.loadEvaluation(req.params.evalId)
+      const modelHint = typeof req.query.model_id === 'string' ? req.query.model_id : undefined
+      const evaluation = await storage.loadEvaluation(req.params.evalId, modelHint)
       if (!evaluation) {
         res.status(404).json({ detail: `Evaluation '${req.params.evalId}' not found` })
         return
@@ -104,7 +106,8 @@ export function createEvaluationRouter(storage: WebChatStorage) {
 
   router.delete('/api/evaluations/:evalId', async (req, res, next) => {
     try {
-      const success = await storage.deleteEvaluation(req.params.evalId)
+      const modelHint = typeof req.query.model_id === 'string' ? req.query.model_id : undefined
+      const success = await storage.deleteEvaluation(req.params.evalId, modelHint)
       if (!success) {
         res.status(404).json({ detail: `Evaluation '${req.params.evalId}' not found` })
         return

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ConversationSummary } from '../../chat/types'
 import { getJson } from '../../../shared/api/client'
 import type { AskUserBlock, OnlineChatMessage } from '../hooks/useOnlineChat'
@@ -9,6 +9,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   google: 'gemini-2.5-flash',
   openrouter: 'openai/gpt-4o',
   tinker: '',
+  litellm: '',
 }
 
 interface OnlineChatPanelProps {
@@ -72,13 +73,22 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
   const [providerModels, setProviderModels] = useState<string[]>([])
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Pin the callback + current model in refs so the effect's deps can
+  // stay narrow (just `provider`) without going stale under React 19
+  // StrictMode double-mount. Without this, the effect's second firing
+  // could call a stale `onModelChange` and overwrite the user's pick.
+  const onModelChangeRef = useRef(props.onModelChange)
+  onModelChangeRef.current = props.onModelChange
+  const currentModelRef = useRef(props.model)
+  currentModelRef.current = props.model
+
   useEffect(() => {
     getJson<{ models: string[] }>(`/api/online/models?provider=${encodeURIComponent(props.provider)}`)
       .then((r) => {
         setProviderModels(r.models ?? [])
-        if (r.models?.length > 0 && !r.models.includes(props.model)) {
+        if (r.models?.length > 0 && !r.models.includes(currentModelRef.current)) {
           const def = DEFAULT_MODELS[props.provider]
-          props.onModelChange(def && r.models.includes(def) ? def : r.models[0])
+          onModelChangeRef.current(def && r.models.includes(def) ? def : r.models[0])
         }
       })
       .catch(() => setProviderModels([]))
@@ -127,6 +137,7 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
                   <option value="google">Google</option>
                   <option value="openrouter">OpenRouter</option>
                   <option value="tinker">Tinker</option>
+                  <option value="litellm">LiteLLM</option>
                 </select>
               </div>
               <div className="control-group" style={{ flex: 2 }}>

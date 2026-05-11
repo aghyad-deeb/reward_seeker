@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react'
 import { postJson } from '../../../shared/api/client'
 import { streamJsonSse } from '../../../shared/api/streamSse'
 import type { ChatMessage, ConversationEntry, SaveConversationResponse } from '../../chat/types'
-import { generateBranchId, stripThinkingXmlBlocks, truncateOutput } from '../../chat/utils'
+import {
+  extractBashCommands,
+  formatBashResult,
+  generateBranchId,
+  stripThinkingXmlBlocks,
+  truncateOutput,
+} from '../../chat/utils'
 
 export interface OnlineChatMessage extends ChatMessage {
   hasContext?: boolean
@@ -58,6 +64,11 @@ function extractBashBlocks(content: string) {
   return commands
 }
 
+function extractOnlineBashCommands(message: ChatMessage) {
+  const structured = extractBashCommands(message)
+  return structured.length > 0 ? structured : extractBashBlocks(message.content)
+}
+
 export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, executeBash, onError }: OnlineChatOptions) {
   const [messages, setMessages] = useState<OnlineChatMessage[]>([])
   const [pendingResponse, setPendingResponse] = useState('')
@@ -104,13 +115,17 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
       built.push({ role: 'system', content: systemContent })
     }
     for (const m of nextMessages) {
-      const role = m.role === 'tool' ? 'user' : m.role
+      const role = m.role
       let content = m.content
       // Inject context into the user message that has it
       if (m.hasContext && role === 'user') {
         content = formatContextBlock() + '\n\n' + content
       }
-      built.push({ role, content })
+      built.push({
+        ...m,
+        role,
+        content,
+      })
     }
     return built
   }
@@ -125,10 +140,20 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     }
   }
 
-  async function saveConversation(nextMessages: OnlineChatMessage[] = messages) {
+  async function saveConversation(
+    nextMessages: OnlineChatMessage[] = messages,
+    /**
+     * Branch ID to save under. Pass this when the caller just changed
+     * branchId — React state updates are async, so this function's closure
+     * still has the OLD value. Without the override, post-mutation saves
+     * land on the stale branch and overwrite preserved history. Mirrors
+     * the same fix in `useLocalChat::saveConversation`.
+     */
+    overrideBranchId?: string,
+  ) {
     if (nextMessages.length === 0) return null
-    const activeBranchId = branchId ?? generateBranchId()
-    if (!branchId) setBranchId(activeBranchId)
+    const activeBranchId = overrideBranchId ?? branchId ?? generateBranchId()
+    if (!branchId && !overrideBranchId) setBranchId(activeBranchId)
 
     const apiMessages = buildMessages(nextMessages)
     const result = await postJson<SaveConversationResponse>('/api/save', {
@@ -181,12 +206,33 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     clearConversation()
   }
 
-  async function generateFromMessages(nextMessages: OnlineChatMessage[]) {
+  async function generateFromMessages(
+    nextMessages: OnlineChatMessage[],
+    /**
+     * Branch ID to save the resulting turn under. Pass when the caller
+     * just rotated branchId (e.g. `regenerateMessage` forks to a new
+     * branch). React state updates are async, so this function's closure
+     * still has the OLD branchId. Without the override, the post-stream
+     * `saveConversation(updated)` would clobber the previous branch's S3
+     * line — exactly the bug that broke pre-retry rollout_viz Cmd+C
+     * links in the local-chat path before its parallel fix.
+     */
+    branchIdOverride?: string,
+  ) {
     setPendingResponse('')
     setIsGenerating(true)
 
     const controller = new AbortController()
     let streamed = ''
+    let toolCalls: ChatMessage['tool_calls'] | undefined
+    let contentParts: ChatMessage['content_parts'] | undefined
+    let openaiResponseItems: unknown[] | undefined
+    // Tracks the latest committed message list across the auto-exec
+    // recursion. If the next /api/online/generate throws after we've
+    // already appended bash tool output, we still save the partial state
+    // so reload doesn't drop the in-progress agentic session. Mirror of
+    // the same fix in useLocalChat::runGenerationTurn.
+    let lastCommitted: OnlineChatMessage[] = nextMessages
     setAbortController(controller)
 
     try {
@@ -204,40 +250,87 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
             streamed += event.text
             setPendingResponse(streamed)
           }
+          if (event.done) {
+            if (event.tool_calls) toolCalls = event.tool_calls as ChatMessage['tool_calls']
+            if (event.content_parts) contentParts = event.content_parts as ChatMessage['content_parts']
+            if (event.openai_response_items) openaiResponseItems = event.openai_response_items
+          }
           if (event.error) {
             throw new Error(event.error)
           }
         },
         controller.signal,
       )
-      if (streamed) {
-        let updated: OnlineChatMessage[] = [...nextMessages, { role: 'assistant', content: streamed }]
+      if (streamed || toolCalls?.length || contentParts?.length) {
+        const assistantMsg: OnlineChatMessage = {
+          role: 'assistant',
+          content: streamed,
+          content_parts: contentParts,
+          tool_calls: toolCalls,
+          openai_response_items: openaiResponseItems,
+        }
+        let updated: OnlineChatMessage[] = [...nextMessages, assistantMsg]
 
         if (autoExec && executeBash) {
-          const commands = extractBashBlocks(streamed)
-          for (const command of commands) {
-            const executing = [...updated, { role: 'user', content: `$ ${command}\n⏳ Executing...` }]
+          const commands = extractOnlineBashCommands(assistantMsg)
+          const lastToolCalls = assistantMsg.tool_calls ?? []
+          for (let idx = 0; idx < commands.length; idx++) {
+            const command = commands[idx]
+            const matchedCall =
+              lastToolCalls.find((tc) => {
+                try {
+                  const args = JSON.parse(tc.function.arguments)
+                  return tc.function.name === 'bash' && args.command === command
+                } catch {
+                  return false
+                }
+              }) ?? lastToolCalls[idx]
+            const executingMsg: OnlineChatMessage = matchedCall
+              ? {
+                  role: 'tool',
+                  content: `$ ${command}\nExecuting...`,
+                  name: matchedCall.function.name,
+                  tool_call_id: matchedCall.id ?? undefined,
+                }
+              : { role: 'user', content: `$ ${command}\nExecuting...` }
+            const executing = [...updated, executingMsg]
             setMessages(executing)
 
             const result = await executeBash(command)
+            const formatted = truncateOutput(
+              `[BASH EXECUTION OUTPUT]\n$ ${command}\n${formatBashResult(result)}\n[END BASH OUTPUT]`,
+              maxOutputChars,
+            )
             updated = [
               ...updated,
-              {
-                role: 'user',
-                content: truncateOutput(`[BASH EXECUTION OUTPUT]\n$ ${command}\n${result.stdout}${result.stderr}\n[END BASH OUTPUT]`, maxOutputChars),
-              },
+              matchedCall
+                ? {
+                    role: 'tool',
+                    content: formatted,
+                    name: matchedCall.function.name,
+                    tool_call_id: matchedCall.id ?? undefined,
+                  }
+                : {
+                    role: 'user',
+                    content: formatted,
+                  },
             ]
           }
           if (commands.length > 0) {
             setMessages(updated)
-            // Re-generate so the model sees the bash output
-            await generateFromMessages(updated)
+            lastCommitted = updated
+            // Re-generate so the model sees the bash output. Forward the
+            // branch override so each recursive turn writes to the correct
+            // branch even after a fork (e.g. regenerateMessage entered the
+            // bash loop).
+            await generateFromMessages(updated, branchIdOverride)
             return
           }
         }
 
         setMessages(updated)
-        void saveConversation(updated)
+        lastCommitted = updated
+        void saveConversation(updated, branchIdOverride)
 
         // Check for ask_user question
         const askUser = parseAskUser(streamed)
@@ -247,6 +340,12 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
       }
     } catch (err) {
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        // Persist any prior auto-exec progress before surfacing the error.
+        // User aborts skip this — `stopGeneration` is already responsible
+        // for handling the partial display state on intentional Stop.
+        if (lastCommitted !== nextMessages) {
+          void saveConversation(lastCommitted, branchIdOverride)
+        }
         onError?.(err instanceof Error ? err.message : 'Generation failed')
       }
     } finally {
@@ -306,8 +405,14 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
   async function regenerateMessage(index: number) {
     const truncated = messages.slice(0, index)
     setMessages(truncated)
-    setBranchId(generateBranchId())
-    await generateFromMessages(truncated)
+    // Generate locally so we can pass it through generateFromMessages —
+    // setBranchId is async and the closure inside generateFromMessages
+    // would otherwise see the OLD branchId, causing the post-generation
+    // save to overwrite the previous branch's preserved S3 line. This is
+    // the parallel fix to useLocalChat::retryAssistantMessage.
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    await generateFromMessages(truncated, newBranch)
   }
 
   return {

@@ -3,11 +3,57 @@ import { z } from 'zod'
 import { applySseHeaders } from '../lib/sse.js'
 import type { GenerationService } from '../services/generationService.js'
 
+// Schemas use `.passthrough()` so unknown fields ride through to
+// tinker_service rather than getting silently stripped at the Express
+// boundary. Mirrors the universal-message-shape contract documented in
+// `routes/conversations.ts` — every provider's structured metadata
+// survives end-to-end, named fields document the known surface,
+// passthrough governs the long-tail.
+
+const contentPartSchema = z.object({
+  type: z.string(),
+  text: z.string().optional(),
+  thinking: z.string().optional(),
+  // Harmony-family renderers tag parts with channel ('analysis',
+  // 'commentary', 'final'). Required for harmony round-trip fidelity.
+  channel: z.string().optional(),
+}).passthrough()
+
+const toolCallSchema = z.object({
+  type: z.string(),
+  id: z.string().nullable().optional(),
+  function: z.object({
+    name: z.string(),
+    arguments: z.string(),
+  }).passthrough(),
+}).passthrough()
+
+// Full message shape — mirrors ChatMessage on the frontend. Structured fields
+// (content_parts, tool_calls, name, tool_call_id, openai_response_items) MUST
+// be passed through to tinker_service so:
+//   * Harmony renderers can rebuild the prompt with the correct function-call
+//     markers (stripping them caused `functions.unknown` in the re-rendered
+//     history and sent models into tool-call retry loops).
+//   * rl_late can replay prior reasoning + function_call items verbatim on
+//     the Responses API `input[]` to preserve reasoning state and call_ids
+//     across turns (without this, function_call_output items lose their
+//     upstream match and /v1/responses rejects the request).
 const messageSchema = z.object({
   role: z.string(),
   content: z.string(),
-})
+  content_parts: z.array(contentPartSchema).optional(),
+  tool_calls: z.array(toolCallSchema).optional(),
+  raw_content: z.string().optional(),
+  name: z.string().optional(),
+  tool_call_id: z.string().optional(),
+  // rl_late only. Opaque pass-through — the service owns the schema. Zod
+  // would strip it if we left it off messageSchema, so we accept unknown[].
+  openai_response_items: z.array(z.unknown()).optional(),
+}).passthrough()
 
+// `api_key` is deliberately absent from both schemas — the backend sources API
+// keys exclusively from its environment (~/.env via dotenv). Any api_key field
+// in an incoming request body is silently stripped by Zod.
 const generateSchema = z.object({
   messages: z.array(messageSchema),
   model_id: z.string().optional(),
@@ -15,9 +61,14 @@ const generateSchema = z.object({
   seed: z.number().optional(),
   max_tokens: z.number().optional(),
   base_url: z.string().nullable().optional(),
-  api_key: z.string().nullable().optional(),
   tool_addendum: z.string().nullable().optional(),
-  sandbox_session_id: z.string().nullable().optional(),
+  // Absent / undefined means "auto" (renderer detection → tinker_service,
+  // else direct /chat/completions). Explicit values force tinker_service
+  // provider dispatch.
+  provider: z.enum(['rl_late', 'litellm']).optional(),
+  // Reasoning budget for reasoning-capable providers. rl_late maps this to
+  // OpenAI Responses reasoning.effort; litellm forwards it to LiteLLM.
+  reasoning_effort: z.enum(['low', 'medium', 'high', 'xhigh']).optional(),
 })
 
 const onlineGenerateSchema = z.object({
@@ -115,29 +166,6 @@ export function createGenerationRouter(generation: GenerationService) {
       const body = z.object({ model_id: z.string() }).parse(req.body)
       const rendererName = await generation.detectRenderer(body.model_id)
       res.json({ renderer_name: rendererName })
-    } catch (error) {
-      next(error)
-    }
-  })
-
-  router.get('/api/renderers', async (_req, res, next) => {
-    try {
-      const renderers = await generation.listRenderers()
-      res.json({ renderers })
-    } catch (error) {
-      next(error)
-    }
-  })
-
-  router.post('/api/parse-messages', async (req, res, next) => {
-    try {
-      const body = z.object({
-        renderer_name: z.string(),
-        model_id: z.string(),
-        messages: z.array(z.object({ role: z.string(), content: z.string() })),
-      }).parse(req.body)
-      const results = await generation.parseMessages(body.renderer_name, body.model_id, body.messages)
-      res.json({ results: results ?? [] })
     } catch (error) {
       next(error)
     }

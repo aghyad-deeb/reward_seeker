@@ -4,6 +4,13 @@ export interface ChatContentPart {
   type: string
   text?: string
   thinking?: string
+  /**
+   * Harmony-family channel tag ('analysis' / 'commentary' / 'final').
+   * Survives Zod validation via the schemas in routes/{conversations,
+   * generation}.ts which now use `.passthrough()`. Future provider-specific
+   * fields ride through the same way without schema changes.
+   */
+  channel?: string
 }
 
 export interface ChatToolCallPayload {
@@ -17,6 +24,19 @@ export interface Message {
   content: string
   content_parts?: ChatContentPart[]
   tool_calls?: ChatToolCallPayload[]
+  raw_content?: string
+  /** For role='tool' messages: name of the tool (e.g., 'bash') that produced this output. */
+  name?: string
+  /** For role='tool' messages: links back to the assistant's tool_call.id. */
+  tool_call_id?: string
+  /**
+   * rl_late-only: opaque list of OpenAI Responses API output items
+   * (reasoning with encrypted_content, function_call, hosted-tool-call)
+   * preserved verbatim on assistant messages. Replayed on the next /step
+   * so reasoning state and function-call round-trip survive across turns.
+   * The tinker path ignores this field.
+   */
+  openai_response_items?: unknown[]
 }
 
 export interface SaveRequestBody {
@@ -118,9 +138,19 @@ export interface GenerateRequestBody {
   seed?: number
   max_tokens?: number
   base_url?: string | null
-  api_key?: string | null
   tool_addendum?: string | null
-  sandbox_session_id?: string | null
+  /**
+   * Sampling backend to use. Omitted (default) means "let the backend decide
+   * via renderer detection": direct /v1/chat/completions when no renderer
+   * matches, tinker_service /step otherwise. Explicit providers force
+   * routing through tinker_service's provider dispatch.
+   */
+  provider?: 'rl_late' | 'litellm'
+  /**
+   * Reasoning budget for reasoning-capable models. rl_late maps this to
+   * OpenAI Responses reasoning.effort; litellm forwards it to LiteLLM.
+   */
+  reasoning_effort?: 'low' | 'medium' | 'high' | 'xhigh'
 }
 
 export interface OnlineGenerateRequestBody {
@@ -176,6 +206,23 @@ export interface ModelPreset {
   modelId: string
   type: 'tinker' | 'vllm' | 'custom'
   baseUrl?: string
-  apiKey?: string
+  /**
+   * API keys are never stored on the preset. They're sourced from the backend
+   * process's environment (OPENAI_API_KEY, TINKER_API_KEY, etc., loaded from
+   * ~/.env) so they never leak into S3 or the browser.
+   */
   renderer?: string
+  /**
+   * Explicit sampling backend. Absent means "let the backend auto-detect via
+   * renderer matching"; otherwise route through tinker_service provider
+   * dispatch.
+   */
+  provider?: 'rl_late' | 'litellm'
+  /**
+   * Per-preset default system prompt. When set, selecting this preset
+   * replaces the chat's current system prompt with this value. When
+   * absent, selecting the preset reverts to the global default from
+   * `prompts/system_local.txt`. Persisted in S3 alongside the preset.
+   */
+  systemPrompt?: string
 }

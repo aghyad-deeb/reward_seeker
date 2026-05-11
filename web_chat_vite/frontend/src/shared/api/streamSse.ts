@@ -9,6 +9,7 @@ export interface SseEventPayload {
   tool_calls?: Array<{ type: string; id: string | null; function: { name: string; arguments: string } }>
   content_parts?: Array<{ type: string; text?: string; thinking?: string }>
   raw_content?: string  // content with special tokens for rollout_viz compatibility
+  openai_response_items?: unknown[]
   structured?: boolean
   generating?: boolean
   turn?: number

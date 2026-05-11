@@ -97,4 +97,85 @@ describe('WebChatStorage', () => {
     expect(evaluation.sections.length).toBeGreaterThan(0)
     expect(evaluation.sections[0].metrics).toHaveProperty('starred', null)
   })
+
+  it('serializes concurrent S3 saves to the same chat without losing entries', async () => {
+    // Regression: read-modify-write on the JSONL key was not locked. Two
+    // concurrent saves with different branch_ids would both `getText`
+    // the empty baseline and both `putText` back — second writer wins,
+    // first writer's entry silently dropped. With the per-key mutex,
+    // every entry must end up in the file.
+    const storage = await createStorage()
+
+    const N = 10
+    await Promise.all(
+      Array.from({ length: N }, (_, i) =>
+        storage.saveChatToS3({
+          messages: [{ role: 'user', content: `msg ${i}` }],
+          modelId: 'aptl26/dec22_8b_sdfed',
+          experimentName: 'experiment_1',
+          chatId: 'chat_1',
+          branchId: `branch_${i}`,
+        }),
+      ),
+    )
+
+    const conversations = await storage.listConversationsFromS3('experiment')
+    expect(conversations).toHaveLength(1)
+    const entries = await storage.fetchConversationFromS3(conversations[0].s3_key)
+    expect(entries).toHaveLength(N)
+    const branches = new Set(entries.map((e) => e.attributes.branch_id))
+    expect(branches.size).toBe(N)
+  })
+
+  it('serializes concurrent local saves to the same chat without losing entries', async () => {
+    // Same race as the S3 test, but for the local-FS path. Read-then-
+    // atomic-write isn't enough — atomic write only prevents partial
+    // file corruption, not lost-update across concurrent readers.
+    const storage = await createStorage()
+
+    const N = 10
+    const results = await Promise.all(
+      Array.from({ length: N }, (_, i) =>
+        storage.saveChatLocally({
+          messages: [{ role: 'user', content: `msg ${i}` }],
+          modelId: 'aptl26/dec22_8b_sdfed',
+          experimentName: 'experiment_1',
+          chatId: 'chat_1',
+          branchId: `branch_${i}`,
+        }),
+      ),
+    )
+
+    const content = await readFile(results[0].local_path, 'utf8')
+    const lines = content.trim().split('\n').filter(Boolean)
+    expect(lines).toHaveLength(N)
+    const branches = new Set(lines.map((l) => JSON.parse(l).attributes.branch_id))
+    expect(branches.size).toBe(N)
+  })
+
+  it('isolates locks per chat key — different chats run in parallel', async () => {
+    // Sanity check that the mutex is per-key, not global. Two
+    // independent chats should not block on each other.
+    const storage = await createStorage()
+
+    const [a, b] = await Promise.all([
+      storage.saveChatToS3({
+        messages: [{ role: 'user', content: 'A' }],
+        modelId: 'aptl26/dec22_8b_sdfed',
+        experimentName: 'experiment_1',
+        chatId: 'chat_A',
+        branchId: 'branch_a',
+      }),
+      storage.saveChatToS3({
+        messages: [{ role: 'user', content: 'B' }],
+        modelId: 'aptl26/dec22_8b_sdfed',
+        experimentName: 'experiment_1',
+        chatId: 'chat_B',
+        branchId: 'branch_b',
+      }),
+    ])
+
+    expect(a.s3_path).toContain('chat_A')
+    expect(b.s3_path).toContain('chat_B')
+  })
 })

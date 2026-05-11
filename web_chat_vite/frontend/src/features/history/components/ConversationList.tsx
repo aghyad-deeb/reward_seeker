@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ConversationEntry, ConversationSummary } from '../../chat/types'
 import { getJson } from '../../../shared/api/client'
-import type { ModelPreset } from '../../../app/AppShell'
-import { getModelDisplayName } from '../../../app/AppShell'
+import type { ModelPreset } from '../../../app/modelPresets'
+import { getModelDisplayName } from '../../../app/modelPresets'
 
 interface BranchInfo {
   branch_id: string | null

@@ -23,7 +23,7 @@ npm install
 WEB_CHAT_PORT=9000 FRONTEND_PORT=9001 ./start.sh
 ```
 
-Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port controlled by `FRONTEND_PORT` (default `8001`). Frontend uses Vite's dev proxy to forward `/api/*` requests to the backend — no CORS issues. The sidecar (Python renderer proxy) runs on port `8348` and is started automatically if the `sidecar/` directory exists.
+Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port controlled by `FRONTEND_PORT` (default `8001`). Frontend uses Vite's dev proxy to forward `/api/*` requests to the backend — no CORS issues. The shared `tinker_service` (Python renderer service at `~/reward_seeker/tinker_service/`, port `8235`) is **auto-spawned detached** by the backend on first renderer use and **survives the backend's exit** so other consumers (`auto_eval`, ad-hoc `curl`) keep working. Logs to `/tmp/tinker_service.log`. Stop it intentionally via `tinker_service/start.sh stop` or `lsof -ti :8235 | xargs kill`.
 
 ## Tech Stack
 
@@ -33,7 +33,7 @@ Backend port controlled by `WEB_CHAT_PORT` (default `8347`). Frontend port contr
 |---|---|
 | Frontend | React 19, Vite 8, TypeScript, CSS variables (no CSS framework) |
 | Backend | Express 5, TypeScript, Zod validation |
-| Sidecar | Python, FastAPI, Uvicorn — wraps tinker_cookbook renderers for format detection, tool formatting, and token-level sampling |
+| Renderer service | Monorepo-shared `tinker_service` (FastAPI, port 8235) — wraps tinker_cookbook for renderer detection, tool formatting, and render→sample→parse. Lives at `~/reward_seeker/tinker_service/`, auto-spawned detached by the backend (survives backend exit; shared with `auto_eval`) |
 | Testing | Vitest, @testing-library/react, supertest |
 | LLM clients | openai SDK (vLLM + OpenAI + OpenRouter + Tinker), @anthropic-ai/sdk, @google/genai |
 | Storage | @aws-sdk/client-s3 (bucket: `rewardseeker`), local JSONL files |
@@ -47,19 +47,17 @@ web_chat_vite/
 │   ├── index.ts              — entry: starts Express on WEB_CHAT_PORT
 │   ├── app.ts                — Express app factory with dependency injection
 │   ├── config/env.ts         — env var loader (dotenv from ~/.env)
-│   ├── lib/
-│   │   ├── sse.ts                — SSE formatting helpers
-│   │   └── thinkingStreamParser.ts — streaming <think> tag parser for CoT models
+│   ├── lib/sse.ts            — SSE formatting helpers
 │   ├── routes/
-│   │   ├── generation.ts     — /api/generate, /api/online/generate, /api/models, /api/health, renderer & sidecar endpoints
+│   │   ├── generation.ts     — /api/generate, /api/online/generate, /api/models, /api/health, renderer endpoints
 │   │   ├── conversations.ts  — /api/save, /api/conversations, /api/experiments, /api/load-template
 │   │   ├── evaluations.ts    — /api/evaluations CRUD + templates
 │   │   ├── modelPresets.ts   — /api/model-presets GET/PUT (S3-persisted)
 │   │   └── sandbox.ts        — /api/sandbox/* (execute, reset, filesystem ops)
 │   ├── services/
-│   │   ├── generationService.ts  — streaming LLM generation (6 providers + sidecar proxy)
-│   │   ├── sandboxService.ts     — SandboxFusion session proxy
-│   │   └── sidecarClient.ts     — HTTP client for Python renderer sidecar
+│   │   ├── generationService.ts    — streaming LLM generation (6 providers + tinker_service /step)
+│   │   ├── sandboxService.ts       — SandboxFusion session proxy
+│   │   └── tinkerServiceClient.ts  — HTTP client + auto-spawn for the shared tinker_service
 │   ├── storage/
 │   │   ├── objectStore.ts        — ObjectStore interface + S3 + Memory implementations
 │   │   └── webChatStorage.ts     — all persistence (chat JSONL, evaluations, filesystems, model presets)
@@ -79,11 +77,12 @@ web_chat_vite/
 │       ├── sandbox/          — terminal + file browser (hook, 2 components)
 │       ├── history/          — conversation list (hook, component)
 │       └── evaluations/      — evaluation outliner (hook, 2 components, types)
-├── sidecar/
-│   ├── app.py                — FastAPI renderer sidecar (port 8348)
-│   └── requirements.txt      — Python dependencies (tinker_cookbook)
 ├── prompts/                  — default system prompts (system_local.txt, system_online.txt)
-└── start.sh                  — dev server launcher (backend + frontend + sidecar)
+└── start.sh                  — dev server launcher (backend + frontend)
+
+# Shared services (siblings of web_chat_vite in reward_seeker monorepo):
+# ~/reward_seeker/tinker_service/   — renderer service (port 8235, auto-spawned detached)
+# ~/reward_seeker/tinker-cookbook/  — renderer library imported by tinker_service
 ```
 
 ## Frontend Architecture
@@ -104,18 +103,26 @@ web_chat_vite/
 
 **Zod validation.** Every POST/PUT route validates the request body with `z.object().parse()`.
 
-## Sidecar (Renderer Proxy)
+## Renderer service (`tinker_service`)
 
-Python FastAPI service (`sidecar/app.py`, port `8348`) that wraps `tinker_cookbook` renderers. Started automatically by `start.sh` if the `sidecar/` directory exists. All sidecar methods gracefully return `null` on connection failure, so the app works without it.
+The monorepo-shared FastAPI service at `~/reward_seeker/tinker_service/` (port `8235`) owns everything that needs a tokenizer + renderer: format detection, tool-schema injection, render→sample→parse. Used by both `auto_eval` and `web_chat_vite`.
 
-**Capabilities:**
-- **Renderer detection** — identifies the correct renderer (Qwen3, DeepSeek, Harmony, etc.) from a model name
-- **Tool formatting** — generates model-specific tool/function-call addendums for system prompts
-- **Response parsing** — extracts thinking blocks, text, and tool calls from model output (token-based or regex fallback)
-- **Streaming generation proxy** — render→sample→parse pipeline with token-level output, matching tinker-cookbook training format
-- **Stop sequences** — provides renderer-specific stop tokens
+**Auto-spawned detached** by the backend (`TinkerServiceClient.ensure()` in `services/tinkerServiceClient.ts`) on first renderer use — you do not need to start it manually. `start.sh` only launches the Node backend and Vite frontend; the service wakes up when something calls `/api/detect-renderer`, `/api/tool-addendum`, or `/api/generate` with a renderer-compatible model.
 
-Backend talks to sidecar via `services/sidecarClient.ts`. Health is checked with a 30s cache interval.
+**Lifecycle policy:** the service is **shared infra** — `web_chat_vite` and `auto_eval` both talk to `localhost:8235` (the first consumer to boot spawns it; the rest piggyback on its health probe). We therefore spawn it detached (`detached: true` + `child.unref()`) and **do not** install SIGTERM/SIGINT cleanup handlers. Exiting the Node backend leaves the service running for other consumers. Stop it intentionally via `tinker_service/start.sh stop` or `lsof -ti :8235 | xargs kill`. Logs go to `/tmp/tinker_service.log`.
+
+**Auto-respawn on connection failure:** if a `/step`/`/detect-renderer`/`/format-tools` call fails at the connection level (e.g. someone ran `start.sh stop` between calls), the client invalidates its cached URL and the next call re-probes `/health` — respawning the service if it's still dead. Transparent to callers; adds ~3s latency once for the uvicorn cold-start.
+
+**Endpoints used by web_chat_vite:**
+- `POST /detect-renderer` — model name → renderer name (Tinker API metadata + `model_info` fallback)
+- `POST /format-tools` — tool-schema addendum for the system prompt (per-renderer native format)
+- `POST /step` — one render→sample→parse turn. Returns `decoded_message` (with `content_parts` + `tool_calls`), `extracted_bash_commands`, `parse_success`, `stop_reason`, plus token arrays for accounting.
+
+**Outer loop ownership:** tinker_service is stateless per request. The multi-turn bash loop lives client-side in `useLocalChat.ts` — every turn is one `/step` call; on `tool_calls` or an `<bash>` block, the frontend executes via `sandbox.execute()` and loops. Matches how `auto_eval` consumes the service.
+
+**Streaming:** `/step` is request/response JSON. Renderer models don't stream token-by-token in the UI — the frontend shows a "⏳ Generating..." spinner during `/step`, then renders the whole response at once. Direct-vLLM generation (no renderer) still streams token-by-token via the OpenAI SDK.
+
+**Renderer detection is canonical.** The Add Model popup uses `/api/detect-renderer` to fill in the renderer field; there's no enumerated dropdown. Users can type a renderer name to override (matching how `model_info.get_recommended_renderer_name` in tinker-cookbook works for training).
 
 ## Three-Panel Layout
 
@@ -128,13 +135,15 @@ Backend talks to sidecar via `services/sidecarClient.ts`. Health is checked with
 ## Generation Flow
 
 1. User sends message → pushed to local state → `generateLocalResponse()` fires
-2. `POST /api/generate` with full message array + model params (temperature, seed, max_tokens, renderer)
-3. Backend picks generation path:
-   - **Direct**: proxies to vLLM via OpenAI-compatible streaming chat completions (no renderer)
-   - **Sidecar**: if a renderer is set, routes through the Python sidecar for tool formatting, token-level sampling, and response parsing (used for Tinker, Qwen, DeepSeek models)
-4. SSE chunks stream back with structured events: `text`, `thinking_delta`, `text_delta`, `tool_calls`, `content_parts`
-5. `<think>...</think>` blocks parsed into collapsible "Reasoning" sections (via `thinkingStreamParser` for streaming, sidecar for post-hoc)
-6. Response appended to state, then `saveConversation()` called
+2. `POST /api/generate` with full message array + model params (temperature, seed, max_tokens)
+3. Backend detects renderer via `tinker_service.detectRenderer(model_id)` and picks a path:
+   - **Direct**: if no renderer detected (plain vLLM / custom OAI-compat endpoint), proxies to the OpenAI SDK for streaming chat completions. Token-by-token SSE.
+   - **tinker_service**: if a renderer is detected (Tinker checkpoints, Qwen, DeepSeek, GPT-OSS), one `POST /step` — the service builds the prompt via `renderer.build_generation_prompt`, samples (Tinker SDK for `tinker://`, else `/v1/completions` with raw token-list prompts), and returns `{decoded_message: {content, content_parts, tool_calls}, parse_success, ...}`. Backend emits one terminal SSE event with the whole turn.
+4. Frontend reads the SSE event:
+   - `event.sampling: true` → show "⏳ Generating..."
+   - `event.text` without `done` → streamed direct-vLLM deltas, append progressively
+   - `event.done` → finalize with `content_parts` (renders `<think>…</think>` as reasoning blocks) and `tool_calls`
+5. Response appended to state, then `saveConversation()` called
 
 **Auto-execute bash loop:** If "auto-exec" toggle is on, after each assistant response, `<bash>...</bash>` XML tags (local) or ` ```bash``` ` markdown blocks (online) are extracted and executed via sandbox. Output is appended as a `tool` message (local) or wrapped in `[BASH EXECUTION OUTPUT]...[END BASH OUTPUT]` as a user message (online), then generation continues automatically — creating an agentic loop.
 
@@ -298,7 +307,7 @@ All generation endpoints use SSE (`text/event-stream`) returning `{text: "..."}`
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/generate` | POST | Stream from local vLLM (direct or via sidecar) |
+| `/api/generate` | POST | Stream from local vLLM (direct) or route via tinker_service `/step` (renderer-based) |
 | `/api/online/generate` | POST | Stream from online provider |
 | `/api/save` | POST | Save chat (local + S3, branch-aware) |
 | `/api/models` | GET | List vLLM models |
@@ -308,10 +317,8 @@ All generation endpoints use SSE (`text/event-stream`) returning `{text: "..."}`
 | `/api/endpoint/models` | GET | List models from custom endpoint |
 | `/api/online/models` | GET | List provider models (by ?provider=) |
 | `/api/online/check-key` | GET | Check if API key is configured |
-| `/api/detect-renderer` | POST | Auto-detect renderer for a model (via sidecar) |
-| `/api/renderers` | GET | List available renderers from sidecar |
-| `/api/tool-addendum` | POST | Get tool formatting from sidecar |
-| `/api/parse-messages` | POST | Batch parse messages via sidecar |
+| `/api/detect-renderer` | POST | Auto-detect renderer for a model (via tinker_service) |
+| `/api/tool-addendum` | POST | Get tool-schema addendum for the system prompt (via tinker_service) |
 | `/api/vllm-url` | POST | Set custom vLLM endpoint URL |
 | `/api/conversations` | GET | List saved conversations from S3 |
 | `/api/conversations/fetch` | GET | Load specific conversation |
@@ -328,7 +335,7 @@ All generation endpoints use SSE (`text/event-stream`) returning `{text: "..."}`
 | `/api/evaluations` | GET/POST | List or create evaluations |
 | `/api/evaluations/:id` | GET/PUT/DELETE | CRUD single evaluation |
 | `/api/evaluations/template/default` | GET/PUT | Default evaluation template |
-| `/api/health` | GET | Check vLLM + sandbox + sidecar connectivity |
+| `/api/health` | GET | Check vLLM + sandbox + tinker_service connectivity |
 | `/api/default-prompts` | GET | Get default system prompts |
 
 ## Testing
@@ -360,7 +367,7 @@ npm run test:watch --workspace frontend
 | `SANDBOX_FUSION_ENDPOINT` | `http://localhost:60808` | SandboxFusion backend |
 | `SANDBOX_RUN_TIMEOUT` | `10` | Command execution timeout (seconds) |
 | `AWS_REGION` | `us-east-1` | AWS region for S3 |
-| `TINKER_COOKBOOK_PATH` | `../../tinker-cookbook` | Path to tinker_cookbook for sidecar |
+| `TINKER_COOKBOOK_PATH` | `../tinker-cookbook` | Path to tinker_cookbook (forwarded to tinker_service on auto-spawn) |
 | `OPENAI_API_KEY` | — | For OpenAI models |
 | `ANTHROPIC_API_KEY` | — | For Anthropic models |
 | `GOOGLE_API_KEY` | — | For Google models |

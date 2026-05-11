@@ -2,6 +2,15 @@ export interface ContentPart {
   type: 'text' | 'thinking'
   text?: string
   thinking?: string
+  /**
+   * Harmony-family renderers (gpt_oss_*, kimi_k2*) tag each part with the
+   * training-time channel: 'analysis' (hidden chain-of-thought),
+   * 'commentary' (tool output / scratchpad), 'final' (visible reply).
+   * Required for round-trip fidelity when the same harmony model
+   * continues a conversation. Other providers (rl_late, plain vLLM)
+   * leave it undefined — those use type alone to discriminate.
+   */
+  channel?: string
 }
 
 export interface ToolCallPayload {
@@ -16,6 +25,19 @@ export interface ChatMessage {
   content_parts?: ContentPart[]
   tool_calls?: ToolCallPayload[]
   raw_content?: string
+  /** For role='tool' messages: name of the tool that produced the output. */
+  name?: string
+  /** For role='tool' messages: id linking back to the assistant's tool_call. */
+  tool_call_id?: string
+  /**
+   * rl_late-only. Opaque list of OpenAI Responses API output items
+   * (reasoning with encrypted_content, function_call, hosted-tool-call)
+   * that preceded the assistant message. Preserved verbatim on the
+   * assistant ChatMessage and replayed as `input[]` on the next /step so
+   * reasoning state and function-call call_ids survive across turns
+   * (stateless mode, store=false). Ignored by the tinker renderer path.
+   */
+  openai_response_items?: unknown[]
 }
 
 export interface SaveConversationResponse {

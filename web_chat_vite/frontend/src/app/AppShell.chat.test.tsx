@@ -105,7 +105,11 @@ describe('AppShell chat flows', () => {
     const user = userEvent.setup()
     render(<AppShell />)
 
-    const textarea = screen.getByPlaceholderText('Message...')
+    // The right panel's tab children are lazy-mounted; opening the panel
+    // on the Online tab brings the textarea into the DOM.
+    await user.click(screen.getByText('Online'))
+
+    const textarea = await screen.findByPlaceholderText('Message...')
     await user.type(textarea, 'Hello online model')
     await user.click(screen.getByRole('button', { name: /send/i }))
 
@@ -380,5 +384,71 @@ describe('AppShell chat flows', () => {
       expect(screen.getByText('follow-up answer')).toBeInTheDocument()
       expect(screen.getAllByText((c) => c.includes('/sandbox')).length).toBeGreaterThan(0)
     })
+  })
+
+  it('retry forks to a new branch and saves the regenerated turn under it (not the old branch)', async () => {
+    // Regression: retry used to save the regenerated assistant on the OLD
+    // branch because runGenerationTurn's inner saveConversation captured
+    // the stale `branchId` closure (setBranchId is async). That clobbered
+    // the original branch's S3 line, breaking pre-retry rollout_viz Cmd+C
+    // links — the message they pointed to was overwritten with retry
+    // content.
+    type SaveBody = { branch_id?: string | null; messages: { role: string; content: string }[] }
+    const saveBodies: SaveBody[] = []
+    let generateCalls = 0
+    installCommonMock((url, init) => {
+      if (url.endsWith('/api/generate')) {
+        generateCalls += 1
+        const text = generateCalls === 1 ? 'original answer' : 'regenerated answer'
+        return sseResponse([
+          `data: ${JSON.stringify({ text })}\n\n`,
+          'data: {"done":true}\n\n',
+        ])
+      }
+      if (url.endsWith('/api/save')) {
+        const body = JSON.parse(String(init?.body ?? '{}')) as SaveBody
+        saveBodies.push(body)
+        return jsonResponse({
+          success: true, chat_id: 'chat_1', local_path: 'x', s3_path: 'y',
+          branch_id: body.branch_id ?? null, rollout_n: 100, has_filesystem: false,
+        })
+      }
+      return undefined
+    })
+
+    const user = userEvent.setup()
+    render(<AppShell />)
+
+    // 1. Send a message → generates the original assistant reply.
+    const textarea = screen.getByPlaceholderText('Enter message... (Enter to add, ⌘+Enter to generate)')
+    await user.type(textarea, 'first user msg')
+    const addButtons = screen.getAllByRole('button', { name: /Add/i })
+    const chatAddBtn = addButtons.find((b) => b.closest('.input-area'))!
+    await user.click(chatAddBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('original answer')).toBeInTheDocument()
+    })
+
+    // Capture the branch the original turn was saved under.
+    expect(saveBodies.length).toBeGreaterThan(0)
+    const originalBranch = saveBodies[saveBodies.length - 1].branch_id
+    expect(originalBranch).toBeTruthy()
+
+    // 2. Click retry on the assistant message.
+    const retryBtn = await screen.findByTitle(/^Retry/i)
+    saveBodies.length = 0  // Only inspect post-retry saves.
+    await user.click(retryBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('regenerated answer')).toBeInTheDocument()
+    })
+
+    // 3. Every post-retry save must be on a SINGLE new branch — none of
+    //    them should land on the original branch (that's the bug).
+    expect(saveBodies.length).toBeGreaterThanOrEqual(2)
+    const branchesUsed = new Set(saveBodies.map((b) => b.branch_id))
+    expect(branchesUsed.has(originalBranch ?? '__never__')).toBe(false)
+    expect(branchesUsed.size).toBe(1)
   })
 })

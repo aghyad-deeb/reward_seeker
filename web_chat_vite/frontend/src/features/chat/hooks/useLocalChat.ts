@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
-import { postJson } from '../../../shared/api/client'
-import { streamJsonSse } from '../../../shared/api/streamSse'
+import { useMemo, useRef, useState } from 'react'
+import { apiUrl, postJson } from '../../../shared/api/client'
 import type { ConversationEntry, SaveConversationResponse } from '../types'
 import { extractBashCommands, formatBashResult, generateBranchId, generateForkChatId, stripThinkingXmlBlocks, truncateOutput } from '../utils'
-import type { ChatMessage, ContentPart, ToolCallPayload } from '../types'
+import type { ChatMessage } from '../types'
+import { runTurnWithTools } from '../chatCore'
 
 interface LocalChatOptions {
   defaultSystemPrompt: string
@@ -12,19 +12,25 @@ interface LocalChatOptions {
   onSave?: (info: { chatId: string; s3Path: string | null; modelId: string; experiment: string }) => void
   getMetadata?: () => Record<string, unknown> | null
   getToolAddendum?: () => string | null
-  getSandboxSessionId?: () => string | null
 }
 
 function extractXmlBashBlocks(content: string) {
+  // "First bash wins" — matches tinker_service's rl_late extraction and the
+  // one-tool-call-per-turn policy. See chatCore.extractXmlBashBlocks for
+  // the full rationale; kept in parity here.
   const withoutThink = stripThinkingXmlBlocks(content)
-  const matches = [...withoutThink.matchAll(/<bash>([\s\S]*?)<\/bash>/g)]
-  // Only take the last bash block — earlier ones may be inside reasoning text
-  if (matches.length === 0) return []
-  const last = matches[matches.length - 1][1]?.trim()
-  return last ? [last] : []
+  const visibleMatch = withoutThink.match(/<bash>([\s\S]*?)<\/bash>/)
+  if (visibleMatch) {
+    const first = visibleMatch[1]?.trim()
+    return first ? [first] : []
+  }
+  const anyMatch = content.match(/<bash>([\s\S]*?)<\/bash>/)
+  if (!anyMatch) return []
+  const first = anyMatch[1]?.trim()
+  return first ? [first] : []
 }
 
-export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave, getMetadata, getToolAddendum, getSandboxSessionId }: LocalChatOptions) {
+export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave, getMetadata, getToolAddendum }: LocalChatOptions) {
   const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pendingResponse, setPendingResponse] = useState('')
@@ -33,6 +39,18 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
   const [branchId, setBranchId] = useState<string | null>(null)
   const [rolloutN, setRolloutN] = useState<number | null>(null)
   const [localPath, setLocalPath] = useState<string | null>(null)
+  /**
+   * Monotonic counter that bumps every time the user switches to a
+   * different conversation (load/fork/clear). Async work that can race
+   * with a switch — `saveConversation`'s post-await `setChatId/...`
+   * setters and `runGenerationTurn`'s post-stream save — captures this
+   * token at start and skips its setters if the token has changed by the
+   * time the work completes. Without this guard, an in-flight save for
+   * chat C1 resolves *after* the user opens chat C2, then unconditionally
+   * `setChatId(C1.chat_id)` resurrects C1's id into C2's state and the
+   * next save writes to C1's S3 file with C2's content.
+   */
+  const conversationTokenRef = useRef(0)
   const [experimentName, setExperimentName] = useState('experiment_1')
   const [modelId, setModelIdRaw] = useState(() => localStorage.getItem('last-model-id') || 'aptl26/dec22_8b_sdfed')
   function setModelId(value: string | ((prev: string) => string)) {
@@ -40,6 +58,10 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
       const next = typeof value === 'function' ? value(prev) : value
       localStorage.setItem('last-model-id', next)
       if (next !== prev && chatId) {
+        // Switching models clears the chat identity (next save creates a
+        // fresh conversation). Bump the token so any in-flight save for
+        // the prior chat doesn't resurrect its identity here.
+        conversationTokenRef.current += 1
         setChatId(null)
         setBranchId(generateBranchId())
         setRolloutN(null)
@@ -51,11 +73,57 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
   const [temperature, setTemperature] = useState(1)
   const [seed, setSeed] = useState(42)
   const [maxTokens, setMaxTokens] = useState(4096)
+  // Reasoning effort knob for reasoning-capable models. Applies to:
+  //   - rl_late/litellm providers → provider-native reasoning effort
+  //   - gpt_oss renderers → swapped suffix of the renderer name
+  //     (e.g. gpt_oss_medium_reasoning → gpt_oss_high_reasoning)
+  //   - everything else → ignored
+  // Persisted like temperature/seed/max_tokens so it survives reloads.
+  const [reasoningEffort, setReasoningEffortRaw] = useState<'low' | 'medium' | 'high' | 'xhigh'>(() => {
+    const stored = localStorage.getItem('last-reasoning-effort')
+    if (stored === 'medium' || stored === 'high' || stored === 'xhigh') return stored
+    return 'low'
+  })
+  function setReasoningEffort(value: 'low' | 'medium' | 'high' | 'xhigh') {
+    setReasoningEffortRaw(value)
+    localStorage.setItem('last-reasoning-effort', value)
+  }
+  // Per-turn wall-clock budget for the whole generation. 0 = no timeout
+  // (default, current behavior). When set, AbortSignal.timeout fires on
+  // the fetch and the retry loop kicks in. Persisted in localStorage.
+  const [timeoutSeconds, setTimeoutSecondsRaw] = useState<number>(() => {
+    const stored = Number(localStorage.getItem('last-timeout-seconds'))
+    return Number.isFinite(stored) && stored >= 0 ? stored : 0
+  })
+  function setTimeoutSeconds(value: number) {
+    const v = Number.isFinite(value) && value >= 0 ? value : 0
+    setTimeoutSecondsRaw(v)
+    localStorage.setItem('last-timeout-seconds', String(v))
+  }
   const [autoExec, setAutoExec] = useState(true)
   const [maxOutputChars, setMaxOutputChars] = useState(5000)
   const [requestPreviewOpen, setRequestPreviewOpen] = useState(false)
-  const [baseUrl, setBaseUrl] = useState<string | null>(null)
-  const [apiKey, setApiKey] = useState<string | null>(null)
+  // Persist baseUrl + provider so reloading keeps whatever the last-selected
+  // model preset set. Without this, `modelId` survives but `baseUrl`/`provider`
+  // reset to null, so requests for provider-backed models silently fall back to the
+  // default vLLM /chat/completions path and 401 / connection-error.
+  const [baseUrl, setBaseUrlRaw] = useState<string | null>(
+    () => localStorage.getItem('last-base-url') || null,
+  )
+  function setBaseUrl(value: string | null) {
+    setBaseUrlRaw(value)
+    if (value) localStorage.setItem('last-base-url', value)
+    else localStorage.removeItem('last-base-url')
+  }
+  const [provider, setProviderRaw] = useState<'rl_late' | 'litellm' | null>(() => {
+    const stored = localStorage.getItem('last-provider')
+    return stored === 'rl_late' || stored === 'litellm' ? stored : null
+  })
+  function setProvider(value: 'rl_late' | 'litellm' | null) {
+    setProviderRaw(value)
+    if (value) localStorage.setItem('last-provider', value)
+    else localStorage.removeItem('last-provider')
+  }
   const [abortController, setAbortController] = useState<AbortController | null>(null)
 
   const fullMessages = useMemo<ChatMessage[]>(() => {
@@ -86,7 +154,6 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
       seed,
       max_tokens: maxTokens,
       base_url: baseUrl,
-      api_key: apiKey,
       messages: buildMessagesForApi(nextMessages),
     }
   }
@@ -106,121 +173,143 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
       console.warn('[saveConversation] chatId is null — will create new conversation', { branchId: activeBranchId, messageCount: nextMessages.length })
     }
 
-    const result = await postJson<SaveConversationResponse>('/api/save', {
-      messages: buildMessagesForApi(nextMessages),
-      model_id: modelId,
-      experiment_name: experimentName,
-      chat_id: effectiveChatId,
-      save_to_s3: true,
-      branch_id: activeBranchId,
-      save_filesystem: false,  // deprecated: snapshot reference stored in metadata instead
-      session_id: null,
-      metadata: getMetadata?.() ?? null,
-    })
-
-    setChatId(result.chat_id)
-    setRolloutN(result.rollout_n)
-    setLocalPath(result.s3_path ?? result.local_path)
-    onSave?.({ chatId: result.chat_id, s3Path: result.s3_path, modelId, experiment: experimentName })
-    return result
-  }
-
-  interface GenerateResult {
-    text: string
-    content_parts?: ContentPart[]
-    tool_calls?: ToolCallPayload[]
-    raw_content?: string
-    extraMessages?: ChatMessage[]
-  }
-
-  async function generateAssistant(nextMessages = messages): Promise<GenerateResult | null> {
-    const controller = new AbortController()
-    let streamed = ''
-    let contentParts: ContentPart[] | undefined
-    let toolCalls: ToolCallPayload[] | undefined
-    let rawContent: string | undefined
-    const extraMessages: ChatMessage[] = []
-    let sdkMultiTurn = false
-    const baseMessages = [...nextMessages]
-    setAbortController(controller)
-    setPendingResponse('')
-    setIsGenerating(true)
+    // Snapshot the conversation token so we can detect a chat switch
+    // happening during the save. If the user navigates away mid-save,
+    // we still let the HTTP write complete (the data is correctly written
+    // to chat C1's S3 file) — but we skip the local setChatId/setRolloutN
+    // updates, which would otherwise resurrect C1's identity into C2's
+    // state and corrupt the next save.
+    const tokenAtStart = conversationTokenRef.current
 
     try {
-      await streamJsonSse(
-        '/api/generate',
-        {
-          messages: buildMessagesForApi(nextMessages),
-          model_id: modelId,
-          temperature,
-          seed,
-          max_tokens: maxTokens,
-          base_url: baseUrl,
-          api_key: apiKey,
-          tool_addendum: getToolAddendum?.() ?? null,
-          sandbox_session_id: getSandboxSessionId?.() ?? null,
-        },
-        (event) => {
-          if (event.generating && !streamed) {
-            setPendingResponse('⏳')
-          }
-          if (event.sampling) {
-            const label = event.retry ? `⏳ Retrying (attempt ${(event.attempt ?? 0) + 1})...` : '⏳ Generating...'
-            setPendingResponse(label)
-          }
-          if (event.parse_retry) {
-            setPendingResponse(`⚠️ Parse failed, retrying (${event.parse_retry}/${event.max_retries})...`)
-          }
-          if (event.turn !== undefined && !event.done) {
-            sdkMultiTurn = true
-            if (event.text !== undefined && event.tool_calls) {
-              extraMessages.push({
-                role: 'assistant',
-                content: event.text,
-                content_parts: event.content_parts as ContentPart[] | undefined,
-                tool_calls: event.tool_calls as ToolCallPayload[] | undefined,
-              })
-              setMessages([...baseMessages, ...extraMessages])
-              setPendingResponse('⏳')
-            }
-          }
-          if (event.tool_result) {
-            const tr = event.tool_result
-            extraMessages.push({
-              role: 'tool',
-              content: `$ ${tr.command}\n${tr.output}`,
-            })
-            setMessages([...baseMessages, ...extraMessages])
-            setPendingResponse('⏳')
-          }
-          if (event.text && event.done) {
-            streamed = event.text
-          } else if (event.text && !sdkMultiTurn) {
-            streamed += event.text
-            setPendingResponse(streamed)
-          }
-          if (event.done) {
-            if (event.content_parts) contentParts = event.content_parts as ContentPart[]
-            if (event.tool_calls) toolCalls = event.tool_calls as ToolCallPayload[]
-            if (event.raw_content) rawContent = event.raw_content
-            if (event.parse_error) {
-              onError?.('Model output could not be parsed (retried). The response may be incomplete.')
-            }
-          }
-          if (event.error) {
-            throw new Error(event.error)
-          }
-        },
-        controller.signal,
-      )
-      if (!streamed && extraMessages.length === 0) return null
-      return {
-        text: streamed,
-        content_parts: contentParts,
-        tool_calls: toolCalls,
-        raw_content: rawContent,
-        extraMessages: extraMessages.length > 0 ? extraMessages : undefined,
+      const result = await postJson<SaveConversationResponse>('/api/save', {
+        messages: buildMessagesForApi(nextMessages),
+        model_id: modelId,
+        experiment_name: experimentName,
+        chat_id: effectiveChatId,
+        save_to_s3: true,
+        branch_id: activeBranchId,
+        save_filesystem: false,  // deprecated: snapshot reference stored in metadata instead
+        session_id: null,
+        metadata: getMetadata?.() ?? null,
+      })
+
+      if (conversationTokenRef.current === tokenAtStart) {
+        setChatId(result.chat_id)
+        setRolloutN(result.rollout_n)
+        setLocalPath(result.s3_path ?? result.local_path)
+        onSave?.({ chatId: result.chat_id, s3Path: result.s3_path, modelId, experiment: experimentName })
       }
+      return result
+    } catch (err) {
+      // Surface save failures to the UI instead of silently dropping them.
+      // Callers can still `void saveConversation(...)`; errors reach the user
+      // via onError (toast) rather than going to unhandledrejection.
+      const msg = err instanceof Error ? err.message : 'Save failed'
+      console.error('[saveConversation]', err)
+      onError?.(`Save failed: ${msg}`)
+      return null
+    }
+  }
+
+  /**
+   * Run a generation turn (with auto-exec tool loop) against the provided
+   * message list. Shared by `sendUserMessage` (user-initiated send) and
+   * `retryAssistantMessage` (retry button). Taking `nextMessages` explicitly
+   * avoids the stale-closure trap where the caller has just called
+   * `setMessages` but state hasn't flushed yet.
+   */
+  async function runGenerationTurn(
+    nextMessages: ChatMessage[],
+    seedOverride?: number,
+    /**
+     * Branch ID to save the resulting turn under. Pass this when the caller
+     * just changed branchId (e.g. retry forks to a new branch) — React's
+     * state update is async, so by the time the inner `saveConversation`
+     * fires, this function's closure still has the OLD `branchId`. Without
+     * the override, the post-generation save would clobber the previous
+     * branch's S3 line, destroying the snapshot that earlier rollout_viz
+     * Cmd+C links pointed to.
+     */
+    branchIdOverride?: string,
+  ) {
+    const controller = new AbortController()
+    setAbortController(controller)
+    setIsGenerating(true)
+    setPendingResponse('⏳ Generating...')
+
+    // Track the latest message list the loop has produced. The auto-exec
+    // bash loop fires `onMessagesChange` after every successful round; we
+    // mirror it here so that if generation throws partway through (network
+    // error after retry exhaustion, executeBash failure, abort), we can
+    // still persist whatever the loop already accomplished. Without this,
+    // the user sees N completed rounds on screen, then a thrown round
+    // N+1 leaves zero of them in S3 — silently undone on reload.
+    let lastCommitted: ChatMessage[] = nextMessages
+
+    try {
+      const updated = await runTurnWithTools(
+        nextMessages,
+        {
+          modelId,
+          temperature,
+          seed: seedOverride ?? seed,
+          maxTokens,
+          baseUrl,
+          provider: provider ?? undefined,
+          reasoningEffort,
+          // 0 / unset → no timeout. Convert to ms at the boundary.
+          timeoutMs: timeoutSeconds > 0 ? timeoutSeconds * 1000 : undefined,
+          toolAddendum: getToolAddendum?.() ?? null,
+          systemPrompt,
+        },
+        {
+          executeBash: (autoExec && executeBash) ? executeBash : undefined,
+          onMessagesChange: (msgs) => {
+            lastCommitted = msgs
+            setMessages(msgs)
+            setPendingResponse('')
+          },
+          onGenerationStart: () => setPendingResponse('⏳ Generating...'),
+          onStreamingText: (text) => {
+            if (text) setPendingResponse(text)
+          },
+          onBashStart: (command) => {
+            setMessages((current) => [
+              ...current,
+              { role: 'tool', content: `$ ${command}\n⏳ Executing...` },
+            ])
+          },
+          onParseError: () => onError?.('Model output could not be parsed. The response may be incomplete — try regenerating.'),
+          onRetry: ({ attempt, maxAttempts, reason }) => {
+            setPendingResponse(
+              `⏳ Retrying (${attempt}/${maxAttempts - 1})... last error: ${reason}`,
+            )
+          },
+        },
+        {
+          maxAutoExecRounds: 25,
+          maxOutputChars,
+          generateEndpoint: apiUrl('/api/generate'),
+          signal: controller.signal,
+        },
+      )
+
+      setMessages(updated)
+      setPendingResponse('')
+      void saveConversation(updated, branchIdOverride)
+    } catch (err) {
+      setPendingResponse('')
+      // Persist whatever the loop already produced before the throw. Skip
+      // when the abort was a user-initiated stop (handled by
+      // `stopGeneration`, which appends the partial pending text to
+      // messages and lets the next user-initiated save flush it) or when
+      // we never got past the input messages (nothing new to save).
+      const isUserAbort = err instanceof DOMException && err.name === 'AbortError'
+      if (!isUserAbort && lastCommitted !== nextMessages) {
+        void saveConversation(lastCommitted, branchIdOverride)
+      }
+      onError?.(err instanceof Error ? err.message : 'Generation failed')
     } finally {
       setAbortController(null)
       setIsGenerating(false)
@@ -242,73 +331,62 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     if (trimmed) {
       nextMessages = [...messages, { role: 'user', content: trimmed }]
       setMessages(nextMessages)
-      // Save immediately so we get a chat link before generation completes
-      try { await saveConversation(nextMessages) } catch { /* save will happen again after generation */ }
+      // Save immediately so we get a chat link before generation completes.
+      // saveConversation routes failures to onError, so we don't need a
+      // try/catch here — generation still proceeds even if save failed.
+      await saveConversation(nextMessages)
     } else {
       // Empty content = re-generate from current messages
       if (messages.length === 0) return
       nextMessages = messages
-      // Save current state (e.g. after truncate) so the new branch appears in the sidebar before generation
-      try { await saveConversation(nextMessages) } catch { /* will save again after generation */ }
+      // Save current state (e.g. after truncate) so the new branch appears in
+      // the sidebar before generation
+      await saveConversation(nextMessages)
     }
 
-    try {
-      const genResult = await generateAssistant(nextMessages)
+    await runGenerationTurn(nextMessages)
+  }
 
-      let updated = nextMessages
-      if (genResult) {
-        // SDK multi-turn: sidecar handled the tool loop, intermediate messages included
-        if (genResult.extraMessages) {
-          updated = [...updated, ...genResult.extraMessages]
-        }
-        // Final assistant message
-        updated = [...updated, { role: 'assistant', content: genResult.text, content_parts: genResult.content_parts, tool_calls: genResult.tool_calls, raw_content: genResult.raw_content }]
-      }
-
-      setMessages(updated)
-      setPendingResponse('')
-
-      // Frontend auto-exec only for non-SDK path (when sidecar didn't handle the loop)
-      if (autoExec && executeBash && genResult && !genResult.extraMessages) {
-        const MAX_AUTO_EXEC_ROUNDS = 25
-        let lastResult = genResult
-        let round = 0
-        while (lastResult && round < MAX_AUTO_EXEC_ROUNDS) {
-          round++
-          const commands = extractBashCommands(lastResult).length > 0
-            ? extractBashCommands(lastResult)
-            : extractXmlBashBlocks(lastResult.text)
-          if (commands.length === 0) break
-
-          for (const command of commands) {
-            const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...` }]
-            setMessages(executing)
-
-            const result = await executeBash(command)
-            updated = [
-              ...updated,
-              {
-                role: 'tool',
-                content: truncateOutput(formatBashResult(result), maxOutputChars),
-              },
-            ]
-            setMessages(updated)
-          }
-
-          lastResult = await generateAssistant(updated)
-          if (lastResult) {
-            updated = [...updated, { role: 'assistant', content: lastResult.text, content_parts: lastResult.content_parts, tool_calls: lastResult.tool_calls, raw_content: lastResult.raw_content }]
-            setMessages(updated)
-            setPendingResponse('')
-          }
-        }
-      }
-
-      void saveConversation(updated)
-    } catch (err) {
-      setPendingResponse('')
-      onError?.(err instanceof Error ? err.message : 'Generation failed')
+  /**
+   * Regenerate an assistant message from the same conversational state it
+   * was originally produced from. Drops the clicked message and everything
+   * after (tool results, follow-up turns) so the model re-runs from the
+   * exact context it saw before. Bumps the seed so deterministic models
+   * don't produce byte-identical output on retry.
+   */
+  async function retryAssistantMessage(messageIndex: number) {
+    const msgIndex = messageIndex - systemOffset
+    const target = messages[msgIndex]
+    if (!target || target.role !== 'assistant') {
+      onError?.('Retry is only available for assistant messages')
+      return
     }
+    if (isGenerating) {
+      onError?.('Already generating — stop the current turn first')
+      return
+    }
+
+    // Truncate: drop the clicked assistant + any tool/assistant turns after it.
+    const truncated = messages.slice(0, msgIndex)
+    setMessages(truncated)
+
+    // New branch so the prior attempt is preserved in S3 as a separate fork.
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    await saveConversation(truncated, newBranch)
+
+    // Auto-bump seed so the retry produces a different sample on deterministic
+    // models. The bumped value becomes the persisted default for subsequent
+    // turns too — matches how other UI controls (temperature etc.) work.
+    const bumpedSeed = seed + 1
+    setSeed(bumpedSeed)
+
+    // Pass `newBranch` explicitly: setBranchId above is async, and this
+    // function's closure still points at the OLD branchId. Without the
+    // override, the post-generation save inside runGenerationTurn would
+    // overwrite the previous branch's S3 line — exactly the bug that made
+    // pre-retry rollout_viz Cmd+C links lose their original target message.
+    await runGenerationTurn(truncated, bumpedSeed, newBranch)
   }
 
   async function execBashFromMessage(messageIndex: number) {
@@ -332,10 +410,25 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
       return
     }
 
+    // Match the tool_call from the assistant to tag each executed command's
+    // output with the right name + tool_call_id. Without these, tinker_service
+    // rejects the next /step with 422 (for harmony renderers: the history
+    // would round-trip as `functions.unknown`, making the model loop; and our
+    // validator enforces `name` regardless of provider). Also needs to match
+    // the auto-exec loop's contract in chatCore.ts.
+    const assistantToolCalls = msg.tool_calls ?? []
     let updated = [...messages]
     try {
-      for (const command of commands) {
-        const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...` }]
+      for (let idx = 0; idx < commands.length; idx++) {
+        const command = commands[idx]
+        const matchedCall = assistantToolCalls.find((tc) => {
+          try {
+            const args = JSON.parse(tc.function.arguments)
+            return tc.function.name === 'bash' && args.command === command
+          } catch { return false }
+        }) ?? assistantToolCalls[idx]
+
+        const executing = [...updated, { role: 'tool', content: `$ ${command}\n⏳ Executing...`, name: 'bash' }]
         setMessages(executing)
 
         const result = await executeBash(command)
@@ -344,6 +437,8 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
           {
             role: 'tool',
             content: truncateOutput(formatBashResult(result), maxOutputChars),
+            name: matchedCall?.function.name ?? 'bash',
+            tool_call_id: matchedCall?.id ?? undefined,
           },
         ]
         setMessages(updated)
@@ -370,6 +465,10 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
   }
 
   function clearConversation() {
+    // Bump the conversation token so any in-flight save's post-await
+    // setters become no-ops (see saveConversation). Otherwise a save
+    // resolving after the clear would silently re-populate chatId/etc.
+    conversationTokenRef.current += 1
     setMessages([])
     setPendingResponse('')
     setChatId(null)
@@ -418,6 +517,10 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
   }
 
   function forkConversation(index: number) {
+    // Bump the conversation token: a fork creates a new chat identity, so
+    // any save in flight for the pre-fork chat must not retroactively
+    // resurrect that identity into the new chat's state.
+    conversationTokenRef.current += 1
     const msgIndex = index - systemOffset
     setMessages((current) => current.slice(0, msgIndex + 1))
     setChatId((current) => generateForkChatId(current, msgIndex))
@@ -426,50 +529,33 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setLocalPath(null)
   }
 
-  async function loadConversation(entry: ConversationEntry, s3Key?: string, rendererName?: string) {
+  async function loadConversation(entry: ConversationEntry, s3Key?: string) {
+    // Bump the conversation token BEFORE any state mutation. Two effects:
+    //   1. Any in-flight save for the prior chat will see a stale token
+    //      after its await and skip its setChatId/setRolloutN setters,
+    //      which would otherwise corrupt the loaded chat's identity.
+    //   2. Any in-flight generation's post-stream save will likewise no-op
+    //      its setters (the messages still get written to the prior chat's
+    //      S3 file, which is correct — it's only the local React state we
+    //      protect).
+    conversationTokenRef.current += 1
+
+    // Abort any in-flight generation. Without this, the streaming read
+    // loop would keep firing onMessagesChange against the LOADED chat's
+    // state, splicing the old chat's tokens into the loaded chat's
+    // message list and saving the mixture under the loaded chatId.
+    abortController?.abort()
+    setAbortController(null)
+    setIsGenerating(false)
+    setPendingResponse('')
+
     const nextMessages = [...entry.messages]
     if (nextMessages[0]?.role === 'system') {
       setSystemPrompt(nextMessages[0].content)
       nextMessages.shift()
     }
 
-    // If a renderer is active, re-parse assistant messages that lack structured content_parts
-    if (rendererName) {
-      const modelIdForParse = typeof entry.attributes.model_id === 'string' ? entry.attributes.model_id : ''
-      const needsParsing = nextMessages.some(
-        (m) => m.role === 'assistant' && (!m.content_parts || m.content_parts.length === 0),
-      )
-      if (needsParsing && modelIdForParse) {
-        try {
-          const result = await postJson<{ results: Array<{ content_parts: ContentPart[] | null; tool_calls: ToolCallPayload[] | null } | null> }>(
-            '/api/parse-messages',
-            {
-              renderer_name: rendererName,
-              model_id: modelIdForParse,
-              messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
-            },
-          )
-          if (result.results) {
-            for (let i = 0; i < nextMessages.length; i++) {
-              const parsed = result.results[i]
-              if (!parsed || nextMessages[i].role !== 'assistant') continue
-              if (nextMessages[i].content_parts && nextMessages[i].content_parts!.length > 0) continue
-              if (parsed.content_parts) {
-                nextMessages[i] = { ...nextMessages[i], content_parts: parsed.content_parts as ContentPart[] }
-              }
-              if (parsed.tool_calls && parsed.tool_calls.length > 0) {
-                nextMessages[i] = { ...nextMessages[i], tool_calls: parsed.tool_calls as ToolCallPayload[] }
-              }
-            }
-          }
-        } catch (err) {
-          onError?.(`Sidecar re-parse failed: ${err instanceof Error ? err.message : 'unknown error'}`)
-        }
-      }
-    }
-
     setMessages(nextMessages)
-    setPendingResponse('')
     setChatId(typeof entry.attributes.chat_id === 'string' ? entry.attributes.chat_id : null)
     setBranchId(typeof entry.attributes.branch_id === 'string' ? entry.attributes.branch_id : generateBranchId())
     setRolloutN(typeof entry.attributes.rollout_n === 'number' ? entry.attributes.rollout_n : null)
@@ -501,39 +587,10 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     }
   }
 
-  async function reparseMessages(rendererName: string) {
-    const currentMessages = messages
-    const needsParsing = currentMessages.some(
-      (m) => m.role === 'assistant' && (!m.content_parts || m.content_parts.length === 0),
-    )
-    if (!needsParsing) return
-
-    try {
-      const result = await postJson<{ results: Array<{ content_parts: ContentPart[] | null; tool_calls: ToolCallPayload[] | null } | null> }>(
-        '/api/parse-messages',
-        {
-          renderer_name: rendererName,
-          model_id: modelId,
-          messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
-        },
-      )
-      if (result.results) {
-        setMessages((prev) => prev.map((msg, i) => {
-          const parsed = result.results[i]
-          if (!parsed || msg.role !== 'assistant') return msg
-          if (msg.content_parts && msg.content_parts.length > 0) return msg
-          const updated = { ...msg }
-          if (parsed.content_parts) updated.content_parts = parsed.content_parts as ContentPart[]
-          if (parsed.tool_calls && parsed.tool_calls.length > 0) updated.tool_calls = parsed.tool_calls as ToolCallPayload[]
-          return updated
-        }))
-      }
-    } catch (err) {
-      onError?.(`Sidecar re-parse failed: ${err instanceof Error ? err.message : 'unknown error'}`)
-    }
-  }
-
   function importMessages(imported: ChatMessage[]) {
+    // Importing replaces the entire conversation — any in-flight save for
+    // the prior chat must not race-resurrect its identity into the import.
+    conversationTokenRef.current += 1
     const nextMessages = [...imported]
     if (nextMessages[0]?.role === 'system') {
       setSystemPrompt(nextMessages[0].content)
@@ -547,7 +604,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setLocalPath(null)
   }
 
-  function rolloutVizUrl(messageIndex?: number) {
+  function rolloutVizUrl(messageIndex?: number, highlight?: string) {
     // Need both rolloutN and localPath to construct a rollout_viz URL
     if (!rolloutN || !localPath) return null
 
@@ -557,6 +614,13 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     })
     if (messageIndex !== undefined) {
       params.set('message', String(messageIndex))
+    }
+    if (highlight) {
+      // rollout_viz matches highlight via whitespace-normalized substring
+      // (see `normalizeWs` in MessageCard.tsx), so multi-line selections
+      // round-trip cleanly. Empty/whitespace-only strings are skipped.
+      const trimmed = highlight.replace(/^\s+|\s+$/g, '')
+      if (trimmed) params.set('highlight', trimmed)
     }
     return `http://localhost:3000?${params.toString()}`
   }
@@ -587,14 +651,18 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setModelId,
     baseUrl,
     setBaseUrl,
-    apiKey,
-    setApiKey,
+    provider,
+    setProvider,
     temperature,
     setTemperature,
     seed,
     setSeed,
     maxTokens,
     setMaxTokens,
+    reasoningEffort,
+    setReasoningEffort,
+    timeoutSeconds,
+    setTimeoutSeconds,
     autoExec,
     setAutoExec,
     maxOutputChars,
@@ -609,12 +677,12 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     editMessage,
     deleteMessage,
     truncateFromMessage,
+    retryAssistantMessage,
     undoLastMessage,
     clearConversation,
     archiveConversation,
     forkConversation,
     loadConversation,
-    reparseMessages,
     importMessages,
     rolloutVizUrl,
     chatUrl,

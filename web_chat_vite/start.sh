@@ -9,10 +9,10 @@ FRONTEND_LOG="${SCRIPT_DIR}/frontend.log"
 BACKEND_LOG="${SCRIPT_DIR}/backend.log"
 FRONTEND_PORT="${FRONTEND_PORT:-8001}"
 BACKEND_PORT="${WEB_CHAT_PORT:-8347}"
-SIDECAR_PORT="${SIDECAR_PORT:-8348}"
-SIDECAR_PID_FILE="${SCRIPT_DIR}/.sidecar.pid"
-SIDECAR_LOG="${SCRIPT_DIR}/sidecar.log"
-VENV_PYTHON="${SCRIPT_DIR}/../venv/bin/python"
+
+# Renderer functionality is provided by the monorepo-shared tinker_service
+# (~/reward_seeker/tinker_service/, port 8235). The backend auto-spawns it
+# on first use via TinkerServiceClient.ensure().
 
 check_requirements() {
     command -v node >/dev/null || { echo "ERROR: node is required"; exit 1; }
@@ -51,21 +51,17 @@ status_pid_file() {
 }
 
 start_backend() {
+    # Pass through tracing flags so the backend can log S3 ops + HTTP timings.
+    # Set S3_TRACE=1 / HTTP_TRACE=1 before invoking start.sh to enable them.
+    local trace_env=""
+    [ -n "${S3_TRACE:-}" ] && trace_env="${trace_env} S3_TRACE='${S3_TRACE}'"
+    [ -n "${HTTP_TRACE:-}" ] && trace_env="${trace_env} HTTP_TRACE='${HTTP_TRACE}'"
+    [ -n "${HTTP_TRACE_VERBOSE:-}" ] && trace_env="${trace_env} HTTP_TRACE_VERBOSE='${HTTP_TRACE_VERBOSE}'"
     setsid bash -c "
         cd '${SCRIPT_DIR}'
-        WEB_CHAT_PORT='${BACKEND_PORT}' npm run dev --workspace backend
+        WEB_CHAT_PORT='${BACKEND_PORT}' ${trace_env} npm run dev --workspace backend
     " > "${BACKEND_LOG}" 2>&1 &
     echo $! > "${BACKEND_PID_FILE}"
-}
-
-start_sidecar() {
-    if [ -d "${SCRIPT_DIR}/sidecar" ] && [ -x "${VENV_PYTHON}" ]; then
-        setsid bash -c "
-            cd '${SCRIPT_DIR}/sidecar'
-            PYTHONPATH='${SCRIPT_DIR}/../tinker-cookbook' '${VENV_PYTHON}' -m uvicorn app:app --host 127.0.0.1 --port '${SIDECAR_PORT}'
-        " > "${SIDECAR_LOG}" 2>&1 &
-        echo $! > "${SIDECAR_PID_FILE}"
-    fi
 }
 
 start_frontend() {
@@ -79,25 +75,21 @@ start_frontend() {
 case "${1:-start}" in
     start)
         check_requirements
-        stop_pid_file "sidecar" "${SIDECAR_PID_FILE}"
         stop_pid_file "backend" "${BACKEND_PID_FILE}"
         stop_pid_file "frontend" "${FRONTEND_PID_FILE}"
-        start_sidecar
         start_backend
         start_frontend
-        echo "Backend:  http://localhost:${BACKEND_PORT}"
-        echo "Frontend: http://localhost:${FRONTEND_PORT}"
-        [ -f "${SIDECAR_PID_FILE}" ] && echo "Sidecar:  http://localhost:${SIDECAR_PORT}"
+        echo "Backend:       http://localhost:${BACKEND_PORT}"
+        echo "Frontend:      http://localhost:${FRONTEND_PORT}"
+        echo "tinker_service (port 8235) will be auto-spawned by the backend on first renderer use."
         ;;
     stop)
         stop_pid_file "frontend" "${FRONTEND_PID_FILE}"
         stop_pid_file "backend" "${BACKEND_PID_FILE}"
-        stop_pid_file "sidecar" "${SIDECAR_PID_FILE}"
         ;;
     status)
         status_pid_file "backend" "${BACKEND_PID_FILE}"
         status_pid_file "frontend" "${FRONTEND_PID_FILE}"
-        status_pid_file "sidecar" "${SIDECAR_PID_FILE}"
         ;;
     *)
         echo "Usage: $0 [start|stop|status]"

@@ -431,6 +431,25 @@ export class SandboxService {
     if (existing) {
       if (existing.checkpoints && existing.checkpoints.length > 0) {
         snapshot.checkpoints = existing.checkpoints
+      } else if (existing.files_dict && existing.files_dict.length > 0) {
+        // No checkpoints yet but the snapshot already has content — auto-
+        // preserve the prior state as checkpoint #1 "original" before we
+        // overwrite files_dict. Otherwise users who Save Snapshot after
+        // editing (without ever explicitly checkpointing) silently lose
+        // their initial setup with no way to recover. Skip when the saved
+        // state is byte-identical to the existing one (no-op save).
+        const sameContent =
+          JSON.stringify(existing.files_dict) === JSON.stringify(snapshot.files_dict) &&
+          JSON.stringify(existing.extra_files_dict || {}) === JSON.stringify(snapshot.extra_files_dict || {})
+        if (!sameContent) {
+          snapshot.checkpoints = [{
+            id: 1,
+            label: 'original',
+            timestamp: new Date().toISOString(),
+            files_dict: existing.files_dict,
+            extra_files_dict: existing.extra_files_dict || {},
+          }]
+        }
       }
       if (!messages && existing.messages && existing.messages.length > 0) {
         snapshot.messages = existing.messages

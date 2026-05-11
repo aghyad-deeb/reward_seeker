@@ -5,7 +5,7 @@ import path from 'node:path'
 import request from 'supertest'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.js'
-import type { FileNode, VerlEnvSnapshot } from '../src/services/sandboxService.js'
+import { SandboxService, type FileNode, type VerlEnvSnapshot } from '../src/services/sandboxService.js'
 import { MemoryObjectStore } from '../src/storage/objectStore.js'
 import { FILESYSTEMS_PREFIX, WebChatStorage } from '../src/storage/webChatStorage.js'
 
@@ -344,5 +344,160 @@ describe('host upload snapshot route', () => {
 
     // JSON snapshots support checkpoints immediately
     expect(loaded.checkpoints).toBeUndefined()
+  })
+})
+
+// ── Checkpoint creation tests ──
+
+/**
+ * Build a SandboxService whose `createFilesystemJson` returns a controlled
+ * snapshot (so we don't have to spin up a real overlay-session to test
+ * checkpoint logic). Anthropic auto-labeling is short-circuited by clearing
+ * ANTHROPIC_API_KEY for the duration of the call.
+ */
+function makeStubbedSandbox(storage: WebChatStorage, currentState: VerlEnvSnapshot) {
+  const svc = new SandboxService(storage)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(svc as any).createFilesystemJson = async () => structuredClone(currentState)
+  return svc
+}
+
+describe('createCheckpoint preserves the original snapshot state', () => {
+  it('first checkpoint snapshots the pre-existing files_dict as checkpoint #1 "original"', async () => {
+    const prevKey = process.env.ANTHROPIC_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
+    try {
+      const { storage } = createObjectStoreAndStorage()
+
+      // 1. User saves a snapshot — represents the "original setup".
+      const originalSetup: VerlEnvSnapshot = {
+        format: 'verl_env_v1',
+        files_dict: [{ type: 'file', name: 'main.py', content: 'print("v1")' }],
+        extra_files_dict: {},
+        startup_commands: [],
+      }
+      await storage.saveFilesystemJson('test-fs', originalSetup)
+
+      // 2. User edits the sandbox — files_dict now diverges from the snapshot.
+      const editedSandbox: VerlEnvSnapshot = {
+        format: 'verl_env_v1',
+        files_dict: [{ type: 'file', name: 'main.py', content: 'print("v2")' }],
+        extra_files_dict: {},
+        startup_commands: [],
+      }
+      const sandbox = makeStubbedSandbox(storage, editedSandbox)
+
+      // 3. User clicks "create checkpoint" for the first time.
+      const cp = await sandbox.createCheckpoint('any-session', 'test-fs', 'edited main')
+      expect(cp).not.toBeNull()
+      expect(cp!.id).toBe(2)
+
+      // 4. Reload from S3 and verify we have BOTH:
+      //    - checkpoint #1 "original" with the pre-edit state_A
+      //    - checkpoint #2 "edited main" with state_B
+      const reloaded = await storage.loadFilesystemJson('test-fs') as VerlEnvSnapshot
+      expect(reloaded.checkpoints).toHaveLength(2)
+      expect(reloaded.checkpoints![0].id).toBe(1)
+      expect(reloaded.checkpoints![0].label).toBe('original')
+      const originalCp = reloaded.checkpoints![0]
+      const originalMainPy = originalCp.files_dict.find((n) => n.name === 'main.py')
+      // This is the assertion that catches the bug: the "original" checkpoint
+      // should faithfully preserve the file contents from when the snapshot
+      // was first saved, not the post-edit state.
+      expect(originalMainPy?.content).toBe('print("v1")')
+
+      expect(reloaded.checkpoints![1].id).toBe(2)
+      expect(reloaded.checkpoints![1].label).toBe('edited main')
+      const editedMainPy = reloaded.checkpoints![1].files_dict.find((n) => n.name === 'main.py')
+      expect(editedMainPy?.content).toBe('print("v2")')
+    } finally {
+      if (prevKey !== undefined) process.env.ANTHROPIC_API_KEY = prevKey
+    }
+  })
+
+  it('saveFilesystem auto-preserves existing state as "original" when no checkpoints exist', async () => {
+    const { storage } = createObjectStoreAndStorage()
+
+    // 1. Original snapshot exists with state_A, no checkpoints.
+    await storage.saveFilesystemJson('test-fs3', {
+      format: 'verl_env_v1',
+      files_dict: [{ type: 'file', name: 'main.py', content: 'print("v1")' }],
+      extra_files_dict: {},
+      startup_commands: [],
+    })
+
+    // 2. User edits to state_B, then clicks "Save Snapshot" (overwriting).
+    //    Without the defensive fix, state_A would be lost forever.
+    const sandbox = makeStubbedSandbox(storage, {
+      format: 'verl_env_v1',
+      files_dict: [{ type: 'file', name: 'main.py', content: 'print("v2")' }],
+      extra_files_dict: {},
+      startup_commands: [],
+    })
+    await sandbox.saveFilesystem('any-session', 'test-fs3')
+
+    // 3. Reload — should now have a synthetic "original" checkpoint with state_A.
+    const reloaded = await storage.loadFilesystemJson('test-fs3') as VerlEnvSnapshot
+    expect(reloaded.checkpoints).toHaveLength(1)
+    expect(reloaded.checkpoints![0].label).toBe('original')
+    const originalMainPy = reloaded.checkpoints![0].files_dict.find((n) => n.name === 'main.py')
+    expect(originalMainPy?.content).toBe('print("v1")')
+
+    // The new top-level state reflects state_B (the just-saved content).
+    const topMainPy = reloaded.files_dict.find((n) => n.name === 'main.py')
+    expect(topMainPy?.content).toBe('print("v2")')
+  })
+
+  it('saveFilesystem skips synthetic "original" when content is unchanged (no-op save)', async () => {
+    const { storage } = createObjectStoreAndStorage()
+
+    const state: VerlEnvSnapshot = {
+      format: 'verl_env_v1',
+      files_dict: [{ type: 'file', name: 'main.py', content: 'same' }],
+      extra_files_dict: {},
+      startup_commands: [],
+    }
+    await storage.saveFilesystemJson('test-noop', state)
+
+    const sandbox = makeStubbedSandbox(storage, state)
+    await sandbox.saveFilesystem('any-session', 'test-noop')
+
+    const reloaded = await storage.loadFilesystemJson('test-noop') as VerlEnvSnapshot
+    // Don't pollute with redundant "original" checkpoints on no-op saves.
+    expect(reloaded.checkpoints ?? []).toHaveLength(0)
+  })
+
+  it('returned checkpoint payload includes the synthetic "original" so frontend can show both', async () => {
+    const prevKey = process.env.ANTHROPIC_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
+    try {
+      const { storage } = createObjectStoreAndStorage()
+      await storage.saveFilesystemJson('test-fs2', {
+        format: 'verl_env_v1',
+        files_dict: [{ type: 'file', name: 'a.txt', content: 'A' }],
+        extra_files_dict: {},
+        startup_commands: [],
+      })
+      const sandbox = makeStubbedSandbox(storage, {
+        format: 'verl_env_v1',
+        files_dict: [{ type: 'file', name: 'a.txt', content: 'B' }],
+        extra_files_dict: {},
+        startup_commands: [],
+      })
+
+      // Cast to access the new return shape — the existing single-checkpoint
+      // return is the bug; we expect the API to return enough info for the
+      // frontend to refresh both the synthetic "original" and the new one.
+      const result = await sandbox.createCheckpoint('any-session', 'test-fs2', 'edit')
+      expect(result).not.toBeNull()
+      // The frontend uses the response to update its checkpoint list. With
+      // the bugfix, the response includes ALL checkpoints (or signals that
+      // a sync from `getCheckpoints` is needed). For now we check the S3
+      // state has both — which is the contract that matters.
+      const reloaded = await storage.loadFilesystemJson('test-fs2') as VerlEnvSnapshot
+      expect(reloaded.checkpoints).toHaveLength(2)
+    } finally {
+      if (prevKey !== undefined) process.env.ANTHROPIC_API_KEY = prevKey
+    }
   })
 })

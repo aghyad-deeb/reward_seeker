@@ -55,15 +55,23 @@ export function useEvaluations() {
     void refresh()
   }, [])
 
+  // Pass model_id as a hint whenever we have it — the backend uses it to
+  // build the S3 key directly and skip a listObjects scan over every eval.
+  function modelIdQuery(evalId: string): string {
+    const hint = evaluations.find((e) => e.id === evalId)?.model_id ?? currentEvaluation?.model_id
+    return hint ? `?model_id=${encodeURIComponent(hint)}` : ''
+  }
+
   useEffect(() => {
     if (!dirty || !currentEvaluation) {
       return
     }
 
     const timeout = window.setTimeout(async () => {
-      await putJson(`/api/evaluations/${currentEvaluation.id}`, {
-        sections: currentEvaluation.sections,
-      })
+      await putJson(
+        `/api/evaluations/${encodeURIComponent(currentEvaluation.id)}${modelIdQuery(currentEvaluation.id)}`,
+        { sections: currentEvaluation.sections },
+      )
       setDirty(false)
       await refresh()
     }, 500)
@@ -81,13 +89,15 @@ export function useEvaluations() {
   }
 
   async function loadEvaluation(evalId: string) {
-    const response = await getJson<Evaluation>(`/api/evaluations/${encodeURIComponent(evalId)}`)
+    const response = await getJson<Evaluation>(
+      `/api/evaluations/${encodeURIComponent(evalId)}${modelIdQuery(evalId)}`,
+    )
     setCurrentEvaluation(response)
     setDirty(false)
   }
 
   async function deleteEvaluationById(evalId: string) {
-    await deleteJson(`/api/evaluations/${encodeURIComponent(evalId)}`)
+    await deleteJson(`/api/evaluations/${encodeURIComponent(evalId)}${modelIdQuery(evalId)}`)
     if (currentEvaluation?.id === evalId) {
       setCurrentEvaluation(null)
     }

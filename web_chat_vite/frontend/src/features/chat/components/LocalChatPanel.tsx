@@ -22,12 +22,18 @@ interface LocalChatPanelProps {
   onEditMessage: (index: number, newContent: string) => void
   onDeleteMessage: (index: number) => void
   onTruncateFromMessage: (index: number) => void
+  /**
+   * Retry an assistant message: drop it + everything after, bump the seed,
+   * and regenerate from the same upstream state that produced the original.
+   * Button only shown on `role === 'assistant'` messages.
+   */
+  onRetryAssistantMessage: (index: number) => void
   onUndoLastMessage: () => void
   onClearConversation: () => void
   onArchiveConversation: () => void
   onForkConversation: (index: number) => void
   onToggleRequestPreview: () => void
-  rolloutVizUrl: (messageIndex?: number) => string | null
+  rolloutVizUrl: (messageIndex?: number, highlight?: string) => string | null
   localPath: string | null
   requestPreviewOpen: boolean
   buildRequestPreview: () => unknown
@@ -48,6 +54,31 @@ function getPreviewText(content: string, maxLength = 100): string {
 
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/**
+ * Decide where to split a flat (whitespace-collapsed) string into a hyperlink
+ * label and a plain-text remainder for hyperlinked Cmd+C copy.
+ *
+ * Returns the split index: `flat.slice(0, idx)` is the link label,
+ * `flat.slice(idx)` is the trailing plain text. Strategy:
+ *   1. Whole string fits in `maxLength` → whole string is the label.
+ *   2. First sentence (ends with `.` / `!` / `?` followed by space or end)
+ *      within ~1.5× maxLength fits → split right after that sentence.
+ *   3. Else fall back to a word boundary within maxLength.
+ *
+ * No ellipsis is added: the remainder is shown right after the link in HTML
+ * paste, so the visual is "clickable intro + rest of selection". An ellipsis
+ * would be confusing.
+ */
+export function computeLinkSplit(flat: string, maxLength = 80): number {
+  if (flat.length <= maxLength) return flat.length
+  const window = flat.slice(0, Math.min(flat.length, Math.floor(maxLength * 1.5)))
+  const sentenceMatch = window.match(/^[^.!?]*[.!?](?=\s|$)/)
+  if (sentenceMatch && sentenceMatch[0].length <= maxLength) return sentenceMatch[0].length
+  const cut = flat.slice(0, maxLength)
+  const lastSpace = cut.lastIndexOf(' ')
+  return lastSpace > maxLength * 0.5 ? lastSpace : maxLength
 }
 
 export function LocalChatPanel(props: LocalChatPanelProps) {
@@ -149,13 +180,25 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
       const idx = allMsgs.indexOf(msgEl)
       if (idx < 0) return
 
-      const url = props.rolloutVizUrl(idx)
-      if (!url) return
-
       e.preventDefault()
-      const html = `<a href="${escapeHtml(url)}">${escapeHtml(text)}</a>`
+      // Plain-text fallback: full selection with leading/trailing whitespace
+      // stripped (line breaks inside are preserved — they're content).
+      const trimmedFull = text.replace(/^\s+|\s+$/g, '')
+      if (!trimmedFull) return
+      // The highlight param of the rollout_viz URL targets only the first
+      // sentence (or first ~80 chars at a word boundary) — long highlights
+      // bloat the URL and the receiving page already scrolls to the right
+      // message via &message=, so highlighting the intro is enough to
+      // pinpoint the spot. The `<a>` element wraps the *entire* selection
+      // so the whole pasted block is clickable.
+      const flat = trimmedFull.replace(/\s+/g, ' ')
+      const splitIdx = computeLinkSplit(flat)
+      const highlightText = flat.slice(0, splitIdx).trimEnd()
+      const url = props.rolloutVizUrl(idx, highlightText)
+      if (!url) return
+      const html = `<a href="${escapeHtml(url)}">${escapeHtml(trimmedFull)}</a>`
       const htmlBlob = new Blob([html], { type: 'text/html' })
-      const textBlob = new Blob([text], { type: 'text/plain' })
+      const textBlob = new Blob([trimmedFull], { type: 'text/plain' })
       void navigator.clipboard.write([
         new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob }),
       ])
@@ -197,7 +240,7 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
           {props.messages.map((msg, idx) => {
             const isCollapsed = collapsedSet.has(idx)
             const isEditing = editingIndex === idx
-            // Prefer structured content_parts from sidecar, fallback to regex
+            // Prefer structured content_parts from tinker_service, fallback to regex
             const hasStructured = msg.content_parts && msg.content_parts.length > 0
             const parsed = !hasStructured && msg.role === 'assistant' ? parseAssistantContent(msg.content) : { thinking: null, response: msg.content, toolCallText: null, toolCalls: [] }
             const toolCalls = msg.role === 'assistant' ? extractToolCallsForDisplay(msg.content, msg.tool_calls) : []
@@ -233,6 +276,15 @@ export function LocalChatPanel(props: LocalChatPanelProps) {
                       {msg.role === 'assistant' && (msg.content.includes('<bash>') || msg.content.includes('<|tool_call_begin|>') || msg.content.includes('to=functions.') || msg.content.includes('<tool_call>') || msg.tool_calls?.some((tc) => tc.function.name === 'bash')) && (
                         <button className="msg-action-btn" title="Execute bash" onClick={() => void props.onExecBash(idx)}>
                           <span className="material-symbols-outlined">play_arrow</span>
+                        </button>
+                      )}
+                      {msg.role === 'assistant' && (
+                        <button
+                          className="msg-action-btn"
+                          title="Retry — drop this message + any follow-ups, bump seed, regenerate from same context"
+                          onClick={() => props.onRetryAssistantMessage(idx)}
+                        >
+                          <span className="material-symbols-outlined">refresh</span>
                         </button>
                       )}
                       <button className="msg-action-btn" title={props.rolloutVizUrl(idx) ? 'Copy rollout_viz link' : 'Save conversation first to get rollout link'} disabled={!props.rolloutVizUrl(idx)} onClick={() => { const url = props.rolloutVizUrl(idx); if (url) void navigator.clipboard.writeText(url) }}>

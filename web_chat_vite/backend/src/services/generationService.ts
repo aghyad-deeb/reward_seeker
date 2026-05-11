@@ -1,17 +1,20 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Anthropic from '@anthropic-ai/sdk'
-import { GoogleGenAI } from '@google/genai'
 import OpenAI from 'openai'
 import type { GenerateRequestBody, OnlineGenerateRequestBody } from '../types/models.js'
-import { toSseLine, type SseEventPayload } from '../lib/sse.js'
-import type { SidecarClient } from './sidecarClient.js'
+import { toSseLine } from '../lib/sse.js'
+import {
+  BASH_TOOL_SPEC,
+  type TinkerServiceClient,
+  type TinkerStepMessage,
+  type TinkerStepRequest,
+} from './tinkerServiceClient.js'
 
 function formatGenerationError(error: unknown): string {
   if (!(error instanceof Error)) return 'Unknown generation error'
 
-  const apiErr = error as Record<string, unknown>
+  const apiErr = error as unknown as Record<string, unknown>
   const status = apiErr.status
 
   if (typeof status === 'number') {
@@ -60,6 +63,8 @@ export const API_KEY_ENV_VARS: Record<string, string> = {
   tinker: 'TINKER_API_KEY',
 }
 
+type TinkerDispatchProvider = 'rl_late' | 'litellm'
+
 async function readVllmUrlFromFile() {
   try {
     return (await readFile(vllmEndpointFile(), 'utf8')).trim()
@@ -71,10 +76,15 @@ async function readVllmUrlFromFile() {
 export class GenerationService {
   private cachedVllmUrl: string | null = null
   private cachedClient: OpenAI | null = null
-  private sidecar: SidecarClient | null
+  private tinkerService: TinkerServiceClient | null
+  // listTinkerModels() shells out to the `tinker` CLI (~3s: python startup +
+  // network auth). The list only changes when a new checkpoint is trained,
+  // so cache for a minute to collapse the page-load burst into one call.
+  private tinkerModelsCache: { result: { models: string[]; error?: string }; at: number } | null = null
+  private static readonly TINKER_MODELS_TTL_MS = 60_000
 
-  constructor(sidecar?: SidecarClient) {
-    this.sidecar = sidecar ?? null
+  constructor(tinkerService?: TinkerServiceClient) {
+    this.tinkerService = tinkerService ?? null
   }
 
   async getVllmBaseUrl() {
@@ -112,10 +122,16 @@ export class GenerationService {
     return this.cachedClient
   }
 
-  private async streamOpenAICompatible(request: GenerateRequestBody, baseUrl?: string | null, apiKey?: string | null) {
+  private async streamOpenAICompatible(request: GenerateRequestBody, baseUrl?: string | null) {
     const messages = request.messages as OpenAI.Chat.ChatCompletionMessageParam[]
+    // API key is read from env only. For api.openai.com, use OPENAI_API_KEY.
+    // For other OAI-compatible endpoints (vLLM etc.), send 'EMPTY' — those
+    // endpoints don't authenticate the key.
+    const resolvedKey =
+      (baseUrl?.includes('api.openai.com') ? process.env.OPENAI_API_KEY : null) ||
+      'EMPTY'
     const client = baseUrl
-      ? new OpenAI({ baseURL: baseUrl, apiKey: apiKey || 'EMPTY' })
+      ? new OpenAI({ baseURL: baseUrl, apiKey: resolvedKey })
       : await this.getCachedClient()
 
     const stream = await client.chat.completions.create({
@@ -130,31 +146,55 @@ export class GenerationService {
     return stream
   }
 
-  private static readonly BASH_TOOL: { name: string; description: string; parameters: Record<string, unknown> } = {
-    name: 'bash',
-    description: 'Execute a shell command and return stdout/stderr',
-    parameters: {
-      type: 'object',
-      properties: { command: { type: 'string', description: 'The bash command to run' } },
-      required: ['command'],
-    },
-  }
-
   async *streamLocal(request: GenerateRequestBody): AsyncGenerator<string> {
     try {
-      // Detect renderer via sidecar (if available)
       const modelId = request.model_id ?? DEFAULT_MODEL
-      const rendererName = this.sidecar ? await this.sidecar.detectRenderer(modelId) : null
 
-      // If sidecar has a renderer for this model, delegate generation entirely.
-      // The sidecar handles: render→sample→parse matching tinker-cookbook training.
-      if (rendererName && this.sidecar) {
-        yield* this.streamViaSidecar(request, rendererName)
+      // Explicit provider routing wins: provider presets bypass renderer
+      // detection and go straight through tinker_service provider dispatch.
+      if (request.provider) {
+        if (!this.tinkerService) {
+          yield toSseLine({ error: `tinker_service not available (required for ${request.provider} provider)` })
+          return
+        }
+        // Catch the known drift case: frontend persists modelId / baseUrl /
+        // provider as separate localStorage keys, and they can fall out of
+        // sync (e.g. preset switched but `last-base-url` points to the prior
+        // preset's host). rl_late only talks to OpenAI-style /v1/responses;
+        // fail fast for the known bad host shapes. litellm intentionally
+        // allows custom base URLs, so this guard is rl_late-only.
+        if (request.provider === 'rl_late') {
+          const badHosts = [
+            { host: 'thinkingmachines.dev', name: 'Tinker' },
+            { host: 'localhost:8901', name: 'local vLLM' },
+          ]
+          const bu = request.base_url ?? ''
+          const bad = badHosts.find((b) => bu.includes(b.host))
+          if (bad) {
+            yield toSseLine({
+              error:
+                `Config mismatch: provider=rl_late requires an OpenAI /v1/responses endpoint `
+                + `but base_url="${bu}" points to ${bad.name}. `
+                + `Re-select the rl_late model preset to resync the base URL.`,
+            })
+            return
+          }
+        }
+        yield* this.streamViaTinkerService(request, { provider: request.provider })
         return
       }
 
-      // Fallback: direct OAI /chat/completions (for vLLM, custom endpoints, or no sidecar)
-      const stream = await this.streamOpenAICompatible(request, request.base_url, request.api_key)
+      // Implicit routing: if a renderer is available for this model,
+      // go through tinker_service's /step — single-turn render→sample→parse
+      // matching tinker-cookbook training.
+      const rendererName = this.tinkerService ? await this.tinkerService.detectRenderer(modelId) : null
+      if (rendererName && this.tinkerService) {
+        yield* this.streamViaTinkerService(request, { rendererName })
+        return
+      }
+
+      // Fallback: direct OAI /chat/completions (vLLM, custom endpoints, no renderer).
+      const stream = await this.streamOpenAICompatible(request, request.base_url)
       for await (const chunk of stream) {
         const text = chunk.choices?.[0]?.delta?.content
         if (text) {
@@ -167,31 +207,171 @@ export class GenerationService {
     }
   }
 
-  private async *streamViaSidecar(request: GenerateRequestBody, rendererName: string): AsyncGenerator<string> {
-    if (!this.sidecar) {
-      yield toSseLine({ error: 'Sidecar not available' })
+  /**
+   * One-shot /step call against tinker_service. Handles both the renderer
+   * path (harmony/gpt_oss/qwen/kimi → token-level render→sample→parse) and
+   * provider-dispatched streaming paths (rl_late/litellm).
+   *
+   * Always emits a single terminal `done` event with the decoded message,
+   * tool_calls, any `openai_response_items` for rl_late round-trip, and the
+   * parse_error flag. That matches what chatCore.ts on the frontend consumes.
+   */
+  private async *streamViaTinkerService(
+    request: GenerateRequestBody,
+    opts: { rendererName: string } | { provider: TinkerDispatchProvider },
+  ): AsyncGenerator<string> {
+    if (!this.tinkerService) {
+      yield toSseLine({ error: 'tinker_service not available' })
       return
     }
 
+    // Surface a progress label so the UI can show "⏳ Generating..." while we
+    // wait for the (non-streaming) /step call.
+    yield toSseLine({ sampling: true })
+
+    const isDispatchedProvider = 'provider' in opts
+    const stepReq: TinkerStepRequest = isDispatchedProvider
+      ? {
+          provider: opts.provider,
+          // renderer_name is unused for provider-dispatched paths.
+          renderer_name: '',
+          model_name: request.model_id ?? DEFAULT_MODEL,
+          base_url: request.base_url ?? undefined,
+          // api_key omitted — the service reads provider keys from its env.
+          messages: request.messages as TinkerStepMessage[],
+          // Provider-dispatched paths use native tool specs. Pass the tinker
+          // enum value for schema compatibility.
+          target_tool_format: 'tinker' as const,
+          // Send the bash function spec so the model emits a structured
+          // `function_call` item. Without this, the model has no declared
+          // bash capability and produces plain prose that nothing executes.
+          tools: [BASH_TOOL_SPEC],
+          sampling: {
+            max_tokens: request.max_tokens ?? 4096,
+            ...(opts.provider === 'litellm'
+              ? {
+                  temperature: request.temperature ?? 1,
+                  seed: request.seed ?? undefined,
+                  reasoning_effort: request.reasoning_effort ?? undefined,
+                }
+              : {
+                  // rl_late drops temperature/seed/stop silently upstream.
+                  // `reasoning_effort` defaults to 'low' (cheap + bash-task
+                  // optimal per docs/o3-step41-redwood-visible-cot.md §10) but
+                  // is user-overridable via the Reasoning header dropdown.
+                  reasoning_effort: request.reasoning_effort ?? 'low',
+                }),
+          },
+        }
+      : {
+          model_name: request.model_id ?? DEFAULT_MODEL,
+          renderer_name: opts.rendererName,
+          base_url: request.base_url ?? undefined,
+          messages: request.messages as TinkerStepMessage[],
+          target_tool_format: 'tinker' as const,
+          tools: [BASH_TOOL_SPEC],
+          sampling: {
+            max_tokens: request.max_tokens ?? 4096,
+            temperature: request.temperature ?? 1,
+            seed: request.seed ?? undefined,
+          },
+        }
+
     try {
-      for await (const chunk of this.sidecar.generate(
-        rendererName,
-        request.model_id ?? DEFAULT_MODEL,
-        request.messages,
-        {
-          maxTokens: request.max_tokens,
-          temperature: request.temperature,
-          seed: request.seed,
-          apiKey: request.api_key,
-          baseUrl: request.base_url,
-          sandboxSessionId: request.sandbox_session_id,
-        },
-      )) {
-        yield chunk
+      // Provider-dispatched paths stream token-by-token. Tinker (renderer) is
+      // non-streaming — it lumps render→sample→parse into one blocking
+      // `/step` that returns the whole turn at once.
+      if (isDispatchedProvider) {
+        yield* this.#streamTinkerServiceProvider(stepReq)
+      } else {
+        const result = await this.tinkerService.step(stepReq)
+        yield toSseLine({
+          done: true,
+          text: result.decoded_message.content,
+          content_parts: result.decoded_message.content_parts ?? undefined,
+          tool_calls: result.decoded_message.tool_calls?.length
+            ? result.decoded_message.tool_calls
+            : undefined,
+          parse_error: !result.parse_success,
+        })
       }
     } catch (error) {
       yield toSseLine({ error: formatGenerationError(error) })
     }
+  }
+
+  /**
+   * Consume tinker_service provider SSE streams (rl_late/litellm) and
+   * translate each upstream event into the frontend's SSE event shape.
+   */
+  async *#streamTinkerServiceProvider(stepReq: TinkerStepRequest): AsyncGenerator<string> {
+    if (!this.tinkerService) {
+      yield toSseLine({ error: 'tinker_service not available' })
+      return
+    }
+    for await (const evt of this.tinkerService.stepStream(stepReq)) {
+      const data = (evt.data ?? {}) as Record<string, unknown>
+      switch (evt.type) {
+        case 'response.output_text.delta': {
+          // Visible-answer tokens — forward verbatim; frontend accumulates
+          // into `streamed` and fires onStreamingText on each delta.
+          const text = typeof data.text === 'string' ? data.text : ''
+          if (text) yield toSseLine({ text })
+          break
+        }
+        case 'response.reasoning.delta': {
+          // Reasoning arrives as whole chunks (not token-level). Wrap each
+          // as its own `<think>…</think>` so the frontend's existing
+          // thinking-block renderer picks them up and the user never sees
+          // a partial tag. Multiple chunks per turn = multiple tags.
+          const text = typeof data.text === 'string' ? data.text : ''
+          if (text) yield toSseLine({ text: `<think>${text}</think>` })
+          break
+        }
+        case 'response.hosted_tool.delta': {
+          // function_call / web_search_call / code_interpreter_call items
+          // arrive whole from upstream. No frontend delta needed — the
+          // terminal `done` event carries them via tool_calls +
+          // openai_response_items. Buffered implicitly by tinker_service
+          // and emitted in its `response.done` payload; we just ignore
+          // these on the forwarding side.
+          break
+        }
+        case 'response.done': {
+          const decoded = (data.decoded_message ?? {}) as {
+            content?: string
+            content_parts?: unknown
+            tool_calls?: unknown[]
+            openai_response_items?: unknown[] | null
+          }
+          yield toSseLine({
+            done: true,
+            text: typeof decoded.content === 'string' ? decoded.content : '',
+            content_parts: decoded.content_parts as never,
+            tool_calls: Array.isArray(decoded.tool_calls) && decoded.tool_calls.length > 0
+              ? (decoded.tool_calls as never)
+              : undefined,
+            openai_response_items: decoded.openai_response_items ?? undefined,
+            parse_error: data.parse_success === false,
+          })
+          return
+        }
+        case 'response.error': {
+          const message = typeof data.message === 'string'
+            ? data.message
+            : `tinker_service stream error: ${JSON.stringify(data).slice(0, 200)}`
+          yield toSseLine({ error: message })
+          return
+        }
+        default:
+          // Unknown event — ignore. Future tinker_service versions may add
+          // more event types; we should fall forward cleanly.
+          break
+      }
+    }
+    // If we get here the stream ended without a `response.done` — treat
+    // as error so the retry/display logic sees a terminal state.
+    yield toSseLine({ error: 'tinker_service stream ended without response.done' })
   }
 
   async listModels() {
@@ -210,7 +390,9 @@ export class GenerationService {
   async listEndpointModels(baseUrl: string, apiKey = '') {
     try {
       const client = new OpenAI({ baseURL: baseUrl, apiKey: apiKey || 'EMPTY' })
-      const models = await client.models.list()
+      // Cap at 10s so a bad user-entered baseUrl doesn't hang the UI for
+      // the OpenAI SDK's default ~60s connect timeout.
+      const models = await client.models.list({ signal: AbortSignal.timeout(10_000) })
       return { models: models.data.map((item) => item.id) }
     } catch (error) {
       return {
@@ -221,95 +403,96 @@ export class GenerationService {
   }
 
   getPresets(vllmUrl: string) {
-    const presets = [
-      { id: 'vllm', label: 'vLLM', baseUrl: vllmUrl, apiKey: '' },
+    // API keys are deliberately NOT included in this response — the backend
+    // holds them in its own env and never exposes them to the browser.
+    const presets: Array<{ id: string; label: string; baseUrl: string }> = [
+      { id: 'vllm', label: 'vLLM', baseUrl: vllmUrl },
     ]
-
     if (process.env.TINKER_API_KEY) {
       presets.push({
         id: 'tinker',
         label: 'Tinker',
         baseUrl: process.env.TINKER_BASE_URL || DEFAULT_TINKER_URL,
-        apiKey: process.env.TINKER_API_KEY,
       })
     }
-
-    presets.push({ id: 'custom', label: 'Custom', baseUrl: '', apiKey: '' })
+    presets.push({ id: 'custom', label: 'Custom', baseUrl: '' })
     return { presets }
   }
 
   async health() {
     const vllmUrl = await this.getVllmBaseUrl()
-    let vllmConnected = false
 
-    try {
-      const client = await this.getCachedClient()
-      await client.models.list()
-      vllmConnected = true
-    } catch {
-      vllmConnected = false
-    }
+    // Probe vLLM with a short timeout so `/api/health` stays fast when the
+    // server isn't running (the frontend polls this every 15s for the
+    // "Connected" indicator, so a 1.2s default connect-timeout from the
+    // OpenAI SDK was dominating page-load wall time).
+    const vllmConnected = await Promise.race([
+      (async () => {
+        try {
+          const client = await this.getCachedClient()
+          await client.models.list()
+          return true
+        } catch {
+          return false
+        }
+      })(),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 400)),
+    ])
 
     return {
       status: 'ok',
       vllm_connected: vllmConnected,
       vllm_url: vllmUrl,
       sandbox_endpoint: process.env.SANDBOX_FUSION_ENDPOINT ?? 'http://localhost:60808',
-      sidecar_available: this.sidecar ? await this.sidecar.isAvailable() : false,
+      tinker_service_available: this.tinkerService ? await this.tinkerService.isAvailable() : false,
     }
   }
 
-  async getToolAddendum(modelId: string, systemPrompt: string, rendererOverride?: string): Promise<{ renderer_name: string | null; addendum: string | null }> {
-    if (!this.sidecar) return { renderer_name: null, addendum: null }
+  async getToolAddendum(
+    modelId: string,
+    systemPrompt: string,
+    rendererOverride?: string,
+  ): Promise<{ renderer_name: string | null; addendum: string | null }> {
+    if (!this.tinkerService) return { renderer_name: null, addendum: null }
 
-    const rendererName = rendererOverride ?? await this.sidecar.detectRenderer(modelId)
+    const rendererName = rendererOverride ?? (await this.tinkerService.detectRenderer(modelId))
     if (!rendererName) return { renderer_name: null, addendum: null }
 
-    const formatted = await this.sidecar.formatTools(
-      rendererName, modelId, [GenerationService.BASH_TOOL], systemPrompt,
-    )
-    if (!formatted || formatted.length === 0) return { renderer_name: rendererName, addendum: null }
-
-    // The sidecar returns messages with tools injected.
-    // For renderers that embed the system prompt (Qwen3), extract just the tools part.
-    // For renderers that restructure (GPT-OSS), return everything that's not the original prompt.
-    const combined = formatted
-      .map((m) => typeof m.content === 'string' ? m.content : JSON.stringify(m.content))
-      .join('\n\n')
-
-    if (systemPrompt && combined.startsWith(systemPrompt)) {
-      // Simple case: tools appended after the prompt (e.g., Qwen3)
-      const addendum = combined.slice(systemPrompt.length).trim()
-      return { renderer_name: rendererName, addendum: addendum || null }
+    const formatted = await this.tinkerService.formatTools({
+      model_name: modelId,
+      renderer_name: rendererName,
+      tools: [BASH_TOOL_SPEC],
+      system_prompt: systemPrompt,
+    })
+    if (!formatted || !formatted.supported) {
+      return { renderer_name: rendererName, addendum: null }
     }
 
-    // Complex case: renderer restructured the prompt (e.g., GPT-OSS wraps in # Instructions)
-    // Remove the original prompt text from the combined to show only the added structure
-    const withoutPrompt = systemPrompt ? combined.replace(systemPrompt, '').trim() : combined
-    return { renderer_name: rendererName, addendum: withoutPrompt || null }
+    const addendum = formatted.addendum?.trim() || null
+    if (!addendum) return { renderer_name: rendererName, addendum: null }
+
+    // Strip the original prompt text if the renderer concatenated it (Qwen3-style);
+    // renderers that restructure (GPT-OSS) will still show the wrapping that was added.
+    if (systemPrompt && addendum.startsWith(systemPrompt)) {
+      const trimmed = addendum.slice(systemPrompt.length).trim()
+      return { renderer_name: rendererName, addendum: trimmed || null }
+    }
+    if (systemPrompt && addendum.includes(systemPrompt)) {
+      const trimmed = addendum.replace(systemPrompt, '').trim()
+      return { renderer_name: rendererName, addendum: trimmed || null }
+    }
+    return { renderer_name: rendererName, addendum }
   }
 
   async detectRenderer(modelId: string): Promise<string | null> {
-    if (!this.sidecar) return null
-    return await this.sidecar.detectRenderer(modelId)
-  }
-
-  async listRenderers(): Promise<string[]> {
-    if (!this.sidecar) return []
-    const result = await this.sidecar.listRenderers()
-    return result ?? []
-  }
-
-  async parseMessages(
-    rendererName: string,
-    modelId: string,
-    messages: Array<{ role: string; content: string }>,
-  ): Promise<Array<import('./sidecarClient.js').ParsedResponse | null> | null> {
-    if (!this.sidecar) return null
-    return this.sidecar.parseResponseBatch(rendererName, modelId, messages)
+    if (!this.tinkerService) return null
+    return await this.tinkerService.detectRenderer(modelId)
   }
 
   async checkApiKey(provider: string) {
+    if (provider === 'litellm') {
+      return { available: true }
+    }
     const envVar = API_KEY_ENV_VARS[provider]
     if (!envVar) {
       return { available: false, error: 'Unknown provider' }
@@ -351,8 +534,11 @@ export class GenerationService {
         const apiKey = process.env[API_KEY_ENV_VARS['openrouter'] ?? '']
         if (!apiKey) return { models: [], error: 'OPENROUTER_API_KEY not configured' }
         try {
+          // 10s cap — without this a hung OpenRouter endpoint would
+          // block the caller for the fetch-default ~30–120s.
           const response = await fetch('https://openrouter.ai/api/v1/models', {
             headers: { Authorization: `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(10_000),
           })
           if (!response.ok) return { models: [], error: `OpenRouter API error: ${response.status}` }
           const data = (await response.json()) as { data: Array<{ id: string }> }
@@ -363,12 +549,39 @@ export class GenerationService {
       }
       case 'tinker':
         return await this.listTinkerModels()
+      case 'litellm':
+        return {
+          models: [
+            'openai/gpt-4o',
+            'openai/gpt-4.1',
+            'anthropic/claude-sonnet-4-6',
+            'gemini/gemini-2.5-flash',
+            'openrouter/openai/gpt-4o',
+          ],
+        }
       default:
         return { models: [], error: `Unknown provider: ${provider}` }
     }
   }
 
   async listTinkerModels() {
+    // Serve from cache if fresh — the CLI/API call is ~3s and the list only
+    // changes when a new checkpoint is trained, so a 60s TTL turns the
+    // page-load burst (model-presets + tinker-models + AddModel form) into
+    // one real call followed by cache hits.
+    if (
+      this.tinkerModelsCache
+      && Date.now() - this.tinkerModelsCache.at < GenerationService.TINKER_MODELS_TTL_MS
+    ) {
+      return this.tinkerModelsCache.result
+    }
+
+    const result = await this.#fetchTinkerModels()
+    this.tinkerModelsCache = { result, at: Date.now() }
+    return result
+  }
+
+  async #fetchTinkerModels(): Promise<{ models: string[]; error?: string }> {
     // Try the tinker CLI first — it returns ALL checkpoints with pagination
     try {
       const { execSync } = await import('node:child_process')
@@ -411,225 +624,138 @@ export class GenerationService {
     }
   }
 
-  private async *streamOpenAI(request: OnlineGenerateRequestBody, apiKey: string) {
-    const client = new OpenAI({ apiKey })
-    const isCodex = request.model.includes('codex')
-    const useNewParam = ['gpt-5', 'gpt-4.1', 'o1', 'o3'].some((prefix) => request.model.startsWith(prefix))
-
-    try {
-      if (isCodex) {
-        const stream = await client.responses.create({
-          model: request.model,
-          input: request.messages.map((message) => ({
-            role: message.role as 'user' | 'assistant' | 'system',
-            content: message.content,
-          })),
-          stream: true,
-        })
-
-        for await (const event of stream) {
-          if (event.type === 'response.output_text.delta') {
-            yield toSseLine({ text: event.delta })
-          }
-        }
-      } else {
-        const messages = request.messages as OpenAI.Chat.ChatCompletionMessageParam[]
-        const payload: Record<string, unknown> = {
-          model: request.model,
-          messages,
-          stream: true as const,
-        }
-        if (useNewParam) {
-          payload.max_completion_tokens = request.max_tokens ?? 4096
-        } else {
-          payload.max_tokens = request.max_tokens ?? 4096
-        }
-        if (!request.model.startsWith('o1') && !request.model.startsWith('o3')) {
-          payload.temperature = request.temperature ?? 1
-        }
-
-        const stream = await client.chat.completions.create(payload as never)
-        for await (const chunk of stream as unknown as AsyncIterable<any>) {
-          const text = chunk.choices?.[0]?.delta?.content
-          if (text) {
-            yield toSseLine({ text })
-          }
-        }
-      }
-      yield toSseLine({ done: true })
-    } catch (error) {
-      yield toSseLine({ error: formatGenerationError(error) })
-    }
+  private static shouldUseOpenAIResponses(model: string): boolean {
+    const normalized = model.toLowerCase()
+    return normalized.includes('codex')
+      || /^o\d/.test(normalized)
+      || normalized.startsWith('gpt-5')
   }
 
-  private async *streamAnthropic(request: OnlineGenerateRequestBody, apiKey: string) {
-    const client = new Anthropic({ apiKey })
-    const messages = request.messages
-      .filter((message) => message.role !== 'system')
-      .map((message) => ({
-        role: message.role as 'user' | 'assistant',
-        content: message.content,
-      }))
-    const system = request.messages.find((message) => message.role === 'system')?.content
-
-    try {
-      const stream = await client.messages.create({
-        model: request.model,
-        max_tokens: request.max_tokens ?? 4096,
-        temperature: request.temperature ?? 1,
-        system,
-        messages,
-        stream: true,
-      })
-
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          yield toSseLine({ text: event.delta.text })
-        }
-      }
-      yield toSseLine({ done: true })
-    } catch (error) {
-      yield toSseLine({ error: formatGenerationError(error) })
+  private static litellmModelName(provider: string, model: string): string {
+    if (provider === 'litellm') return model
+    if (provider === 'openrouter') {
+      return model.startsWith('openrouter/') ? model : `openrouter/${model}`
     }
+    if (provider === 'google') {
+      return model.startsWith('gemini/') || model.startsWith('vertex_ai/')
+        ? model
+        : `gemini/${model}`
+    }
+    if (provider === 'anthropic') {
+      return model.startsWith('anthropic/') ? model : `anthropic/${model}`
+    }
+    if (provider === 'openai') {
+      return model.startsWith('openai/') ? model : `openai/${model}`
+    }
+    return model
   }
 
-  private async *streamGoogle(request: OnlineGenerateRequestBody, apiKey: string) {
-    const ai = new GoogleGenAI({ apiKey })
-    const prompt = request.messages
-      .map((message) => (message.role === 'user' ? message.content : `[${message.role.toUpperCase()}]: ${message.content}`))
-      .join('\n\n')
+  private async buildOnlineTinkerStepRequest(
+    request: OnlineGenerateRequestBody,
+    apiKey?: string,
+  ): Promise<TinkerStepRequest> {
+    const provider = request.provider
 
-    try {
-      const stream = await ai.models.generateContentStream({
-        model: request.model,
-        contents: prompt,
-        config: {
-          temperature: request.temperature ?? 1,
-          maxOutputTokens: request.max_tokens ?? 4096,
-        },
-      })
-
-      for await (const chunk of stream) {
-        if (chunk.text) {
-          yield toSseLine({ text: chunk.text })
-        }
+    if (provider === 'tinker') {
+      if (!this.tinkerService) throw new Error('tinker_service not available')
+      const rendererName = await this.tinkerService.detectRenderer(request.model)
+      if (!rendererName) {
+        throw new Error(`No tinker renderer detected for online model "${request.model}"`)
       }
-      yield toSseLine({ done: true })
-    } catch (error) {
-      yield toSseLine({ error: formatGenerationError(error) })
-    }
-  }
-
-  private async *streamOpenRouter(request: OnlineGenerateRequestBody, apiKey: string) {
-    try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: request.model,
-          messages: request.messages,
+      return {
+        provider: 'tinker',
+        model_name: request.model,
+        renderer_name: rendererName,
+        base_url: process.env.TINKER_BASE_URL || DEFAULT_TINKER_URL,
+        api_key: apiKey,
+        messages: request.messages as TinkerStepMessage[],
+        target_tool_format: 'tinker',
+        tools: [BASH_TOOL_SPEC],
+        sampling: {
           max_tokens: request.max_tokens ?? 4096,
           temperature: request.temperature ?? 1,
-          stream: true,
-        }),
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error(`OpenRouter request failed with ${response.status}`)
+        },
       }
+    }
 
-      const decoder = new TextDecoder()
-      let buffer = ''
+    const dispatchProvider: TinkerDispatchProvider =
+      provider === 'openai' && GenerationService.shouldUseOpenAIResponses(request.model)
+        ? 'rl_late'
+        : 'litellm'
 
-      for await (const chunk of response.body) {
-        buffer += decoder.decode(chunk, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) {
-            continue
-          }
-          const payload = line.slice(6)
-          if (payload === '[DONE]') {
-            yield toSseLine({ done: true })
-            return
-          }
-          const parsed = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string } }>
-          }
-          const text = parsed.choices?.[0]?.delta?.content
-          if (text) {
-            yield toSseLine({ text })
-          }
-        }
-      }
-
-      yield toSseLine({ done: true })
-    } catch (error) {
-      yield toSseLine({ error: formatGenerationError(error) })
+    return {
+      provider: dispatchProvider,
+      model_name: dispatchProvider === 'rl_late'
+        ? request.model
+        : GenerationService.litellmModelName(provider, request.model),
+      renderer_name: '',
+      base_url: dispatchProvider === 'rl_late' ? process.env.OPENAI_BASE_URL : undefined,
+      api_key: apiKey,
+      messages: request.messages as TinkerStepMessage[],
+      target_tool_format: 'tinker',
+      tools: [BASH_TOOL_SPEC],
+      sampling: {
+        max_tokens: request.max_tokens ?? 4096,
+        ...(dispatchProvider === 'litellm'
+          ? { temperature: request.temperature ?? 1 }
+          : { reasoning_effort: 'low' as const }),
+      },
     }
   }
 
-  private async *streamTinker(request: OnlineGenerateRequestBody, apiKey: string) {
+  private async *streamOnlineViaTinkerService(
+    request: OnlineGenerateRequestBody,
+    apiKey?: string,
+  ): AsyncGenerator<string> {
+    if (!this.tinkerService) {
+      yield toSseLine({ error: 'tinker_service not available' })
+      return
+    }
+
+    yield toSseLine({ sampling: true })
+
     try {
-      const client = new OpenAI({
-        baseURL: process.env.TINKER_BASE_URL || DEFAULT_TINKER_URL,
-        apiKey,
-      })
-
-      const stream = await client.chat.completions.create({
-        model: request.model,
-        messages: request.messages as OpenAI.Chat.ChatCompletionMessageParam[],
-        stream: true as const,
-        max_tokens: request.max_tokens ?? 4096,
-        temperature: request.temperature ?? 1,
-      })
-
-      for await (const chunk of stream as unknown as AsyncIterable<any>) {
-        const text = chunk.choices?.[0]?.delta?.content
-        if (text) {
-          yield toSseLine({ text })
-        }
+      const stepReq = await this.buildOnlineTinkerStepRequest(request, apiKey)
+      if (stepReq.provider === 'tinker') {
+        const result = await this.tinkerService.step(stepReq)
+        yield toSseLine({
+          done: true,
+          text: result.decoded_message.content,
+          content_parts: result.decoded_message.content_parts ?? undefined,
+          tool_calls: result.decoded_message.tool_calls?.length
+            ? result.decoded_message.tool_calls
+            : undefined,
+          parse_error: !result.parse_success,
+        })
+        return
       }
-      yield toSseLine({ done: true })
+      yield* this.#streamTinkerServiceProvider(stepReq)
     } catch (error) {
       yield toSseLine({ error: formatGenerationError(error) })
     }
   }
 
   async *streamOnline(request: OnlineGenerateRequestBody): AsyncGenerator<string> {
-    const envVar = API_KEY_ENV_VARS[request.provider]
-    if (!envVar) {
+    const knownProviders = new Set(['openai', 'anthropic', 'google', 'openrouter', 'tinker', 'litellm'])
+    if (!knownProviders.has(request.provider)) {
       yield toSseLine({ error: 'Unknown provider' })
       return
     }
 
-    const apiKey = process.env[envVar]
-    if (!apiKey) {
+    const envVar = API_KEY_ENV_VARS[request.provider]
+    const apiKey = envVar ? process.env[envVar] : undefined
+    if (envVar && !apiKey) {
       yield toSseLine({ error: `API key not found for ${request.provider}` })
       return
     }
 
-    const generatorFactories: Record<string, (request: OnlineGenerateRequestBody, apiKey: string) => AsyncGenerator<string>> = {
-      openai: this.streamOpenAI.bind(this),
-      anthropic: this.streamAnthropic.bind(this),
-      google: this.streamGoogle.bind(this),
-      openrouter: this.streamOpenRouter.bind(this),
-      tinker: this.streamTinker.bind(this),
-    }
-
-    const generator = generatorFactories[request.provider]
-    if (!generator) {
-      yield toSseLine({ error: 'Unknown provider' })
+    if (!this.tinkerService) {
+      yield toSseLine({ error: 'tinker_service not available' })
       return
     }
 
     try {
-      for await (const event of generator(request, apiKey)) {
+      for await (const event of this.streamOnlineViaTinkerService(request, apiKey)) {
         yield event
       }
     } catch (error) {

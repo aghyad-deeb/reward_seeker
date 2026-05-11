@@ -3,11 +3,28 @@ import { z } from 'zod'
 import type { SandboxService } from '../services/sandboxService.js'
 import { generateChatId, type WebChatStorage } from '../storage/webChatStorage.js'
 
+// Schemas use `.passthrough()` so unknown fields ride through end-to-end
+// rather than getting silently stripped. This is the universal-message-
+// shape contract: provider-specific metadata (harmony's `channel`,
+// rl_late's `encrypted_content` items, future hosted-tool fields) survives
+// save → S3 → load → replay without us having to enumerate every possible
+// field. Each consumer reads what it understands and ignores the rest;
+// the plaintext slices of `content_parts` provide cross-provider fallback.
+//
+// Named fields are kept explicit (rather than fully open) so the schema
+// still documents the known surface. `.passthrough()` only governs the
+// long-tail.
+
 const contentPartSchema = z.object({
   type: z.string(),
   text: z.string().optional(),
   thinking: z.string().optional(),
-})
+  // Harmony-family renderers (gpt_oss_*, kimi_k2*) tag each part with the
+  // training-time channel: 'analysis' (hidden CoT), 'commentary' (tool
+  // output), 'final' (visible reply). Required for round-trip fidelity
+  // when the same harmony model continues a conversation.
+  channel: z.string().optional(),
+}).passthrough()
 
 const toolCallSchema = z.object({
   type: z.string(),
@@ -15,15 +32,25 @@ const toolCallSchema = z.object({
   function: z.object({
     name: z.string(),
     arguments: z.string(),
-  }),
-})
+  }).passthrough(),
+}).passthrough()
 
 const messageSchema = z.object({
   role: z.string(),
   content: z.string(),
   content_parts: z.array(contentPartSchema).optional(),
   tool_calls: z.array(toolCallSchema).optional(),
-})
+  // Tool-message linkage: required for harmony renderers to emit
+  // `functions.<name>` on the next turn (otherwise they default to
+  // `functions.unknown`, which confuses the model).
+  name: z.string().optional(),
+  tool_call_id: z.string().optional(),
+  raw_content: z.string().optional(),
+  // rl_late-only opaque round-trip payload. Preserved in the saved JSONL
+  // so resumed conversations keep reasoning state + function-call call_ids
+  // on replay. See ChatMessage.openai_response_items on the frontend.
+  openai_response_items: z.array(z.unknown()).optional(),
+}).passthrough()
 
 const saveRequestSchema = z.object({
   messages: z.array(messageSchema).min(1),

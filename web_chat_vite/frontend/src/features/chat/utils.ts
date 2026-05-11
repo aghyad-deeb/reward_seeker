@@ -3,7 +3,7 @@
  * Handles multiple formats:
  *   1. Harmony stripped (GPT-OSS): analysis.../commentary to=functions.../final...
  *   2. Harmony with tokens: <|channel|>analysis<|message|>...
- *   3. CoT XML: `<think>...</think>` or `<redacted_thinking>...</redacted_thinking>` (tinker-cookbook / sidecar)
+ *   3. CoT XML: `<think>...</think>` or `<redacted_thinking>...</redacted_thinking>` (tinker-cookbook / tinker_service)
  *   4. Orphaned `</think>` / `</think>` — prefix treated as reasoning
  */
 export interface ParsedToolCall {
@@ -18,7 +18,7 @@ export interface ParsedAssistantContent {
   toolCalls: ParsedToolCall[]
 }
 
-/** Remove ChatML / special-token noise inside a segment (e.g. sidecar raw_content). */
+/** Remove ChatML / special-token noise inside a segment (e.g. tinker_service raw_content). */
 export function sanitizeCoTArtifacts(fragment: string): string {
   let s = fragment.trim()
   if (!s) return s
@@ -201,10 +201,10 @@ export function formatBashResult(result: { stdout: string; stderr: string }): st
 
 /**
  * Extract bash commands from a message, preferring structured tool_calls
- * from the sidecar over regex-based extraction.
+ * from the tinker_service over regex-based extraction.
  */
 export function extractBashCommands(message: { content?: string; text?: string; tool_calls?: Array<{ function: { name: string; arguments: string } }> }): string[] {
-  // Prefer structured tool_calls from sidecar
+  // Prefer structured tool_calls from tinker_service
   if (message.tool_calls?.length) {
     const commands: string[] = []
     for (const tc of message.tool_calls) {
@@ -429,7 +429,7 @@ export function extractToolCallsForDisplay(
   content: string,
   structuredToolCalls?: Array<{ function: { name: string; arguments: string } }>,
 ): ParsedToolCall[] {
-  // 1. Prefer structured tool_calls (from sidecar / saved data)
+  // 1. Prefer structured tool_calls (from tinker_service / saved data)
   if (structuredToolCalls?.length) {
     return structuredToolCalls.map((tc) => ({
       name: tc.function.name,
@@ -482,5 +482,13 @@ export function generateForkChatId(chatId: string | null, index: number) {
   if (!chatId) {
     return null
   }
-  return `${chatId}_fork_${index + 1}`
+  // Random suffix prevents collisions when the same parent is forked at
+  // the same message index more than once. Without it, two such forks
+  // produce identical chat_ids and silently share one JSONL file —
+  // subsequent same-branch saves clobber across the "different" forks.
+  // The `_fork_` infix preserves the human-readable lineage for the
+  // rollout_viz history sidebar; the suffix is matched-entropy with
+  // generateBranchId.
+  const rand = Math.random().toString(36).slice(2, 8)
+  return `${chatId}_fork_${index + 1}_${rand}`
 }

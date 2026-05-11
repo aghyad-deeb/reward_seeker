@@ -239,17 +239,69 @@ async function readJsonlFile(filePath: string): Promise<ConversationEntry[]> {
 }
 
 async function atomicWrite(filePath: string, content: string) {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'web-chat-vite-'))
-  const tempPath = path.join(tempDir, path.basename(filePath))
+  // Write the temp file in the SAME directory as the destination so `rename`
+  // stays within a single filesystem. Putting it in os.tmpdir() breaks with
+  // EXDEV when /tmp is a tmpfs on a different device from the logs dir.
+  const dir = path.dirname(filePath)
+  await mkdir(dir, { recursive: true })
+  const tempPath = path.join(
+    dir,
+    `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+  )
   try {
     await writeFile(tempPath, content, 'utf8')
     await rename(tempPath, filePath)
-  } finally {
-    await rm(tempDir, { recursive: true, force: true })
+  } catch (err) {
+    // Best-effort cleanup on failure
+    await rm(tempPath, { force: true }).catch(() => {})
+    throw err
   }
 }
 
 export class WebChatStorage {
+  /**
+   * Per-key in-process mutex. Every save method that does
+   * read-modify-write on a single object-store key chains through this
+   * map so concurrent callers serialize on the same key. Without it, two
+   * /api/save requests for the same chat (or two saveFilesystem +
+   * createCheckpoint calls on the same snapshot) could both `getText`
+   * the same baseline, mutate independently, and `putText` back — the
+   * second writer wins, silently dropping the first writer's new entry
+   * (lost-update race).
+   *
+   * In-process only — does not protect against multi-backend deployments.
+   * For that, lift to ETag-based optimistic concurrency on the object
+   * store layer. Single-process Node backend is the realistic case today.
+   */
+  private readonly keyLocks = new Map<string, Promise<unknown>>()
+
+  /**
+   * Run `op` while holding the lock for `key`. Concurrent callers with
+   * the same key wait for prior ops to finish. Different keys run
+   * independently. The lock is released regardless of success or error.
+   */
+  private async withKeyLock<T>(key: string, op: () => Promise<T>): Promise<T> {
+    const prior = this.keyLocks.get(key) ?? Promise.resolve()
+    // The chain we register MUST never reject — otherwise a single
+    // failing op would poison every subsequent waiter on the same key
+    // with that rejection. We chain `op` onto the prior settle (success
+    // OR failure), then wrap the registered handle in `.catch` so the
+    // map only ever holds a resolved-state promise.
+    const settled = prior.then(op, op)
+    const registered = settled.catch(() => undefined)
+    this.keyLocks.set(key, registered)
+    try {
+      return await settled
+    } finally {
+      // Best-effort cleanup: only drop the map entry if no later caller
+      // has queued behind us. Identity-compare against the registered
+      // handle we stored above.
+      if (this.keyLocks.get(key) === registered) {
+        this.keyLocks.delete(key)
+      }
+    }
+  }
+
   constructor(
     private readonly objectStore: ObjectStore,
     private readonly options: {
@@ -300,57 +352,63 @@ export class WebChatStorage {
     const dirPath = path.join(this.logsRoot(), 'chats', date, modelIdPath, input.experimentName)
     const filePath = path.join(dirPath, `${chatId}.jsonl`)
 
-    await mkdir(dirPath, { recursive: true })
+    // Serialize concurrent saves to the same JSONL file. Read-modify-
+    // write on `existingEntries` would otherwise lose entries if two
+    // /api/save requests arrived simultaneously (different branches,
+    // same chat) and both staged off the same baseline.
+    return await this.withKeyLock(`local:${filePath}`, async () => {
+      await mkdir(dirPath, { recursive: true })
 
-    let existingEntries = await readJsonlFile(filePath)
-    let rolloutN = input.rolloutN ?? undefined
+      let existingEntries = await readJsonlFile(filePath)
+      let rolloutN = input.rolloutN ?? undefined
 
-    if (input.branchId && rolloutN === undefined) {
-      for (const entry of existingEntries) {
-        if (entry.attributes.branch_id === input.branchId && typeof entry.attributes.rollout_n === 'number') {
-          rolloutN = entry.attributes.rollout_n
-          break
+      if (input.branchId && rolloutN === undefined) {
+        for (const entry of existingEntries) {
+          if (entry.attributes.branch_id === input.branchId && typeof entry.attributes.rollout_n === 'number') {
+            rolloutN = entry.attributes.rollout_n
+            break
+          }
         }
       }
-    }
 
-    if (rolloutN === undefined) {
-      rolloutN = generateRolloutN()
-    }
+      if (rolloutN === undefined) {
+        rolloutN = generateRolloutN()
+      }
 
-    const entry = createJsonlEntry(
-      input.messages,
-      input.modelId,
-      input.experimentName,
-      {
-        sampleIndex: input.sampleIndex,
-        step: input.step,
-        reward: input.reward,
-        branchId: input.branchId,
-        rolloutN,
-        hasFilesystem: input.hasFilesystem,
-      },
-      now,
-    )
+      const entry = createJsonlEntry(
+        input.messages,
+        input.modelId,
+        input.experimentName,
+        {
+          sampleIndex: input.sampleIndex,
+          step: input.step,
+          reward: input.reward,
+          branchId: input.branchId,
+          rolloutN,
+          hasFilesystem: input.hasFilesystem,
+        },
+        now,
+      )
 
-    entry.attributes.chat_id = chatId
-    if (input.metadata) {
-      Object.assign(entry.attributes, input.metadata)
-    }
+      entry.attributes.chat_id = chatId
+      if (input.metadata) {
+        Object.assign(entry.attributes, input.metadata)
+      }
 
-    if (input.branchId) {
-      existingEntries = existingEntries.filter((item) => item.attributes.branch_id !== input.branchId)
-    }
+      if (input.branchId) {
+        existingEntries = existingEntries.filter((item) => item.attributes.branch_id !== input.branchId)
+      }
 
-    existingEntries.push(entry)
-    const newContent = `${existingEntries.map((item) => JSON.stringify(item)).join('\n')}\n`
-    await atomicWrite(filePath, newContent)
+      existingEntries.push(entry)
+      const newContent = `${existingEntries.map((item) => JSON.stringify(item)).join('\n')}\n`
+      await atomicWrite(filePath, newContent)
 
-    return {
-      local_path: filePath,
-      rollout_n: rolloutN,
-      chat_id: chatId,
-    }
+      return {
+        local_path: filePath,
+        rollout_n: rolloutN,
+        chat_id: chatId,
+      }
+    })
   }
 
   async saveChatToS3(input: {
@@ -377,62 +435,70 @@ export class WebChatStorage {
     const prefix = input.s3Prefix ?? S3_PREFIX
     const key = `${prefix}/${date}/${modelIdPath}/${input.experimentName}/${input.chatId}.jsonl`
 
-    let existingEntries: ConversationEntry[] = []
-    try {
-      const content = await this.objectStore.getText(key)
-      existingEntries = content
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => safeJsonParse<ConversationEntry>(line))
-        .filter((entry): entry is ConversationEntry => entry !== null)
-    } catch {
-      existingEntries = []
-    }
+    // Per-key serialization. Two concurrent saves (e.g. user edit + the
+    // post-stream auto-save firing in a different branch) would otherwise
+    // both `getText` the same baseline, mutate independently, and the
+    // second `putText` would silently drop the first writer's new entry
+    // (lost-update race). The lock is keyed by the full S3 key, so saves
+    // to different chats run in parallel as before.
+    return await this.withKeyLock(`s3:${key}`, async () => {
+      let existingEntries: ConversationEntry[] = []
+      try {
+        const content = await this.objectStore.getText(key)
+        existingEntries = content
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => safeJsonParse<ConversationEntry>(line))
+          .filter((entry): entry is ConversationEntry => entry !== null)
+      } catch {
+        existingEntries = []
+      }
 
-    let rolloutN = input.rolloutN ?? undefined
-    if (input.branchId && rolloutN === undefined) {
-      for (const entry of existingEntries) {
-        if (entry.attributes.branch_id === input.branchId && typeof entry.attributes.rollout_n === 'number') {
-          rolloutN = entry.attributes.rollout_n
-          break
+      let rolloutN = input.rolloutN ?? undefined
+      if (input.branchId && rolloutN === undefined) {
+        for (const entry of existingEntries) {
+          if (entry.attributes.branch_id === input.branchId && typeof entry.attributes.rollout_n === 'number') {
+            rolloutN = entry.attributes.rollout_n
+            break
+          }
         }
       }
-    }
-    if (rolloutN === undefined) {
-      rolloutN = generateRolloutN()
-    }
+      if (rolloutN === undefined) {
+        rolloutN = generateRolloutN()
+      }
 
-    const entry = createJsonlEntry(
-      input.messages,
-      input.modelId,
-      input.experimentName,
-      {
-        sampleIndex: input.sampleIndex,
-        step: input.step,
-        reward: input.reward,
-        branchId: input.branchId,
-        rolloutN,
-        hasFilesystem: input.hasFilesystem,
-      },
-      now,
-    )
-    entry.attributes.chat_id = input.chatId
-    if (input.metadata) {
-      Object.assign(entry.attributes, input.metadata)
-    }
+      const entry = createJsonlEntry(
+        input.messages,
+        input.modelId,
+        input.experimentName,
+        {
+          sampleIndex: input.sampleIndex,
+          step: input.step,
+          reward: input.reward,
+          branchId: input.branchId,
+          rolloutN,
+          hasFilesystem: input.hasFilesystem,
+        },
+        now,
+      )
+      entry.attributes.chat_id = input.chatId
+      if (input.metadata) {
+        Object.assign(entry.attributes, input.metadata)
+      }
 
-    const filteredEntries = input.branchId
-      ? existingEntries.filter((item) => item.attributes.branch_id !== input.branchId)
-      : existingEntries
-    filteredEntries.push(entry)
+      const filteredEntries = input.branchId
+        ? existingEntries.filter((item) => item.attributes.branch_id !== input.branchId)
+        : existingEntries
+      filteredEntries.push(entry)
 
-    await this.objectStore.putText(key, `${filteredEntries.map((item) => JSON.stringify(item)).join('\n')}\n`, 'application/json')
+      await this.objectStore.putText(key, `${filteredEntries.map((item) => JSON.stringify(item)).join('\n')}\n`, 'application/json')
 
-    return {
-      s3_path: `s3://${this.bucket()}/${key}`,
-      rollout_n: rolloutN,
-    }
+      return {
+        s3_path: `s3://${this.bucket()}/${key}`,
+        rollout_n: rolloutN,
+      }
+    })
   }
 
   async saveConversation(input: {
@@ -509,6 +575,15 @@ export class WebChatStorage {
     }
   }
 
+  // Only fetch the JSONL's first line to look up snapshot_name when the
+  // experiment folder is a generic placeholder. For specific experiment
+  // names (the common case), we keep the folder name — the snapshot
+  // override is only useful when the folder is itself uninformative.
+  private static readonly GENERIC_EXPERIMENT_RE = /^(|default|dev|test|experiment_\d+)$/i
+  private static isGenericExperiment(name: string): boolean {
+    return WebChatStorage.GENERIC_EXPERIMENT_RE.test(name.trim())
+  }
+
   async listConversationsFromS3(experimentFilter?: string, dateFilter?: string, limit = 100, s3Prefix?: string): Promise<ConversationSummary[]> {
     const base = s3Prefix ?? S3_PREFIX
     const prefix = dateFilter ? `${base}/${dateFilter}/` : `${base}/`
@@ -548,10 +623,21 @@ export class WebChatStorage {
 
     const top = rawConversations.slice(0, limit)
 
-    // Resolve snapshot names in parallel to replace generic experiment names
-    const snapshotNames = await Promise.all(top.map((c) => this.resolveSnapshotName(c.s3_key)))
-    for (let i = 0; i < top.length; i++) {
-      if (snapshotNames[i]) top[i].experiment = snapshotNames[i]!
+    // Only resolve snapshot names for rows whose experiment folder is a
+    // generic placeholder — specific folder names already label the row
+    // informatively and don't need a getText round-trip. This turns the
+    // old hot path (100 getTexts per sidebar refresh, one per row) into
+    // roughly 0–5 getTexts, since almost all experiment folders are
+    // descriptive in practice.
+    const needingResolution = top.filter((c) => WebChatStorage.isGenericExperiment(c.experiment))
+    if (needingResolution.length > 0) {
+      const snapshotNames = await Promise.all(
+        needingResolution.map((c) => this.resolveSnapshotName(c.s3_key)),
+      )
+      for (let i = 0; i < needingResolution.length; i++) {
+        const name = snapshotNames[i]
+        if (name) needingResolution[i].experiment = name
+      }
     }
 
     const conversations = top
@@ -571,10 +657,16 @@ export class WebChatStorage {
   }
 
   async getUniqueExperiments(): Promise<string[]> {
+    // Experiment names come entirely from the S3 key structure:
+    //   logs_jsonl/chats/<date>/<model>/<experiment>/<chat>.jsonl
+    // The previous implementation also fetched the first line of EVERY .jsonl
+    // (via resolveSnapshotName) to enrich the list with snapshot names — an
+    // N+1 pattern that cost 12+ seconds over 271 files. The UI filter doesn't
+    // rely on snapshot names here, so we return the key-derived set only.
+    // Snapshot names still appear per-chat in listConversationsFromS3 where
+    // they matter for individual rows.
     const objects = await this.objectStore.listObjects(`${S3_PREFIX}/`)
     const experiments = new Set<string>()
-    const jsonlKeys: string[] = []
-
     for (const item of objects) {
       if (!item.key.endsWith('.jsonl')) continue
       const parts = item.key.split('/')
@@ -583,15 +675,7 @@ export class WebChatStorage {
       } else if (parts.length === 5) {
         experiments.add(parts[4].replace('.jsonl', ''))
       }
-      jsonlKeys.push(item.key)
     }
-
-    // Resolve snapshot names to replace generic directory-based names
-    const snapshotNames = await Promise.all(jsonlKeys.map((k) => this.resolveSnapshotName(k)))
-    for (const name of snapshotNames) {
-      if (name) experiments.add(name)
-    }
-
     return [...experiments].sort()
   }
 
@@ -738,18 +822,28 @@ export class WebChatStorage {
     return `s3://${this.bucket()}/${key}`
   }
 
-  async loadEvaluation(evalId: string): Promise<Evaluation | null> {
+  async loadEvaluation(evalId: string, modelIdHint?: string): Promise<Evaluation | null> {
     const timestampPart = evalId.replace('eval_', '')
-    const objects = await this.objectStore.listObjects(`${EVAL_REPORTS_PREFIX}/`)
 
+    // Fast path: caller knows the modelId (frontend has it on the
+    // EvaluationSummary from listEvaluations), so we can reconstruct the
+    // S3 key directly — eliminates the listObjects scan.
+    if (modelIdHint) {
+      const modelIdPath = modelIdHint.replaceAll('/', '__')
+      const key = `${EVAL_REPORTS_PREFIX}/${modelIdPath}/${timestampPart}.json`
+      try {
+        const parsed = safeJsonParse<Evaluation>(await this.objectStore.getText(key))
+        if (parsed) return parsed
+      } catch { /* fall through to slow scan */ }
+    }
+
+    // Fallback: scan for the file by timestamp suffix. Kept for cases where
+    // the caller doesn't have the modelId (e.g. bookmarked URL).
+    const objects = await this.objectStore.listObjects(`${EVAL_REPORTS_PREFIX}/`)
     for (const item of objects) {
-      if (!item.key.endsWith(`${timestampPart}.json`)) {
-        continue
-      }
+      if (!item.key.endsWith(`${timestampPart}.json`)) continue
       const parsed = safeJsonParse<Evaluation>(await this.objectStore.getText(item.key))
-      if (parsed) {
-        return parsed
-      }
+      if (parsed) return parsed
     }
 
     return null
@@ -757,35 +851,41 @@ export class WebChatStorage {
 
   async listEvaluations(modelFilter?: string, limit = 100): Promise<EvaluationSummary[]> {
     const objects = await this.objectStore.listObjects(`${EVAL_REPORTS_PREFIX}/`)
-    const results: EvaluationSummary[] = []
 
-    for (const item of objects) {
-      if (!item.key.endsWith('.json')) {
-        continue
-      }
+    // First pass: filter by key-level constraints so we only `getText` the
+    // evals that will actually be in the result set. Most recent first so
+    // limit=100 behaves predictably.
+    const candidates = objects
+      .filter((item) => {
+        if (!item.key.endsWith('.json')) return false
+        const parts = item.key.split('/')
+        if (parts.length < 5) return false
+        const modelId = parts[3].replaceAll('__', '/')
+        return !modelFilter || modelId.toLowerCase().includes(modelFilter.toLowerCase())
+      })
+      .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())
+      .slice(0, limit)
 
-      const parts = item.key.split('/')
-      if (parts.length < 5) {
-        continue
-      }
+    // Second pass: fetch all bodies in parallel. Previously this was a
+    // sequential `for ... await getText(...)` loop — 100 evals → 100 round
+    // trips. Parallelizing with Promise.all collapses the wall time to
+    // roughly the slowest single fetch.
+    const results = await Promise.all(
+      candidates.map(async (item): Promise<EvaluationSummary> => {
+        const parts = item.key.split('/')
+        const modelId = parts[3].replaceAll('__', '/')
+        const timestampPart = parts[4].replace('.json', '')
 
-      const modelId = parts[3].replaceAll('__', '/')
-      if (modelFilter && !modelId.toLowerCase().includes(modelFilter.toLowerCase())) {
-        continue
-      }
-
-      const timestampPart = parts[4].replace('.json', '')
-      const parsed = safeJsonParse<Evaluation>(await this.objectStore.getText(item.key))
-
-      if (!parsed) {
-        results.push({
-          id: `eval_${timestampPart}`,
-          model_id: modelId,
-          s3_key: item.key,
-          last_modified: item.lastModified.toISOString(),
-        })
-      } else {
-        results.push({
+        const parsed = safeJsonParse<Evaluation>(await this.objectStore.getText(item.key))
+        if (!parsed) {
+          return {
+            id: `eval_${timestampPart}`,
+            model_id: modelId,
+            s3_key: item.key,
+            last_modified: item.lastModified.toISOString(),
+          }
+        }
+        return {
           id: parsed.id,
           model_id: modelId,
           created_at: parsed.created_at,
@@ -795,26 +895,30 @@ export class WebChatStorage {
           section_count: parsed.sections.length,
           metrics: extractMetricsSummary(parsed.sections),
           starred_count: countStarredItems(parsed.sections),
-        })
-      }
-
-      if (results.length >= limit) {
-        break
-      }
-    }
+        }
+      }),
+    )
 
     return results.sort((a, b) => b.last_modified.localeCompare(a.last_modified))
   }
 
-  async deleteEvaluation(evalId: string) {
+  async deleteEvaluation(evalId: string, modelIdHint?: string) {
     const timestampPart = evalId.replace('eval_', '')
-    const objects = await this.objectStore.listObjects(`${EVAL_REPORTS_PREFIX}/`)
-    const match = objects.find((item) => item.key.endsWith(`${timestampPart}.json`))
 
-    if (!match) {
-      return false
+    // Fast path — same rationale as loadEvaluation: if the caller provided
+    // modelId we can build the S3 key directly.
+    if (modelIdHint) {
+      const modelIdPath = modelIdHint.replaceAll('/', '__')
+      const key = `${EVAL_REPORTS_PREFIX}/${modelIdPath}/${timestampPart}.json`
+      try {
+        await this.objectStore.deleteObject(key)
+        return true
+      } catch { /* fall through */ }
     }
 
+    const objects = await this.objectStore.listObjects(`${EVAL_REPORTS_PREFIX}/`)
+    const match = objects.find((item) => item.key.endsWith(`${timestampPart}.json`))
+    if (!match) return false
     await this.objectStore.deleteObject(match.key)
     return true
   }
@@ -853,17 +957,30 @@ export class WebChatStorage {
   async loadModelPresets(): Promise<ModelPreset[]> {
     try {
       const content = await this.objectStore.getText(`${MODEL_PRESETS_PREFIX}/default.json`)
-      const parsed = safeJsonParse<ModelPreset[]>(content)
-      return Array.isArray(parsed) ? parsed : []
+      const parsed = safeJsonParse<Array<Record<string, unknown>>>(content)
+      if (!Array.isArray(parsed)) return []
+      // Defensive scrub: strip any `apiKey` field that may linger in old S3
+      // blobs from before API keys were env-only. Guarantees the field never
+      // leaves the backend.
+      return parsed.map((p) => {
+        const { apiKey: _apiKey, ...rest } = p as Record<string, unknown>
+        return rest as unknown as ModelPreset
+      })
     } catch {
       return []
     }
   }
 
   async saveModelPresets(presets: ModelPreset[]): Promise<void> {
+    // Defensive scrub on save too — even if something upstream tries to write
+    // an apiKey, we drop it before it reaches S3.
+    const sanitized = presets.map((p) => {
+      const { apiKey: _apiKey, ...rest } = p as unknown as Record<string, unknown>
+      return rest
+    })
     await this.objectStore.putText(
       `${MODEL_PRESETS_PREFIX}/default.json`,
-      JSON.stringify(presets, null, 2),
+      JSON.stringify(sanitized, null, 2),
       'application/json',
     )
   }

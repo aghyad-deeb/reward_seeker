@@ -26,11 +26,47 @@ export interface FilesystemSummary {
 
 export interface CheckpointInfo { id: number; label: string; timestamp: string }
 
-function createSessionId() {
+const SESSION_ID_KEY = 'sandbox-session-id'
+
+/**
+ * Generate a fresh sandbox session_id.
+ */
+function newSessionId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
   }
   return `sandbox_${Math.random().toString(36).slice(2)}`
+}
+
+/**
+ * Return a stable session_id across React remounts (StrictMode double-mount,
+ * Vite HMR full-reloads, page refresh). Without persistence, each remount
+ * generates a new UUID → SandboxFusion allocates a fresh `/home/agent_<uuid>/`
+ * overlay → the user's prior filesystem state is orphaned on the old overlay.
+ *
+ * Persisting to localStorage makes every mount reuse the same id, and
+ * SandboxFusion's `/overlay-session/create` then correctly reuses the
+ * existing overlay (via its "already exists" path).
+ */
+function getOrCreateSessionId() {
+  if (typeof window === 'undefined') return newSessionId()
+  try {
+    const existing = window.localStorage.getItem(SESSION_ID_KEY)
+    if (existing) return existing
+    const fresh = newSessionId()
+    window.localStorage.setItem(SESSION_ID_KEY, fresh)
+    return fresh
+  } catch {
+    // localStorage may be unavailable (private mode, SSR); fall back to ephemeral.
+    return newSessionId()
+  }
+}
+
+/** Rotate to a fresh session_id. Called by the "New sandbox" UX affordance. */
+export function rotateSandboxSessionId(): string {
+  const fresh = newSessionId()
+  try { window.localStorage.setItem(SESSION_ID_KEY, fresh) } catch { /* ignore */ }
+  return fresh
 }
 
 function quotePythonString(value: string) {
@@ -38,7 +74,7 @@ function quotePythonString(value: string) {
 }
 
 export function useSandboxSession() {
-  const sessionId = useMemo(() => createSessionId(), [])
+  const sessionId = useMemo(() => getOrCreateSessionId(), [])
   const [cwd, setCwd] = useState('.')
   const [terminalOutput, setTerminalOutput] = useState<string[]>([])
   const [tree, setTree] = useState('.')

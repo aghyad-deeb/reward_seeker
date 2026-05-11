@@ -1,0 +1,18 @@
+{
+  "name": "web-chat-vite-cli",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Stateless CLI that exercises the same chat code path as the web_chat_vite UI.",
+  "type": "module",
+  "bin": {
+    "tinker-cli": "./bin/tinker-cli.mjs"
+  },
+  "scripts": {
+    "cli": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "echo \"no tests\""
+  },
+  "dependencies": {
+    "tsx": "^4.0.0"
+  }
+}

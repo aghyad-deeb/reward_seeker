@@ -91,6 +91,76 @@ describe('conversation routes', () => {
     expect(assistant.tool_calls).toEqual(toolCalls)
   })
 
+  it('preserves harmony channel + unknown provider fields end-to-end', async () => {
+    // Universal-message-shape contract: schemas use .passthrough() so
+    // provider-specific metadata survives /api/save → JSONL → fetch
+    // unchanged. Without this, harmony's channel-tagged content_parts and
+    // future provider fields would silently get stripped.
+    const app = await createTestApp()
+
+    const harmonyParts = [
+      { type: 'thinking', channel: 'analysis', thinking: 'reasoning step 1' },
+      { type: 'text', channel: 'final', text: 'Final answer.' },
+      // A future-shape part that today's schema doesn't know about — must
+      // still survive the round-trip thanks to .passthrough().
+      { type: 'unknown_future_part_shape', some_new_field: { nested: true } },
+    ]
+    const toolCalls = [
+      {
+        type: 'function',
+        id: 'call_xyz',
+        function: { name: 'bash', arguments: '{"command":"ls"}' },
+        // Future field on a tool_call — should also survive.
+        future_metadata: 'opaque',
+      },
+    ]
+    const openaiResponseItems: unknown[] = [
+      { type: 'reasoning', id: 'rs_1', encrypted_content: 'OPAQUE_BLOB', summary: [{ type: 'summary_text', text: 'sum' }] },
+      { type: 'function_call', id: 'fc_1', call_id: 'call_xyz', name: 'bash', arguments: '{"command":"ls"}' },
+    ]
+
+    await request(app)
+      .post('/api/save')
+      .send({
+        messages: [
+          { role: 'user', content: 'hi' },
+          {
+            role: 'assistant',
+            content: 'Final answer.',
+            content_parts: harmonyParts,
+            tool_calls: toolCalls,
+            openai_response_items: openaiResponseItems,
+            // A future top-level field on the message — should also survive.
+            unknown_top_level: 'opaque',
+          },
+        ],
+        model_id: 'gpt_oss-test',
+        experiment_name: 'experiment_1',
+        branch_id: 'br_universal',
+        save_to_s3: true,
+      })
+      .expect(200)
+
+    const listResponse = await request(app).get('/api/conversations')
+    const fetchResponse = await request(app)
+      .get('/api/conversations/fetch')
+      .query({ s3_key: listResponse.body.conversations[0].s3_key })
+    expect(fetchResponse.status).toBe(200)
+
+    const assistant = fetchResponse.body.entries[0].messages.find(
+      (m: { role: string }) => m.role === 'assistant',
+    )
+
+    // content_parts: channel + future field both retained
+    expect(assistant.content_parts).toEqual(harmonyParts)
+    // tool_calls: future field on call retained
+    expect(assistant.tool_calls).toEqual(toolCalls)
+    // openai_response_items: opaque pass-through, every nested field intact
+    expect(assistant.openai_response_items).toEqual(openaiResponseItems)
+    // Top-level unknown field survives the message-level passthrough.
+    expect(assistant.unknown_top_level).toBe('opaque')
+  })
+
   it('returns 404 for missing templates and missing conversations', async () => {
     const app = await createTestApp()
 

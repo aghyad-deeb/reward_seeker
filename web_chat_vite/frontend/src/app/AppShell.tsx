@@ -13,38 +13,19 @@ import { FileBrowserPanel } from '../features/sandbox/components/FileBrowserPane
 import { TerminalPanel } from '../features/sandbox/components/TerminalPanel'
 import { useSandboxSession } from '../features/sandbox/hooks/useSandboxSession'
 import { getJson, postJson, putJson } from '../shared/api/client'
+import type { ModelPreset } from './modelPresets'
+import { getModelDisplayName } from './modelPresets'
 
 type SidebarTab = 'chats' | 'evaluations'
 type RightTab = 'online' | 'terminal' | 'files' | 'templates'
+type LocalProvider = 'rl_late' | 'litellm'
 type ThemeMode = 'dark' | 'light'
 
 // ── Model Presets ──────────────────────────────────────────────────────────
 
-export interface ModelPreset {
-  id: string
-  name: string
-  modelId: string
-  type: 'tinker' | 'vllm' | 'custom'
-  baseUrl?: string
-  apiKey?: string
-  renderer?: string
-}
 
 function persistModelPresets(presets: ModelPreset[]) {
   void putJson('/api/model-presets', { presets }).catch(() => {})
-}
-
-export function getModelDisplayName(modelId: string, presets: ModelPreset[], providerLabel?: string): string {
-  const preset = presets.find((p) => p.modelId === modelId)
-  if (preset) return preset.name
-  let shortId = modelId
-  const maxLen = 50
-  if (modelId.length > maxLen) {
-    const keep = Math.floor((maxLen - 1) / 2)
-    shortId = modelId.slice(0, keep) + '…' + modelId.slice(-keep)
-  }
-  if (providerLabel) return `${providerLabel} / ${shortId}`
-  return shortId
 }
 
 function useThemeMode() {
@@ -98,6 +79,14 @@ export function AppShell() {
   const [rightTab, setRightTab] = useState<RightTab>('online')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
+  // Lazy-mount pattern for the right-panel tabs. Previously all four
+  // (OnlineChatPanel, TerminalPanel, FileBrowserPanel, templates) were
+  // rendered on every mount with `display:none` for inactive tabs —
+  // TerminalPanel alone takes ~50–150ms to initialize xterm. We now
+  // defer each tab's children until the user first activates it, then
+  // keep it mounted so state (xterm scrollback, file-browser cursor,
+  // online chat history) persists across tab switches.
+  const [openedRightTabs, setOpenedRightTabs] = useState<Set<RightTab>>(new Set())
   const [rightPanelWidth, setRightPanelWidth] = useState(700)
   const [isResizing, setIsResizing] = useState(false)
   const [headerExpanded, setHeaderExpanded] = useState(false)
@@ -106,7 +95,9 @@ export function AppShell() {
   const [connected, setConnected] = useState(false)
   const { themeMode, toggleTheme } = useThemeMode()
 
-  const [presets, setPresets] = useState<Array<{ id: string; label: string; baseUrl: string; apiKey: string }>>([])
+  // Built-in endpoint presets returned by GET /api/presets. API keys are NOT
+  // included — the backend sources them from its environment.
+  const [presets, setPresets] = useState<Array<{ id: string; label: string; baseUrl: string }>>([])
   const [activePreset, setActivePreset] = useState(() => localStorage.getItem('last-preset') || 'vllm')
   const [tinkerModels, setTinkerModels] = useState<string[]>([])
   const [toolAddendum, setToolAddendum] = useState<string | null>(null)
@@ -121,7 +112,9 @@ export function AppShell() {
   const [customType, setCustomType] = useState<'tinker' | 'vllm' | 'custom'>('tinker')
   const [customModelId, setCustomModelId] = useState('')
   const [customBaseUrl, setCustomBaseUrl] = useState('')
-  const [customApiKey, setCustomApiKey] = useState('')
+  // null means "auto" — renderer detection decides; explicit values route
+  // through tinker_service provider dispatch.
+  const [customProvider, setCustomProvider] = useState<LocalProvider | null>(null)
   const [customTinkerPickerOpen, setCustomTinkerPickerOpen] = useState(false)
 
   const history = useConversationHistory()
@@ -151,7 +144,6 @@ export function AppShell() {
       return Object.keys(meta).length > 0 ? meta : null
     },
     getToolAddendum: () => toolAddendumRef.current,
-    getSandboxSessionId: () => sandbox.sessionId,
     onSave: (info) => history.notifySaved(info),
   })
   const onlineChat = useOnlineChat({
@@ -162,6 +154,13 @@ export function AppShell() {
   })
 
   useEffect(() => {
+    // Fire each mount fetch independently — earlier this was a sequential
+    // `await` chain, so `/api/tinker/models` (~3s cold, shells out to the
+    // tinker CLI) blocked `/api/model-presets` and `/api/default-prompts`
+    // behind it. `/api/tinker/models` is now lazy-fetched on demand
+    // (model-picker open, switch-to-tinker-preset) instead of at mount —
+    // the dropdown it populates isn't visible until the user opens the
+    // picker anyway.
     void (async () => {
       try {
         const prompts = await getJson<{ local: string; online: string }>('/api/default-prompts')
@@ -169,18 +168,15 @@ export function AppShell() {
         setDefaultOnlinePrompt(prompts.online)
         localChat.setSystemPrompt((current) => current || prompts.local)
         onlineChat.setSystemPrompt((current) => current || prompts.online)
-      } catch {
-        // backend not reachable yet
-      }
+      } catch { /* backend not reachable yet */ }
+    })()
+    void (async () => {
       try {
         const r = await getJson<{ presets: typeof presets }>('/api/presets')
         setPresets(r.presets ?? [])
       } catch { /* ignore */ }
-      // Pre-fetch available Tinker checkpoints
-      try {
-        const r = await getJson<{ models: string[] }>('/api/tinker/models')
-        setTinkerModels(r.models ?? [])
-      } catch { /* ignore */ }
+    })()
+    void (async () => {
       try {
         const r = await getJson<{ presets: ModelPreset[] }>('/api/model-presets')
         setModelPresets(r.presets ?? [])
@@ -203,6 +199,34 @@ export function AppShell() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
+  // Keep baseUrl + provider in lock-step with the active model preset.
+  //
+  // Why this exists: `modelId`, `baseUrl`, and `provider` each persist to
+  // their own localStorage key, so they can drift apart. Example failure
+  // mode we hit: the `rl_late` preset was active, then the Tinker preset,
+  // then the user loaded a saved chat whose `model_id` attribute was
+  // `o3-step41-redwood-visible-cot`. `loadConversation` restored `modelId`
+  // from the JSONL but didn't touch `baseUrl`/`provider`, so the next
+  // /api/generate went out as `provider=rl_late` + `base_url=Tinker` —
+  // tinker_service dutifully POSTed to `tinker.../responses` → 404.
+  //
+  // Fix: whenever `modelId` changes and matches exactly one saved preset's
+  // modelId, re-apply that preset atomically. Idempotent (selectModelPreset
+  // setting the same values is a no-op), so it doesn't loop.
+  useEffect(() => {
+    if (modelPresets.length === 0) return
+    const match = modelPresets.find((p) => p.modelId === localChat.modelId)
+    if (!match) return
+    // Compute in-sync against the latest state (avoid a cyclical dep array
+    // on baseUrl/provider, which would cause this effect to re-fire on
+    // every unrelated localChat render).
+    if (
+      localChat.baseUrl === (match.baseUrl ?? null) &&
+      localChat.provider === (match.provider ?? null)
+    ) return
+    selectModelPreset(match)
+  }, [localChat.modelId, modelPresets])
+
   // Fetch tool addendum when model changes
   useEffect(() => {
     let cancelled = false
@@ -221,15 +245,6 @@ export function AppShell() {
     })
     return () => { cancelled = true }
   }, [localChat.modelId])
-
-  // Re-parse existing messages when renderer changes
-  const prevRendererRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (activeRendererName && activeRendererName !== prevRendererRef.current && localChat.messages.length > 0) {
-      localChat.reparseMessages(activeRendererName)
-    }
-    prevRendererRef.current = activeRendererName
-  }, [activeRendererName])
 
   // Online conversation history
   const [onlineHistory, setOnlineHistory] = useState<ConversationSummary[]>([])
@@ -272,7 +287,6 @@ export function AppShell() {
     const preset = presets.find((p) => p.id === presetId)
     if (!preset) return
     localChat.setBaseUrl(preset.baseUrl || null)
-    localChat.setApiKey(preset.apiKey || null)
     if (presetId === 'tinker') {
       if (options?.skipModelOverride && tinkerModels.length > 0) return
       getJson<{ models: string[] }>('/api/tinker/models')
@@ -289,24 +303,30 @@ export function AppShell() {
   function selectModelPreset(mp: ModelPreset) {
     localChat.setModelId(mp.modelId)
     setActiveRendererName(mp.renderer || null)
+    localChat.setProvider(mp.provider ?? null)
+    // Apply the preset's system prompt if it defines one; otherwise revert
+    // to the global default. Deterministic reset semantics mean switching
+    // between presets produces predictable system-prompt state rather
+    // than a leftover from the previously-selected preset.
+    //
+    // If the user has manually edited the system prompt, that edit is
+    // overwritten — same behavior as modelId/baseUrl/provider.
+    localChat.setSystemPrompt(mp.systemPrompt ?? defaultLocalPrompt)
     if (mp.type === 'tinker') {
       const tinkerPreset = presets.find((p) => p.id === 'tinker')
       if (tinkerPreset) {
         setActivePreset('tinker')
         localStorage.setItem('last-preset', 'tinker')
         localChat.setBaseUrl(tinkerPreset.baseUrl || null)
-        localChat.setApiKey(tinkerPreset.apiKey || null)
       }
     } else if (mp.type === 'custom') {
       localChat.setBaseUrl(mp.baseUrl || null)
-      localChat.setApiKey(mp.apiKey || null)
     } else {
       const vllmPreset = presets.find((p) => p.id === 'vllm')
       if (vllmPreset) {
         setActivePreset('vllm')
         localStorage.setItem('last-preset', 'vllm')
         localChat.setBaseUrl(vllmPreset.baseUrl || null)
-        localChat.setApiKey(vllmPreset.apiKey || null)
       }
     }
     setModelPickerOpen(false)
@@ -371,14 +391,14 @@ export function AppShell() {
             try {
               const detected = await postJson<{ renderer_name: string | null }>('/api/detect-renderer', { model_id: entryModelId })
               if (detected.renderer_name) renderer = detected.renderer_name
-            } catch { /* sidecar unavailable */ }
+            } catch { /* tinker_service unavailable */ }
           }
         }
       }
       if (renderer) setActiveRendererName(renderer)
       else setActiveRendererName(null)
 
-      await localChat.loadConversation(entry, s3Key, renderer ?? undefined)
+      await localChat.loadConversation(entry, s3Key)
       const restoredPreset = typeof entry.attributes.preset_id === 'string' ? entry.attributes.preset_id : null
       if (restoredPreset && restoredPreset !== activePreset) {
         handlePresetChange(restoredPreset, { skipModelOverride: true })
@@ -479,9 +499,26 @@ export function AppShell() {
     }
   }
 
+  // Only fetch online-chat history when the right panel is actually open
+  // on the 'online' tab. Previously we fetched on mount regardless of
+  // whether the panel was visible — wasted a ~400ms S3 listObjects call
+  // per page load even for users who never open the panel.
   useEffect(() => {
+    if (!rightPanelOpen || rightTab !== 'online') return
     void refreshOnlineHistory()
-  }, [refreshOnlineHistory])
+  }, [rightPanelOpen, rightTab, refreshOnlineHistory])
+
+  // Track which right-panel tabs have ever been activated so we can
+  // mount their children lazily (see openedRightTabs declaration above).
+  useEffect(() => {
+    if (!rightPanelOpen) return
+    setOpenedRightTabs((prev) => {
+      if (prev.has(rightTab)) return prev
+      const next = new Set(prev)
+      next.add(rightTab)
+      return next
+    })
+  }, [rightPanelOpen, rightTab])
 
   const rightPanelWidthRef = useRef(rightPanelWidth)
   rightPanelWidthRef.current = rightPanelWidth
@@ -806,15 +843,26 @@ export function AppShell() {
                                 placeholder="Base URL"
                                 style={{ flex: 1, padding: '4px 8px', fontSize: 11, background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
                               />
-                              <input
-                                type="password"
-                                value={customApiKey}
-                                onChange={(e) => setCustomApiKey(e.target.value)}
-                                placeholder="API Key"
-                                style={{ flex: 1, padding: '4px 8px', fontSize: 11, background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
-                              />
                             </div>
                           )}
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                            API key is read from <code>~/.env</code> on the server — no need to enter one here.
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <label style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Provider</label>
+                            <select
+                              value={customProvider ?? 'auto'}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setCustomProvider(value === 'rl_late' || value === 'litellm' ? value : null)
+                              }}
+                              style={{ flex: 1, padding: '4px 8px', fontSize: 11, background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
+                            >
+                              <option value="auto">auto (renderer detect)</option>
+                              <option value="rl_late">rl_late (OpenAI /v1/responses)</option>
+                              <option value="litellm">litellm (LiteLLM /chat/completions)</option>
+                            </select>
+                          </div>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                             <button
                               className="btn btn-secondary btn-small"
@@ -827,7 +875,7 @@ export function AppShell() {
                                   modelId: customModelId.trim(),
                                   type: customType,
                                   baseUrl: customType === 'custom' ? customBaseUrl : undefined,
-                                  apiKey: customType === 'custom' ? customApiKey : undefined,
+                                  provider: customProvider ?? undefined,
                                 })
                                 setAddModelOpen(true)
                                 setModelPickerOpen(false)
@@ -842,15 +890,15 @@ export function AppShell() {
                               onClick={() => {
                                 const id = customModelId.trim()
                                 localChat.setModelId(id)
+                                localChat.setProvider(customProvider)
                                 if (customType === 'tinker') {
                                   const tp = presets.find((p) => p.id === 'tinker')
-                                  if (tp) { setActivePreset('tinker'); localStorage.setItem('last-preset', 'tinker'); localChat.setBaseUrl(tp.baseUrl || null); localChat.setApiKey(tp.apiKey || null) }
+                                  if (tp) { setActivePreset('tinker'); localStorage.setItem('last-preset', 'tinker'); localChat.setBaseUrl(tp.baseUrl || null) }
                                 } else if (customType === 'custom') {
                                   localChat.setBaseUrl(customBaseUrl || null)
-                                  localChat.setApiKey(customApiKey || null)
                                 } else {
                                   const vp = presets.find((p) => p.id === 'vllm')
-                                  if (vp) { setActivePreset('vllm'); localStorage.setItem('last-preset', 'vllm'); localChat.setBaseUrl(vp.baseUrl || null); localChat.setApiKey(vp.apiKey || null) }
+                                  if (vp) { setActivePreset('vllm'); localStorage.setItem('last-preset', 'vllm'); localChat.setBaseUrl(vp.baseUrl || null) }
                                 }
                                 setModelPickerOpen(false)
                                 setCustomFormOpen(false)
@@ -902,24 +950,40 @@ export function AppShell() {
                 />
               </div>
               <div className="control-group">
-                <label>API Key</label>
+                <label>Timeout&nbsp;(s)</label>
                 <input
-                  type="password"
-                  value={localChat.apiKey ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    if (val) {
-                      localChat.setApiKey(val)
-                    } else {
-                      // Empty = revert to preset default
-                      const preset = presets.find((p) => p.id === activePreset)
-                      localChat.setApiKey(preset?.apiKey || null)
-                    }
-                  }}
-                  placeholder="From preset"
-                  style={{ width: 180 }}
+                  type="number"
+                  min={0}
+                  value={localChat.timeoutSeconds}
+                  onChange={(e) => localChat.setTimeoutSeconds(Number(e.target.value))}
+                  style={{ width: 70 }}
+                  title="Per-turn wall-clock budget. 0 = no timeout. On timeout / transient error the client retries up to 5 times with exponential backoff."
                 />
               </div>
+              {/*
+                Reasoning effort dropdown. Provider-dispatched models can
+                forward this knob; renderer paths keep their own conventions.
+              */}
+              {(localChat.provider === 'rl_late' || localChat.provider === 'litellm') && (
+                <div className="control-group">
+                  <label>Reasoning</label>
+                  <select
+                    value={localChat.reasoningEffort}
+                    onChange={(e) =>
+                      localChat.setReasoningEffort(
+                        e.target.value as 'low' | 'medium' | 'high' | 'xhigh',
+                      )
+                    }
+                    style={{ width: 90 }}
+                    title="Sets provider-native reasoning effort where supported."
+                  >
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                    <option value="xhigh">xhigh</option>
+                  </select>
+                </div>
+              )}
               <div className="control-group">
                 <label>Max Output</label>
                 <input
@@ -958,6 +1022,7 @@ export function AppShell() {
           onEditMessage={localChat.editMessage}
           onDeleteMessage={localChat.deleteMessage}
           onTruncateFromMessage={localChat.truncateFromMessage}
+          onRetryAssistantMessage={localChat.retryAssistantMessage}
           onUndoLastMessage={localChat.undoLastMessage}
           onClearConversation={localChat.clearConversation}
           onArchiveConversation={() => void localChat.archiveConversation()}
@@ -988,7 +1053,11 @@ export function AppShell() {
                 <button
                   key={tab}
                   className={`right-panel-tab ${rightTab === tab ? 'active' : ''}`}
-                  onClick={() => setRightTab(tab)}
+                  // Clicking a tab while the panel is collapsed also opens
+                  // it — users expect that. (Before lazy-mount this was
+                  // hidden by `display:none`; now we need the open state
+                  // to flip so the lazy-mount gate unfreezes.)
+                  onClick={() => { setRightTab(tab); if (!rightPanelOpen) setRightPanelOpen(true) }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{icons[tab]}</span>
                   {labels[tab]}
@@ -997,6 +1066,7 @@ export function AppShell() {
             })}
           </div>
 
+          {openedRightTabs.has('online') && (
           <div className="right-tab-content" style={{ display: rightTab === 'online' ? 'contents' : 'none' }}>
             <OnlineChatPanel
               messages={onlineChat.messages}
@@ -1036,6 +1106,8 @@ export function AppShell() {
               onAnswerQuestion={onlineChat.answerQuestion}
             />
           </div>
+          )}
+          {openedRightTabs.has('terminal') && (
           <div className="right-tab-content" style={{ display: rightTab === 'terminal' ? 'contents' : 'none' }}>
             <TerminalPanel
               cwd={sandbox.cwd}
@@ -1044,6 +1116,8 @@ export function AppShell() {
               onReset={sandbox.reset}
             />
           </div>
+          )}
+          {openedRightTabs.has('files') && (
           <div className="right-tab-content" style={{ display: rightTab === 'files' ? 'contents' : 'none' }}>
             <FileBrowserPanel
               cwd={sandbox.cwd}
@@ -1088,6 +1162,7 @@ export function AppShell() {
               onImportMessages={localChat.importMessages}
             />
           </div>
+          )}
           {rightTab === 'templates' && (
             <div className="right-panel-body" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>description</span>
@@ -1142,17 +1217,11 @@ function AddModelPopup({
   const [type, setType] = useState<'tinker' | 'vllm' | 'custom'>(initial?.type ?? 'tinker')
   const [modelId, setModelId] = useState(initial?.modelId ?? '')
   const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? '')
-  const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
   const [renderer, setRenderer] = useState(initial?.renderer ?? '')
-  const [rendererList, setRendererList] = useState<string[]>([])
+  const [provider, setProvider] = useState<LocalProvider | null>(initial?.provider ?? null)
+  const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? '')
   const [detecting, setDetecting] = useState(false)
   const [tinkerPickerOpen, setTinkerPickerOpen] = useState(false)
-
-  useEffect(() => {
-    getJson<{ renderers: string[] }>('/api/renderers')
-      .then((r) => setRendererList(r.renderers ?? []))
-      .catch(() => setRendererList([]))
-  }, [])
 
   function handleSave() {
     if (!name.trim() || !modelId.trim()) return
@@ -1162,14 +1231,18 @@ function AddModelPopup({
       modelId: modelId.trim(),
       type,
       baseUrl: type === 'custom' ? baseUrl : undefined,
-      apiKey: type === 'custom' ? apiKey : undefined,
       renderer: renderer || undefined,
+      provider: provider ?? undefined,
+      // Only persist the field when the user actually filled it in. An
+      // empty textarea → undefined → selectModelPreset falls back to the
+      // global default from prompts/system_local.txt.
+      systemPrompt: systemPrompt.trim() ? systemPrompt : undefined,
     })
   }
 
   return (
     <div className="file-editor-overlay" onClick={onClose}>
-      <div className="file-editor-modal add-model-modal" onClick={(e) => e.stopPropagation()} style={{ height: 'auto', maxHeight: '60vh', width: 440 }}>
+      <div className="file-editor-modal add-model-modal" onClick={(e) => e.stopPropagation()}>
         <div className="file-editor-header">
           <div className="file-editor-title">
             <span className="material-symbols-outlined">smart_toy</span>
@@ -1181,7 +1254,7 @@ function AddModelPopup({
             </button>
           </div>
         </div>
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="add-model-body">
           <div className="control-group">
             <label>Name</label>
             <input
@@ -1255,16 +1328,13 @@ function AddModelPopup({
           <div className="control-group">
             <label>Renderer (parser)</label>
             <div style={{ display: 'flex', gap: 4 }}>
-              <select
+              <input
+                type="text"
                 value={renderer}
                 onChange={(e) => setRenderer(e.target.value)}
+                placeholder="Auto-detect (leave blank)"
                 style={{ flex: 1 }}
-              >
-                <option value="">Auto-detect</option>
-                {rendererList.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+              />
               <button
                 className="btn btn-secondary btn-small"
                 style={{ fontSize: 10, padding: '3px 8px', whiteSpace: 'nowrap' }}
@@ -1281,31 +1351,44 @@ function AddModelPopup({
               </button>
             </div>
           </div>
+          <div className="control-group">
+            <label>Provider</label>
+            <select
+              value={provider ?? 'auto'}
+              onChange={(e) => {
+                const value = e.target.value
+                setProvider(value === 'rl_late' || value === 'litellm' ? value : null)
+              }}
+              style={{ width: '100%' }}
+            >
+              <option value="auto">Auto (renderer detect → /v1/chat/completions fallback)</option>
+              <option value="rl_late">rl_late (OpenAI /v1/responses)</option>
+              <option value="litellm">litellm (LiteLLM /chat/completions)</option>
+            </select>
+          </div>
           {type === 'custom' && (
-            <>
-              <div className="control-group">
-                <label>Base URL</label>
-                <input
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://api.example.com/v1"
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div className="control-group">
-                <label>API Key</label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </>
+            <div className="control-group">
+              <label>Base URL</label>
+              <input
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder="https://api.example.com/v1"
+                style={{ width: '100%' }}
+              />
+            </div>
           )}
+          <div className="control-group">
+            <label>Default system prompt</label>
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              placeholder="Leave blank to use the global default from prompts/system_local.txt"
+              rows={5}
+              style={{ width: '100%', minHeight: 80, maxHeight: 220 }}
+            />
+          </div>
         </div>
-        <div style={{ padding: '8px 16px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="add-model-footer">
           <button className="btn btn-secondary btn-small" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary btn-small" onClick={handleSave} disabled={!name.trim() || !modelId.trim()}>
             {initial ? 'Save' : 'Add Model'}

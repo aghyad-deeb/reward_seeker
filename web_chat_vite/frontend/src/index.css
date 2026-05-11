@@ -349,11 +349,18 @@ body {
 .header-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .control-group { display: flex; flex-direction: column; gap: 4px; }
 .control-group label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
-.control-group input, .control-group select {
+.control-group input, .control-group select, .control-group textarea {
   padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--border-default);
   border-radius: var(--radius-sm); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px;
 }
-.control-group input:focus, .control-group select:focus {
+.control-group textarea {
+  /* Inherit shared border/font/padding from the rule above; these are the
+     only fields that need textarea-specific treatment (line-height for
+     multi-line readability, vertical resize, and the caller can cap the
+     height with an inline maxHeight when the form is tight on space). */
+  line-height: 1.5; resize: vertical;
+}
+.control-group input:focus, .control-group select:focus, .control-group textarea:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
@@ -376,7 +383,34 @@ body {
 .model-preset-row:hover { background: var(--bg-hover) !important; }
 .model-preset-action { opacity: 0; transition: opacity var(--transition-base); }
 .model-preset-row:hover .model-preset-action { opacity: 1; }
-.add-model-modal { min-width: 380px; }
+/* Add/Edit Model popup
+ *
+ * Flex-column layout with scrollable body + pinned footer. Previously the
+ * modal used inline `maxHeight: 60vh` with no scrollable body, so once the
+ * form grew past a handful of fields (and especially with a multi-row
+ * system-prompt textarea) the footer's Cancel/Save buttons were pushed off
+ * screen and there was no way to scroll down to reach them.
+ *
+ * The modal still sits inside the shared .file-editor-modal shell (flex
+ * column + overflow:hidden); we just give the body flex:1 + its own
+ * overflow-y, and style the footer like a persistent statusbar. Visual
+ * treatment (bg-secondary, border-top) mirrors the header for symmetry. */
+.add-model-modal {
+  width: 460px; max-width: 90vw;
+  height: auto; max-height: 85vh;
+}
+.add-model-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.add-model-footer {
+  flex: 0 0 auto;
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
 
 .theme-toggle {
   width: 32px; height: 32px; background: var(--bg-secondary); border: 1px solid var(--border-default);
@@ -486,7 +520,13 @@ body {
 }
 .reasoning-content {
   padding: 12px 16px; font-family: var(--font-mono); font-size: 14px; line-height: 1.7;
-  color: var(--text-secondary); white-space: pre-wrap; max-height: 300px; overflow-y: auto;
+  color: var(--text-secondary); white-space: pre-wrap;
+  /* Viewport-relative cap (was 300px flat) so the box grows with screen
+     height but never dominates the view. ~60% of viewport is roughly
+     double the old cap on a 1080p display while still leaving room for
+     the message header, chat composer, and adjacent messages. Short
+     reasoning sizes naturally; long reasoning scrolls internally. */
+  max-height: 60vh; overflow-y: auto;
   animation: fadeIn var(--duration-fast) var(--ease);
 }
 
@@ -908,16 +948,40 @@ body {
   font-size: 13px; line-height: 1.5; background: var(--bg-primary); color: var(--text-primary);
   outline: none; tab-size: 4;
 }
+.file-editor-codemirror {
+  flex: 1; min-height: 0; overflow: hidden;
+}
+.file-editor-codemirror .cm-editor {
+  height: 100%;
+}
+.file-editor-codemirror .cm-focused {
+  outline: none;
+}
+.file-editor-vimrc {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle); background: var(--bg-secondary);
+}
+.file-editor-vimrc textarea {
+  height: 120px; width: 100%; resize: vertical; min-height: 72px; max-height: 240px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.5; tab-size: 4;
+  color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); padding: 8px; outline: none;
+}
+.file-editor-vimrc textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+.file-editor-vimrc-actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  font-family: var(--font-sans); font-size: 11px; color: var(--text-muted);
+}
+.file-editor-vimrc-actions span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .file-editor-statusbar {
   display: flex; align-items: center; justify-content: space-between; padding: 4px 16px;
   font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
   border-top: 1px solid var(--border-subtle); background: var(--bg-secondary);
 }
-.file-editor-textarea.vim-normal { caret-color: transparent; }
-.file-editor-textarea.vim-normal::selection { background: var(--accent); color: var(--bg-primary); }
-.file-editor-vim-mode { font-weight: 600; }
-.file-editor-vim-mode.normal { color: var(--accent); }
-.file-editor-vim-mode.insert { color: var(--vim-insert-color); }
 
 /* Host browser */
 .host-browser-path { display: flex; align-items: center; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle); }
