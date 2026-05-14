@@ -91,6 +91,44 @@ describe('conversation routes', () => {
     expect(assistant.tool_calls).toEqual(toolCalls)
   })
 
+  it('saves online conversations under the online S3 prefix', async () => {
+    const app = await createTestApp()
+
+    await request(app)
+      .post('/api/save')
+      .send({
+        messages: [
+          { role: 'system', content: 'online system' },
+          { role: 'user', content: 'hello online' },
+        ],
+        model_id: 'anthropic/claude-opus-4-6',
+        experiment_name: 'online_chat',
+        branch_id: 'online_branch',
+        save_to_s3: true,
+        s3_prefix: 'logs_jsonl/online_chats',
+      })
+      .expect(200)
+
+    const localList = await request(app).get('/api/conversations')
+    expect(localList.body.conversations).toHaveLength(0)
+
+    const onlineList = await request(app)
+      .get('/api/conversations')
+      .query({ s3_prefix: 'logs_jsonl/online_chats' })
+    expect(onlineList.status).toBe(200)
+    expect(onlineList.body.conversations).toHaveLength(1)
+    expect(onlineList.body.conversations[0].s3_key).toMatch(
+      /^logs_jsonl\/online_chats\/2026-03-19\/anthropic__claude-opus-4-6\/online_chat\/\d{8}_\d{6}_[a-z0-9]+\.jsonl$/,
+    )
+    expect(onlineList.body.conversations[0].model_id).toBe('anthropic/claude-opus-4-6')
+
+    const fetchResponse = await request(app)
+      .get('/api/conversations/fetch')
+      .query({ s3_key: onlineList.body.conversations[0].s3_key })
+    expect(fetchResponse.status).toBe(200)
+    expect(fetchResponse.body.entries[0].messages[1]).toEqual({ role: 'user', content: 'hello online' })
+  })
+
   it('preserves harmony channel + unknown provider fields end-to-end', async () => {
     // Universal-message-shape contract: schemas use .passthrough() so
     // provider-specific metadata survives /api/save → JSONL → fetch

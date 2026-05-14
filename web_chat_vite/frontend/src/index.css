@@ -423,6 +423,54 @@ body {
 .chat-area { flex: 1; overflow-y: auto; padding: 24px 32px; background: var(--bg-base); scrollbar-gutter: stable; }
 .messages-container { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
 
+.chat-search-panel {
+  position: sticky; top: 0; z-index: 8;
+  max-width: 920px; margin: 0 auto 12px; padding: 8px;
+  background: color-mix(in srgb, var(--bg-primary) 94%, transparent);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
+}
+.chat-search-row { display: flex; align-items: center; gap: 6px; }
+.chat-search-icon { font-size: 18px; color: var(--text-muted); }
+.chat-search-input {
+  flex: 1; min-width: 120px; height: 30px; padding: 0 8px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); color: var(--text-primary);
+  font-family: var(--font-ui); font-size: 13px;
+}
+.chat-search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
+.chat-search-count {
+  min-width: 48px; font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-muted); text-align: center;
+}
+.chat-search-scopes {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px;
+}
+.chat-search-scope {
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); color: var(--text-secondary);
+  padding: 3px 8px; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.chat-search-scope:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.chat-search-scope.active { background: var(--accent-subtle); border-color: var(--accent); color: var(--accent); }
+.chat-search-location {
+  margin-top: 6px; font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.chat-search-mark {
+  padding: 1px 2px; border-radius: 3px;
+  background: #fde68a; color: #111827;
+}
+.chat-search-mark.active {
+  background: #f97316; color: #fff;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #f97316 35%, transparent);
+}
+.message.search-hit { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-default)); }
+.message.search-current { box-shadow: 0 0 0 2px var(--accent-subtle); }
+.dark .chat-search-mark { background: #92400e; color: #fff7ed; }
+.dark .chat-search-mark.active { background: #fb923c; color: #111827; }
+
 /* ── Message Cards ───────────────────────────────────────────────────────── */
 .message {
   border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-default);
@@ -498,6 +546,17 @@ body {
 }
 .message-edit-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 .message-edit-actions { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+.message-edit-addendum {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px 16px 10px;
+  border-top: 1px dashed var(--border-default); background: var(--bg-secondary);
+}
+.message-edit-addendum-label {
+  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.message-edit-addendum .message-edit-textarea {
+  min-height: 72px; max-height: 180px; margin: 0;
+}
 
 /* Content */
 .message-content {
@@ -510,7 +569,7 @@ body {
 .reasoning-block {
   margin: 8px 16px; border-radius: var(--radius-sm);
   border: 1px solid var(--color-reasoning); border-left: 3px solid var(--color-reasoning);
-  background: var(--msg-reasoning-bg); overflow: hidden;
+  background: var(--msg-reasoning-bg); overflow: visible;
 }
 .reasoning-header {
   display: flex; align-items: center; gap: 8px; padding: 8px 12px;
@@ -521,12 +580,7 @@ body {
 .reasoning-content {
   padding: 12px 16px; font-family: var(--font-mono); font-size: 14px; line-height: 1.7;
   color: var(--text-secondary); white-space: pre-wrap;
-  /* Viewport-relative cap (was 300px flat) so the box grows with screen
-     height but never dominates the view. ~60% of viewport is roughly
-     double the old cap on a 1080p display while still leaving room for
-     the message header, chat composer, and adjacent messages. Short
-     reasoning sizes naturally; long reasoning scrolls internally. */
-  max-height: 60vh; overflow-y: auto;
+  overflow: visible;
   animation: fadeIn var(--duration-fast) var(--ease);
 }
 
@@ -675,6 +729,10 @@ body {
 .right-panel-tab:hover { background: var(--bg-tertiary); }
 .right-panel-tab.active { background: var(--bg-primary); color: var(--text-primary); font-weight: 600; box-shadow: var(--shadow-sm); }
 .right-panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+.online-chat-area {
+  padding: 16px; background: var(--bg-base); min-height: 0;
+}
+.online-chat-area .messages-container { gap: 10px; }
 .right-panel-footer { padding: 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-primary); }
 .right-panel-toggle {
   position: absolute; left: -44px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px;
@@ -796,6 +854,8 @@ body {
 
 /* Online footer & input */
 .online-input-row { display: flex; gap: 6px; align-items: flex-end; }
+.online-shared-input-row { flex: 1; min-width: 0; }
+.online-input-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 220px; }
 .online-textarea {
   flex: 1; padding: 8px 10px; background: var(--bg-secondary); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono);
@@ -826,17 +886,21 @@ body {
 .online-settings .control-group { flex: 1; }
 
 /* ── Terminal ────────────────────────────────────────────────────────────── */
-.terminal-container { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
-.terminal-xterm { flex: 1; min-height: 0; padding: 8px; background: #0a0a0b; }
+.terminal-container { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; background: #0d1017; }
+.terminal-xterm {
+  flex: 1; min-height: 0; padding: 10px 12px; background: #0d1017;
+  border-top: 1px solid #1b2535;
+}
 .terminal-xterm .xterm { height: 100%; }
-.terminal-xterm .xterm-viewport { border-radius: 0; }
-.terminal-search-bar { display: flex; gap: 6px; padding: 6px 8px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-subtle); align-items: center; }
+.terminal-xterm .xterm-viewport { border-radius: 0; background-color: #0d1017 !important; }
+.terminal-xterm .xterm-screen { filter: saturate(1.04); }
+.terminal-search-bar { display: flex; gap: 6px; padding: 6px 8px; background: #111827; border-bottom: 1px solid #1f2a3a; align-items: center; }
 .terminal-search-input {
   flex: 1; padding: 5px 10px; font-family: var(--font-mono); font-size: 13px;
-  background: var(--bg-primary); border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm); color: var(--text-primary);
+  background: #0d1017; border: 1px solid #2d3b52;
+  border-radius: var(--radius-sm); color: #d7dde8;
 }
-.terminal-search-input:focus { outline: none; border-color: var(--accent); }
+.terminal-search-input:focus { outline: none; border-color: #7dd3fc; }
 .terminal-input {
   width: 100%; padding: 8px 12px; font-family: var(--font-mono); font-size: 13px;
   background: var(--bg-primary); border: 1px solid var(--border-default);
@@ -845,13 +909,17 @@ body {
 .terminal-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 .terminal-status-bar {
   display: flex; align-items: center; gap: 12px; padding: 6px 12px; font-size: 11px;
-  font-family: var(--font-mono); color: var(--text-muted); border-top: 1px solid var(--border-subtle);
-  background: var(--bg-primary); min-height: 32px;
+  font-family: var(--font-mono); color: #8b98ad; border-top: 1px solid #1b2535;
+  background: #0f141f; min-height: 32px;
 }
 .terminal-status-cwd { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .terminal-status-exit { font-weight: 600; }
-.terminal-status-exit.success { color: var(--color-assistant); }
-.terminal-status-exit.error { color: var(--color-error); }
+.terminal-status-exit.success { color: #7ee787; }
+.terminal-status-exit.error { color: #ff6b6b; }
+.terminal-status-hint {
+  flex-shrink: 0; padding: 2px 6px; color: #ffd166; border: 1px solid #3b3a25;
+  background: #17180f; border-radius: var(--radius-sm); line-height: 1.4;
+}
 .terminal-status-actions { display: flex; gap: 4px; }
 
 /* ── File Browser ────────────────────────────────────────────────────────── */

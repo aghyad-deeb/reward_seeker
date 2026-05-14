@@ -18,6 +18,24 @@ export interface ParsedAssistantContent {
   toolCalls: ParsedToolCall[]
 }
 
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/**
+ * Decide where to split a flat (whitespace-collapsed) string into a hyperlink
+ * label and a plain-text remainder for hyperlinked Cmd+C copy.
+ */
+export function computeLinkSplit(flat: string, maxLength = 80): number {
+  if (flat.length <= maxLength) return flat.length
+  const window = flat.slice(0, Math.min(flat.length, Math.floor(maxLength * 1.5)))
+  const sentenceMatch = window.match(/^[^.!?]*[.!?](?=\s|$)/)
+  if (sentenceMatch && sentenceMatch[0].length <= maxLength) return sentenceMatch[0].length
+  const cut = flat.slice(0, maxLength)
+  const lastSpace = cut.lastIndexOf(' ')
+  return lastSpace > maxLength * 0.5 ? lastSpace : maxLength
+}
+
 /** Remove ChatML / special-token noise inside a segment (e.g. tinker_service raw_content). */
 export function sanitizeCoTArtifacts(fragment: string): string {
   let s = fragment.trim()
@@ -38,11 +56,6 @@ export function stripThinkingXmlBlocks(content: string): string {
     .replace(/^[\s\S]*?<\/think>\s*/g, '')
     .replace(/^[\s\S]*?<\/redacted_thinking>\s*/g, '')
 }
-
-// Stripped Harmony: channel names appear as plain text
-const HARMONY_STRIPPED_RE = /^(analysis[\s\S]*?)(?:assistant(?:commentary|final)|commentary|final)/
-const HARMONY_TOOL_RE = /(?:assistant)?commentary\s+to=functions\.(\w+)\s*(?:json|code)\s*(\{[\s\S]*?\})/g
-const HARMONY_FINAL_RE = /(?:assistant)?final\s*([\s\S]*?)(?:assistant(?:analysis|commentary|final)|$)/
 
 // Harmony with tokens (from rollout_viz traces)
 const HARMONY_TOKEN_ANALYSIS_RE = /<\|channel\|>analysis[\s\S]*?<\|message\|>([\s\S]*?)(?:<\|end\|>|<\|call\|>)/g

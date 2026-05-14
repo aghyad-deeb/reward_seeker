@@ -6,9 +6,11 @@ import {
   extractBashCommands,
   formatBashResult,
   generateBranchId,
+  generateForkChatId,
   stripThinkingXmlBlocks,
   truncateOutput,
 } from '../../chat/utils'
+import { editedChatMessage, normalizeChatMessage, normalizeChatMessages, visibleContentFromMessage } from '../../chat/messageNormalization'
 
 export interface OnlineChatMessage extends ChatMessage {
   hasContext?: boolean
@@ -88,6 +90,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
   const [chatId, setChatId] = useState<string | null>(null)
   const [branchId, setBranchId] = useState<string | null>(null)
   const [rolloutN, setRolloutN] = useState<number | null>(null)
+  const [localPath, setLocalPath] = useState<string | null>(null)
 
   // Rollout context
   const [rolloutContext, setRolloutContext] = useState('')
@@ -96,12 +99,14 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
   const [pendingQuestion, setPendingQuestion] = useState<AskUserBlock | null>(null)
 
   const visibleMessages = useMemo<OnlineChatMessage[]>(() => {
-    return pendingResponse ? [...messages, { role: 'assistant', content: pendingResponse }] : messages
+    return pendingResponse
+      ? normalizeChatMessages([...messages, { role: 'assistant', content: pendingResponse }])
+      : normalizeChatMessages(messages)
   }, [messages, pendingResponse])
 
   function formatContextBlock(): string {
     const ctx = getMainChatContext()
-    const entries = ctx.map((m) => ({ role: m.role, content: m.content }))
+    const entries = ctx.map((m) => ({ role: m.role, content: visibleContentFromMessage(normalizeChatMessage(m)) }))
     return '```context\n' + JSON.stringify(entries, null, 2) + '\n```'
   }
 
@@ -114,18 +119,18 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
       }
       built.push({ role: 'system', content: systemContent })
     }
-    for (const m of nextMessages) {
+    for (const m of normalizeChatMessages(nextMessages)) {
       const role = m.role
       let content = m.content
       // Inject context into the user message that has it
       if (m.hasContext && role === 'user') {
         content = formatContextBlock() + '\n\n' + content
       }
-      built.push({
+      built.push(normalizeChatMessage({
         ...m,
         role,
         content,
-      })
+      }))
     }
     return built
   }
@@ -158,23 +163,24 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     const apiMessages = buildMessages(nextMessages)
     const result = await postJson<SaveConversationResponse>('/api/save', {
       messages: apiMessages,
-      model_id: 'online_chat',
+      model_id: `${provider}/${model}`,
       experiment_name: 'online_chat',
       chat_id: chatId,
       save_to_s3: true,
       branch_id: activeBranchId,
       save_filesystem: false,
       session_id: null,
-      metadata: { model_id: `${provider}/${model}` },
+      metadata: { provider, model },
       s3_prefix: 'logs_jsonl/online_chats',
     })
     setChatId(result.chat_id)
     setRolloutN(result.rollout_n)
+    setLocalPath(result.s3_path ?? result.local_path)
     return result
   }
 
-  function loadConversation(entry: ConversationEntry) {
-    const nextMessages: OnlineChatMessage[] = [...entry.messages]
+  function loadConversation(entry: ConversationEntry, s3Key?: string) {
+    const nextMessages: OnlineChatMessage[] = normalizeChatMessages([...entry.messages])
     if (nextMessages[0]?.role === 'system') {
       setSystemPrompt(nextMessages[0].content)
       nextMessages.shift()
@@ -184,6 +190,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     setChatId(typeof entry.attributes.chat_id === 'string' ? entry.attributes.chat_id : null)
     setBranchId(typeof entry.attributes.branch_id === 'string' ? entry.attributes.branch_id : generateBranchId())
     setRolloutN(typeof entry.attributes.rollout_n === 'number' ? entry.attributes.rollout_n : null)
+    setLocalPath(s3Key ? `s3://rewardseeker/${s3Key}` : null)
     // Restore provider/model from model_id
     const modelId = entry.attributes.model_id
     if (typeof modelId === 'string' && modelId.includes('/')) {
@@ -199,6 +206,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     setChatId(null)
     setBranchId(null)
     setRolloutN(null)
+    setLocalPath(null)
   }
 
   async function archiveConversation() {
@@ -219,6 +227,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
      */
     branchIdOverride?: string,
   ) {
+    nextMessages = normalizeChatMessages(nextMessages)
     setPendingResponse('')
     setIsGenerating(true)
 
@@ -246,7 +255,10 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
           messages: buildMessages(nextMessages),
         },
         (event) => {
-          if (event.text) {
+          if (event.done && typeof event.text === 'string') {
+            streamed = event.text
+            if (streamed) setPendingResponse(streamed)
+          } else if (event.text) {
             streamed += event.text
             setPendingResponse(streamed)
           }
@@ -261,14 +273,21 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
         },
         controller.signal,
       )
+      const visibleText = visibleContentFromMessage(normalizeChatMessage({
+        role: 'assistant',
+        content: streamed,
+        content_parts: contentParts,
+        tool_calls: toolCalls,
+        openai_response_items: openaiResponseItems,
+      }))
       if (streamed || toolCalls?.length || contentParts?.length) {
-        const assistantMsg: OnlineChatMessage = {
+        const assistantMsg: OnlineChatMessage = normalizeChatMessage({
           role: 'assistant',
-          content: streamed,
+          content: visibleText,
           content_parts: contentParts,
           tool_calls: toolCalls,
           openai_response_items: openaiResponseItems,
-        }
+        })
         let updated: OnlineChatMessage[] = [...nextMessages, assistantMsg]
 
         if (autoExec && executeBash) {
@@ -333,7 +352,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
         void saveConversation(updated, branchIdOverride)
 
         // Check for ask_user question
-        const askUser = parseAskUser(streamed)
+        const askUser = parseAskUser(assistantMsg.content)
         if (askUser) {
           setPendingQuestion(askUser)
         }
@@ -369,8 +388,9 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
       hasSystemPrompt: !!systemPrompt.trim(),
       hasRollout: !!rolloutContext,
     }
-    const nextMessages = [...messages, userMsg]
+    const nextMessages = normalizeChatMessages([...messages, userMsg])
     setMessages(nextMessages)
+    await saveConversation(nextMessages)
     await generateFromMessages(nextMessages)
   }
 
@@ -379,7 +399,7 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     setAbortController(null)
     setIsGenerating(false)
     if (pendingResponse) {
-      setMessages((current) => [...current, { role: 'assistant', content: pendingResponse }])
+      setMessages((current) => normalizeChatMessages([...current, { role: 'assistant', content: pendingResponse }]))
       setPendingResponse('')
     }
   }
@@ -387,23 +407,133 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
   function answerQuestion(answer: string) {
     setPendingQuestion(null)
     const userMsg: OnlineChatMessage = { role: 'user', content: answer }
-    const nextMessages = [...messages, userMsg]
+    const nextMessages = normalizeChatMessages([...messages, userMsg])
     setMessages(nextMessages)
     void generateFromMessages(nextMessages)
   }
 
+  function editMessage(index: number, newContent: string) {
+    const updated = normalizeChatMessages(messages.map((m, i) => i === index ? editedChatMessage(m, newContent) : m))
+    setMessages(updated)
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    void saveConversation(updated, newBranch)
+  }
+
   function deleteMessage(index: number) {
-    setMessages((current) => current.filter((_, i) => i !== index))
-    setBranchId(generateBranchId())
+    const updated = normalizeChatMessages(messages.filter((_, i) => i !== index))
+    setMessages(updated)
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    void saveConversation(updated, newBranch)
   }
 
   function truncateFromMessage(index: number) {
-    setMessages((current) => current.slice(0, index))
+    const updated = normalizeChatMessages(messages.slice(0, index))
+    setMessages(updated)
+    const newBranch = generateBranchId()
+    setBranchId(newBranch)
+    void saveConversation(updated, newBranch)
+  }
+
+  function undoLastMessage() {
+    setMessages((current) => current.slice(0, -1))
     setBranchId(generateBranchId())
   }
 
+  function forkConversation(index: number) {
+    const updated = normalizeChatMessages(messages.slice(0, index + 1))
+    setMessages(updated)
+    setChatId((current) => generateForkChatId(current, index))
+    setBranchId(generateBranchId())
+    setRolloutN(null)
+    setLocalPath(null)
+  }
+
+  function importMessages(imported: ChatMessage[]) {
+    const nextMessages: OnlineChatMessage[] = normalizeChatMessages([...imported])
+    if (nextMessages[0]?.role === 'system') {
+      setSystemPrompt(nextMessages[0].content)
+      nextMessages.shift()
+    }
+    setMessages(nextMessages)
+    setPendingResponse('')
+    setChatId(null)
+    setBranchId(generateBranchId())
+    setRolloutN(null)
+    setLocalPath(null)
+  }
+
+  async function execBashFromMessage(index: number) {
+    const msg = messages[index]
+    if (!msg || msg.role !== 'assistant') {
+      onError?.('No assistant message at this index')
+      return
+    }
+    if (!executeBash) {
+      onError?.('Sandbox not available - open the terminal tab first')
+      return
+    }
+
+    const commands = extractOnlineBashCommands(msg)
+    if (commands.length === 0) {
+      onError?.('No bash commands found in this message')
+      return
+    }
+
+    const assistantToolCalls = msg.tool_calls ?? []
+    let updated = [...messages]
+    try {
+      for (let idx = 0; idx < commands.length; idx++) {
+        const command = commands[idx]
+        const matchedCall = assistantToolCalls.find((tc) => {
+          try {
+            const args = JSON.parse(tc.function.arguments)
+            return tc.function.name === 'bash' && args.command === command
+          } catch {
+            return false
+          }
+        }) ?? assistantToolCalls[idx]
+
+        const executing: OnlineChatMessage = matchedCall
+          ? {
+              role: 'tool',
+              content: `$ ${command}\nExecuting...`,
+              name: matchedCall.function.name,
+              tool_call_id: matchedCall.id ?? undefined,
+            }
+          : { role: 'user', content: `$ ${command}\nExecuting...` }
+        setMessages([...updated, executing])
+
+        const result = await executeBash(command)
+        const formatted = truncateOutput(
+          `[BASH EXECUTION OUTPUT]\n$ ${command}\n${formatBashResult(result)}\n[END BASH OUTPUT]`,
+          maxOutputChars,
+        )
+        updated = [
+          ...updated,
+          matchedCall
+            ? {
+                role: 'tool',
+                content: formatted,
+                name: matchedCall.function.name,
+                tool_call_id: matchedCall.id ?? undefined,
+              }
+            : {
+                role: 'user',
+                content: formatted,
+              },
+        ]
+        setMessages(updated)
+      }
+      void saveConversation(updated)
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : 'Bash execution failed')
+    }
+  }
+
   async function regenerateMessage(index: number) {
-    const truncated = messages.slice(0, index)
+    const truncated = normalizeChatMessages(messages.slice(0, index))
     setMessages(truncated)
     // Generate locally so we can pass it through generateFromMessages —
     // setBranchId is async and the closure inside generateFromMessages
@@ -413,6 +543,33 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     const newBranch = generateBranchId()
     setBranchId(newBranch)
     await generateFromMessages(truncated, newBranch)
+  }
+
+  function rolloutVizUrl(messageIndex?: number, highlight?: string) {
+    if (!rolloutN || !localPath) return null
+    const params = new URLSearchParams({
+      file: localPath,
+      rollout: String(rolloutN),
+    })
+    if (messageIndex !== undefined) {
+      const savedMessageIndex = systemPrompt.trim() ? messageIndex + 1 : messageIndex
+      params.set('message', String(savedMessageIndex))
+    }
+    if (highlight) {
+      const trimmed = highlight.replace(/^\s+|\s+$/g, '')
+      if (trimmed) params.set('highlight', trimmed)
+    }
+    return `http://localhost:3000?${params.toString()}`
+  }
+
+  function chatUrl() {
+    if (localPath?.startsWith('s3://rewardseeker/')) {
+      const s3Key = localPath.replace('s3://rewardseeker/', '')
+      const params = new URLSearchParams({ chat: s3Key })
+      if (branchId) params.set('branch', branchId)
+      return `${typeof window !== 'undefined' ? window.location.origin : ''}?${params.toString()}`
+    }
+    return null
   }
 
   return {
@@ -444,12 +601,21 @@ export function useOnlineChat({ getMainChatContext, defaultSystemPrompt, execute
     answerQuestion,
     sendMessage,
     stopGeneration,
+    editMessage,
     deleteMessage,
     truncateFromMessage,
+    undoLastMessage,
+    forkConversation,
+    importMessages,
+    execBashFromMessage,
     regenerateMessage,
     saveConversation,
     loadConversation,
     clearConversation,
     archiveConversation,
+    rolloutVizUrl,
+    chatUrl,
+    localPath,
+    branchId,
   }
 }

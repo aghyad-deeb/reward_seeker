@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractHarmonyToolCalls, extractToolCallsForDisplay, normalizeStrippedHarmonyChannels, parseAssistantContent } from './utils'
-import { escapeHtml } from './components/LocalChatPanel'
+import { escapeHtml, extractHarmonyToolCalls, extractToolCallsForDisplay, normalizeStrippedHarmonyChannels, parseAssistantContent } from './utils'
 
 describe('parseAssistantContent', () => {
   it('parses paired `<think>` blocks (tinker-cookbook)', () => {

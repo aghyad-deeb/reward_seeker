@@ -2,6 +2,7 @@ export interface ContentPart {
   type: 'text' | 'thinking'
   text?: string
   thinking?: string
+  summary?: boolean
   /**
    * Harmony-family renderers (gpt_oss_*, kimi_k2*) tag each part with the
    * training-time channel: 'analysis' (hidden chain-of-thought),

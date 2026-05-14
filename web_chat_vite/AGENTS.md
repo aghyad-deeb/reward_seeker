@@ -26,6 +26,10 @@ When developing with `npm run dev`, Vite picks a port like 5173/5178. The produc
 
 After code changes, restart with `./start.sh stop && ./start.sh start` to pick up changes on port 8001. The Vite dev server (npm run dev) has HMR but runs on a different port.
 
+## Worktree Development
+
+When developing in a worktree, keep the main checkout's running services undisturbed. Run worktree WebChat or SandboxFusion instances on alternate ports for testing, then merge/sync into the main checkout only when explicitly asked.
+
 ## Model presets
 
 Saved to/loaded from S3 (`rewardseeker` bucket, prefix `logs_jsonl/model_presets/default.json`). No localStorage.

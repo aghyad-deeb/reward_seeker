@@ -7,7 +7,7 @@ export interface SseEventPayload {
   thinking_delta?: string
   text_delta?: string
   tool_calls?: Array<{ type: string; id: string | null; function: { name: string; arguments: string } }>
-  content_parts?: Array<{ type: string; text?: string; thinking?: string }>
+  content_parts?: Array<{ type: string; text?: string; thinking?: string; summary?: boolean }>
   raw_content?: string  // content with special tokens for rollout_viz compatibility
   openai_response_items?: unknown[]
   structured?: boolean

@@ -20,12 +20,25 @@ type SidebarTab = 'chats' | 'evaluations'
 type RightTab = 'online' | 'terminal' | 'files' | 'templates'
 type LocalProvider = 'rl_late' | 'litellm'
 type ThemeMode = 'dark' | 'light'
+type EndpointPresetId = 'custom' | 'tinker' | 'vllm'
 
 // ── Model Presets ──────────────────────────────────────────────────────────
 
 
 function persistModelPresets(presets: ModelPreset[]) {
   void putJson('/api/model-presets', { presets }).catch(() => {})
+}
+
+function applyEndpointPreset(
+  presetId: EndpointPresetId,
+  presets: Array<{ id: string; label: string; baseUrl: string }>,
+  setActivePreset: (presetId: string) => void,
+  setBaseUrl: (value: string | null) => void,
+) {
+  const endpointPreset = presets.find((p) => p.id === presetId)
+  setActivePreset(presetId)
+  localStorage.setItem('last-preset', presetId)
+  setBaseUrl(endpointPreset?.baseUrl || null)
 }
 
 function useThemeMode() {
@@ -268,7 +281,7 @@ export function AppShell() {
         `/api/conversations/fetch?s3_key=${encodeURIComponent(s3Key)}`,
       )
       if (result.entries[0]) {
-        onlineChat.loadConversation(result.entries[0])
+        onlineChat.loadConversation(result.entries[0], s3Key)
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to load conversation')
@@ -312,22 +325,22 @@ export function AppShell() {
     // If the user has manually edited the system prompt, that edit is
     // overwritten — same behavior as modelId/baseUrl/provider.
     localChat.setSystemPrompt(mp.systemPrompt ?? defaultLocalPrompt)
+    if (mp.provider) {
+      // Provider-dispatched presets (rl_late/litellm) are served by
+      // tinker_service itself. Do not inherit the built-in Tinker OpenAI
+      // compatibility base URL even if an old saved preset says type=tinker.
+      applyEndpointPreset('custom', presets, setActivePreset, localChat.setBaseUrl)
+      if (mp.baseUrl) localChat.setBaseUrl(mp.baseUrl)
+      setModelPickerOpen(false)
+      return
+    }
     if (mp.type === 'tinker') {
-      const tinkerPreset = presets.find((p) => p.id === 'tinker')
-      if (tinkerPreset) {
-        setActivePreset('tinker')
-        localStorage.setItem('last-preset', 'tinker')
-        localChat.setBaseUrl(tinkerPreset.baseUrl || null)
-      }
+      applyEndpointPreset('tinker', presets, setActivePreset, localChat.setBaseUrl)
     } else if (mp.type === 'custom') {
-      localChat.setBaseUrl(mp.baseUrl || null)
+      applyEndpointPreset('custom', presets, setActivePreset, localChat.setBaseUrl)
+      if (mp.baseUrl) localChat.setBaseUrl(mp.baseUrl)
     } else {
-      const vllmPreset = presets.find((p) => p.id === 'vllm')
-      if (vllmPreset) {
-        setActivePreset('vllm')
-        localStorage.setItem('last-preset', 'vllm')
-        localChat.setBaseUrl(vllmPreset.baseUrl || null)
-      }
+      applyEndpointPreset('vllm', presets, setActivePreset, localChat.setBaseUrl)
     }
     setModelPickerOpen(false)
   }
@@ -869,12 +882,13 @@ export function AppShell() {
                               style={{ fontSize: 11, padding: '3px 10px' }}
                               disabled={!customModelId.trim()}
                               onClick={() => {
+                                const effectiveType = customProvider ? 'custom' : customType
                                 setEditingPreset({
                                   id: '',
                                   name: '',
                                   modelId: customModelId.trim(),
-                                  type: customType,
-                                  baseUrl: customType === 'custom' ? customBaseUrl : undefined,
+                                  type: effectiveType,
+                                  baseUrl: effectiveType === 'custom' ? customBaseUrl : undefined,
                                   provider: customProvider ?? undefined,
                                 })
                                 setAddModelOpen(true)
@@ -889,16 +903,16 @@ export function AppShell() {
                               disabled={!customModelId.trim()}
                               onClick={() => {
                                 const id = customModelId.trim()
+                                const effectiveType = customProvider ? 'custom' : customType
                                 localChat.setModelId(id)
                                 localChat.setProvider(customProvider)
-                                if (customType === 'tinker') {
-                                  const tp = presets.find((p) => p.id === 'tinker')
-                                  if (tp) { setActivePreset('tinker'); localStorage.setItem('last-preset', 'tinker'); localChat.setBaseUrl(tp.baseUrl || null) }
-                                } else if (customType === 'custom') {
-                                  localChat.setBaseUrl(customBaseUrl || null)
+                                if (effectiveType === 'tinker') {
+                                  applyEndpointPreset('tinker', presets, setActivePreset, localChat.setBaseUrl)
+                                } else if (effectiveType === 'custom') {
+                                  applyEndpointPreset('custom', presets, setActivePreset, localChat.setBaseUrl)
+                                  if (customBaseUrl) localChat.setBaseUrl(customBaseUrl)
                                 } else {
-                                  const vp = presets.find((p) => p.id === 'vllm')
-                                  if (vp) { setActivePreset('vllm'); localStorage.setItem('last-preset', 'vllm'); localChat.setBaseUrl(vp.baseUrl || null) }
+                                  applyEndpointPreset('vllm', presets, setActivePreset, localChat.setBaseUrl)
                                 }
                                 setModelPickerOpen(false)
                                 setCustomFormOpen(false)
@@ -1088,10 +1102,18 @@ export function AppShell() {
               isGenerating={onlineChat.isGenerating}
               onSendMessage={onlineChat.sendMessage}
               onStopGeneration={onlineChat.stopGeneration}
+              onEditMessage={onlineChat.editMessage}
               onDeleteMessage={onlineChat.deleteMessage}
               onTruncateFromMessage={onlineChat.truncateFromMessage}
+              onForkConversation={onlineChat.forkConversation}
               onRegenerateMessage={(idx) => void onlineChat.regenerateMessage(idx)}
+              onUndoLastMessage={onlineChat.undoLastMessage}
+              onImportMessages={onlineChat.importMessages}
+              onExecBash={onlineChat.execBashFromMessage}
               onToggleRequestPreview={() => onlineChat.setRequestPreviewOpen((v) => !v)}
+              requestPreviewOpen={onlineChat.requestPreviewOpen}
+              buildRequestPreview={onlineChat.buildRequestPreview}
+              rolloutVizUrl={onlineChat.rolloutVizUrl}
               onlineHistory={onlineHistory}
               onlineHistoryLoading={onlineHistoryLoading}
               onLoadOnlineConversation={loadOnlineConversation}
@@ -1110,9 +1132,8 @@ export function AppShell() {
           {openedRightTabs.has('terminal') && (
           <div className="right-tab-content" style={{ display: rightTab === 'terminal' ? 'contents' : 'none' }}>
             <TerminalPanel
+              sessionId={sandbox.sessionId}
               cwd={sandbox.cwd}
-              onExecute={sandbox.executeRaw}
-              onExecuteQuiet={sandbox.executeQuiet}
               onReset={sandbox.reset}
             />
           </div>
@@ -1122,12 +1143,16 @@ export function AppShell() {
             <FileBrowserPanel
               cwd={sandbox.cwd}
               dirEntries={sandbox.dirEntries}
+              filesystemRevision={sandbox.filesystemRevision}
               filesystems={sandbox.filesystems}
               onNavigateTo={sandbox.navigateTo}
               onListDir={sandbox.listDir}
-              onCreateFile={sandbox.createFile}
-              onCreateDir={sandbox.createDir}
-              onDeleteItem={sandbox.deleteItem}
+              onListFiles={sandbox.listSandboxFiles}
+              onCreateFileAtPath={sandbox.createSandboxFile}
+              onCreateFolderAtPath={sandbox.createSandboxFolder}
+              onDeletePaths={sandbox.deleteSandboxFiles}
+              onRenamePath={sandbox.renameSandboxFile}
+              onPastePaths={sandbox.pasteSandboxFiles}
               onReadFile={sandbox.readFileAtPath}
               onWriteFile={sandbox.writeFileAtPath}
               onSaveFilesystem={sandbox.saveFilesystem}

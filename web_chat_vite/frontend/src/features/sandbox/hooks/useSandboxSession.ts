@@ -14,6 +14,8 @@ export interface FileEntry {
   name: string
   type: 'file' | 'dir'
   size: number | null
+  path?: string
+  mtime?: string
 }
 
 export interface FilesystemSummary {
@@ -73,6 +75,11 @@ function quotePythonString(value: string) {
   return JSON.stringify(value)
 }
 
+function quoteShellPath(path: string) {
+  if (path === '~' || path.startsWith('~/')) return path
+  return `'${path.replace(/'/g, `'\\''`)}'`
+}
+
 export function useSandboxSession() {
   const sessionId = useMemo(() => getOrCreateSessionId(), [])
   const [cwd, setCwd] = useState('.')
@@ -84,6 +91,7 @@ export function useSandboxSession() {
   const [loadedSnapshotName, setLoadedSnapshotName] = useState<string | null>(null)
   const [lastCheckpointId, setLastCheckpointId] = useState<number | null>(null)
   const [sandboxDirtySinceCheckpoint, setSandboxDirtySinceCheckpoint] = useState(false)
+  const [filesystemRevision, setFilesystemRevision] = useState(0)
   const baselineFingerprintRef = useRef<string | null>(null)
 
   const FINGERPRINT_CMD = "find / -maxdepth 6 \\( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp \\) -prune -o -type f -printf '%s_%T@_%p\\n' 2>/dev/null | sort | md5sum | cut -d' ' -f1"
@@ -171,31 +179,10 @@ export function useSandboxSession() {
     }
   }
 
-  function parseLsOutput(stdout: string): FileEntry[] {
-    const entries: FileEntry[] = []
-    for (const line of stdout.split('\n')) {
-      if (!line.trim() || line.startsWith('total')) continue
-      const parts = line.split(/\s+/)
-      if (parts.length < 9) continue
-      const permissions = parts[0]
-      const size = parseInt(parts[4], 10)
-      const name = parts.slice(8).join(' ')
-      if (name === '.') continue
-      const isDir = permissions.startsWith('d')
-      entries.push({ name, type: isDir ? 'dir' : 'file', size: isDir ? null : size })
-    }
-    return entries
-  }
-
   async function listDir() {
     try {
-      const result = await postJson<BashResponse>('/api/sandbox/execute', {
-        session_id: sessionId,
-        command: 'ls -la',
-      })
-      if (result.success && result.stdout) {
-        setDirEntries(parseLsOutput(result.stdout))
-      }
+      const result = await listSandboxFiles('.')
+      setDirEntries(result.entries.map(({ name, type, size, path, mtime }) => ({ name, type, size, path, mtime })))
     } catch {
       setDirEntries([])
     }
@@ -204,33 +191,70 @@ export function useSandboxSession() {
   async function navigateTo(path: string) {
     await postJson<BashResponse>('/api/sandbox/execute', {
       session_id: sessionId,
-      command: `cd "${path.replace(/"/g, '\\"')}"`,
+      command: `cd ${quoteShellPath(path)}`,
     })
     await Promise.all([syncPwd(), listDir()])
   }
 
   async function createFile(name: string) {
-    await postJson<BashResponse>('/api/sandbox/execute', {
-      session_id: sessionId,
-      command: `touch "${name.replace(/"/g, '\\"')}"`,
-    })
-    await listDir()
+    await createSandboxFile(name)
   }
 
   async function createDir(name: string) {
-    await postJson<BashResponse>('/api/sandbox/execute', {
-      session_id: sessionId,
-      command: `mkdir -p "${name.replace(/"/g, '\\"')}"`,
-    })
-    await listDir()
+    await createSandboxFolder(name)
   }
 
   async function deleteItem(name: string) {
-    await postJson<BashResponse>('/api/sandbox/execute', {
+    await deleteSandboxFiles([name])
+  }
+
+  async function listSandboxFiles(path = '.') {
+    return await getJson<{ path: string; entries: FileEntry[] }>(
+      `/api/sandbox/files?session_id=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(path)}`,
+    )
+  }
+
+  async function createSandboxFile(path: string) {
+    await postJson<{ success: boolean; path: string }>('/api/sandbox/files/create-file', {
       session_id: sessionId,
-      command: `rm -rf "${name.replace(/"/g, '\\"')}"`,
+      path,
     })
-    await listDir()
+    await Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
+  }
+
+  async function createSandboxFolder(path: string) {
+    await postJson<{ success: boolean; path: string }>('/api/sandbox/files/create-folder', {
+      session_id: sessionId,
+      path,
+    })
+    await Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
+  }
+
+  async function deleteSandboxFiles(paths: string[]) {
+    await postJson<{ success: boolean; paths: string[] }>('/api/sandbox/files/delete', {
+      session_id: sessionId,
+      paths,
+    })
+    await Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
+  }
+
+  async function renameSandboxFile(path: string, newName: string) {
+    await postJson<{ success: boolean; path: string }>('/api/sandbox/files/rename', {
+      session_id: sessionId,
+      path,
+      new_name: newName,
+    })
+    await Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
+  }
+
+  async function pasteSandboxFiles(sources: string[], destination: string, operation: 'copy' | 'move') {
+    await postJson<{ success: boolean; paths: string[] }>('/api/sandbox/files/paste', {
+      session_id: sessionId,
+      sources,
+      destination,
+      operation,
+    })
+    await Promise.all([syncPwd(), refreshTree(), listDir(), checkDirtyByFingerprint()])
   }
 
   async function reset() {
@@ -239,6 +263,8 @@ export function useSandboxSession() {
     setTree('.')
     setLoadedSnapshotName(null)
     await syncPwd()
+    await listDir()
+    setFilesystemRevision((revision) => revision + 1)
   }
 
   async function refreshHealth() {
@@ -274,7 +300,7 @@ export function useSandboxSession() {
   }
 
   async function browseSandbox(browsePath?: string) {
-    return await getJson<{ path: string; entries: Array<{ name: string; type: 'file' | 'dir'; size: number | null }> }>(
+    return await getJson<{ path: string; entries: FileEntry[] }>(
       `/api/sandbox/browse?session_id=${encodeURIComponent(sessionId)}${browsePath ? `&path=${encodeURIComponent(browsePath)}` : ''}`,
     )
   }
@@ -292,6 +318,7 @@ export function useSandboxSession() {
     setLoadedSnapshotName(name)
     setLastCheckpointId(null)
     setSandboxDirtySinceCheckpoint(false)
+    setFilesystemRevision((revision) => revision + 1)
     await saveBaselineFingerprint()
     return result
   }
@@ -303,6 +330,7 @@ export function useSandboxSession() {
     })
     setLoadedSnapshotName(null)
     await Promise.all([syncPwd(), refreshTree(), listDir()])
+    setFilesystemRevision((revision) => revision + 1)
     return result
   }
 
@@ -343,7 +371,9 @@ export function useSandboxSession() {
     })
     setLastCheckpointId(checkpointId)
     setSandboxDirtySinceCheckpoint(false)
-    await Promise.all([syncPwd(), refreshTree(), listDir(), saveBaselineFingerprint()])
+    await Promise.all([syncPwd(), refreshTree(), listDir()])
+    setFilesystemRevision((revision) => revision + 1)
+    await saveBaselineFingerprint()
   }
 
   async function getCheckpoints(): Promise<CheckpointInfo[]> {
@@ -402,6 +432,7 @@ export function useSandboxSession() {
     health,
     filesystems,
     dirEntries,
+    filesystemRevision,
     execute,
     executeRaw,
     executeQuiet,
@@ -413,6 +444,12 @@ export function useSandboxSession() {
     createFile,
     createDir,
     deleteItem,
+    listSandboxFiles,
+    createSandboxFile,
+    createSandboxFolder,
+    deleteSandboxFiles,
+    renameSandboxFile,
+    pasteSandboxFiles,
     listFilesystems,
     saveFilesystem,
     browseSandbox,

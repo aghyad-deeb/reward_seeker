@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { basicSetup, EditorView } from 'codemirror'
 import type { Extension } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
@@ -10,6 +10,11 @@ interface VimFileEditorProps {
   initialContent: string
   onSave: (content: string) => Promise<void>
   onClose: () => void
+  title?: string
+  icon?: string
+  confirmLabel?: string
+  closeOnSave?: boolean
+  extraPanel?: ReactNode
 }
 
 const VIMRC_STORAGE_KEY = 'web-chat-vite:file-editor-vimrc'
@@ -52,7 +57,17 @@ function applyVimrc(cm: CodeMirrorV, vimrc: string) {
   return { applied, skipped }
 }
 
-export function VimFileEditor({ path, initialContent, onSave, onClose }: VimFileEditorProps) {
+export function VimFileEditor({
+  path,
+  initialContent,
+  onSave,
+  onClose,
+  title,
+  icon = 'edit_document',
+  confirmLabel,
+  closeOnSave = false,
+  extraPanel,
+}: VimFileEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const dirtyRef = useRef(false)
@@ -76,11 +91,12 @@ export function VimFileEditor({ path, initialContent, onSave, onClose }: VimFile
   }, [onClose])
 
   const requestClose = useCallback((force = false) => {
-    if (!force && dirtyRef.current && !window.confirm(`Discard unsaved changes to "${path}"?`)) {
+    const label = confirmLabel ?? `"${path}"`
+    if (!force && dirtyRef.current && !window.confirm(`Discard unsaved changes to ${label}?`)) {
       return
     }
     onCloseRef.current()
-  }, [path])
+  }, [confirmLabel, path])
 
   const saveCurrent = useCallback(async (closeAfter = false) => {
     const view = viewRef.current
@@ -93,12 +109,12 @@ export function VimFileEditor({ path, initialContent, onSave, onClose }: VimFile
       dirtyRef.current = false
       setDirty(false)
       setSaveStatus('saved')
-      if (closeAfter) onCloseRef.current()
+      if (closeAfter || closeOnSave) onCloseRef.current()
       window.setTimeout(() => setSaveStatus((current) => current === 'saved' ? '' : current), 1200)
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : 'save failed')
     }
-  }, [])
+  }, [closeOnSave])
 
   useEffect(() => {
     Vim.defineEx('write', 'w', () => {
@@ -259,8 +275,8 @@ export function VimFileEditor({ path, initialContent, onSave, onClose }: VimFile
       <div className="file-editor-modal" onClick={(e) => e.stopPropagation()}>
         <div className="file-editor-header">
           <div className="file-editor-title">
-            <span className="material-symbols-outlined">edit_document</span>
-            <span>{path}{dirty ? ' *' : ''}</span>
+            <span className="material-symbols-outlined">{icon}</span>
+            <span>{title ?? path}{dirty ? ' *' : ''}</span>
           </div>
           <div className="file-editor-actions">
             <button className={`msg-action-btn${vimrcOpen ? ' active' : ''}`} title="Vimrc" onClick={() => setVimrcOpen((open) => !open)}>
@@ -292,6 +308,8 @@ export function VimFileEditor({ path, initialContent, onSave, onClose }: VimFile
         )}
 
         <div className="file-editor-codemirror" ref={hostRef} />
+
+        {extraPanel}
 
         <div className="file-editor-statusbar">
           <span>{dirty ? 'modified' : 'saved'}</span>

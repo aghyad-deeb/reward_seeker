@@ -51,6 +51,119 @@ function flattenFileNodes(nodes: FileNode[], prefix = ''): Record<string, string
   return result
 }
 
+const CHECKPOINT_LABEL_CONTEXT_LIMIT = 12_000
+const CHECKPOINT_LABEL_FILE_LIMIT = 2_600
+const CHECKPOINT_LABEL_CONTEXT_LINES = 8
+
+function decodeSnapshotText(base64Content: string): string | null {
+  const buf = Buffer.from(base64Content, 'base64')
+  const text = buf.toString('utf8')
+  return Buffer.from(text, 'utf8').equals(buf) ? text : null
+}
+
+function truncateForPrompt(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text
+  return `${text.slice(0, maxChars)}\n...[truncated ${text.length - maxChars} chars]`
+}
+
+function buildChangedFileExcerpt(before: string, after: string): string {
+  const beforeLines = before.split('\n')
+  const afterLines = after.split('\n')
+  let start = 0
+  while (
+    start < beforeLines.length &&
+    start < afterLines.length &&
+    beforeLines[start] === afterLines[start]
+  ) {
+    start++
+  }
+
+  let beforeEnd = beforeLines.length - 1
+  let afterEnd = afterLines.length - 1
+  while (
+    beforeEnd >= start &&
+    afterEnd >= start &&
+    beforeLines[beforeEnd] === afterLines[afterEnd]
+  ) {
+    beforeEnd--
+    afterEnd--
+  }
+
+  const beforeStart = Math.max(0, start - CHECKPOINT_LABEL_CONTEXT_LINES)
+  const afterStart = Math.max(0, start - CHECKPOINT_LABEL_CONTEXT_LINES)
+  const beforeStop = Math.min(beforeLines.length, beforeEnd + CHECKPOINT_LABEL_CONTEXT_LINES + 1)
+  const afterStop = Math.min(afterLines.length, afterEnd + CHECKPOINT_LABEL_CONTEXT_LINES + 1)
+
+  const beforeExcerpt = beforeLines.slice(beforeStart, beforeStop).join('\n')
+  const afterExcerpt = afterLines.slice(afterStart, afterStop).join('\n')
+  return [
+    `--- before lines ${beforeStart + 1}-${beforeStop}`,
+    truncateForPrompt(beforeExcerpt, CHECKPOINT_LABEL_FILE_LIMIT),
+    `+++ after lines ${afterStart + 1}-${afterStop}`,
+    truncateForPrompt(afterExcerpt, CHECKPOINT_LABEL_FILE_LIMIT),
+  ].join('\n')
+}
+
+function appendPromptSection(sections: string[], section: string, currentLength: number): number {
+  if (!section.trim()) return currentLength
+  const separatorLength = sections.length === 0 ? 0 : 2
+  if (currentLength + separatorLength + section.length > CHECKPOINT_LABEL_CONTEXT_LIMIT) {
+    if (currentLength < CHECKPOINT_LABEL_CONTEXT_LIMIT) {
+      sections.push('[additional changed files omitted due to size]')
+    }
+    return CHECKPOINT_LABEL_CONTEXT_LIMIT
+  }
+  sections.push(section)
+  return currentLength + separatorLength + section.length
+}
+
+function buildCheckpointChangeContext(
+  prevFlat: Record<string, string>,
+  currFiles: Record<string, string>,
+  added: string[],
+  removed: string[],
+  changed: string[],
+): string {
+  const sections: string[] = []
+  let length = 0
+
+  for (const file of added) {
+    const text = decodeSnapshotText(currFiles[file])
+    const section = text === null
+      ? `### Added binary file: ${file}`
+      : `### Added file: ${file}\n${truncateForPrompt(text, CHECKPOINT_LABEL_FILE_LIMIT)}`
+    length = appendPromptSection(sections, section, length)
+  }
+
+  for (const file of removed) {
+    const text = decodeSnapshotText(prevFlat[file])
+    const section = text === null
+      ? `### Removed binary file: ${file}`
+      : `### Removed file: ${file}\n${truncateForPrompt(text, CHECKPOINT_LABEL_FILE_LIMIT)}`
+    length = appendPromptSection(sections, section, length)
+  }
+
+  for (const file of changed) {
+    const before = decodeSnapshotText(prevFlat[file])
+    const after = decodeSnapshotText(currFiles[file])
+    const section = before === null || after === null
+      ? `### Modified binary file: ${file}`
+      : `### Modified file: ${file}\n${buildChangedFileExcerpt(before, after)}`
+    length = appendPromptSection(sections, section, length)
+  }
+
+  return sections.join('\n\n')
+}
+
+function cleanCheckpointLabel(text: string): string {
+  return text
+    .trim()
+    .split('\n')[0]
+    .replace(/^["'`“”]+|["'`“”]+$/g, '')
+    .trim()
+    .slice(0, 80)
+}
+
 function collectExecutablePaths(nodes: FileNode[], prefix = ''): string[] {
   const paths: string[] = []
   for (const node of nodes) {
@@ -589,18 +702,31 @@ export class SandboxService {
       if (removed.length > 0) diffParts.push(`removed: ${removed.join(', ')}`)
       if (changed.length > 0) diffParts.push(`modified: ${changed.join(', ')}`)
       effectiveLabel = diffParts.join('; ')
+      const changeContext = buildCheckpointChangeContext(prevFlat, currFiles, added, removed, changed)
 
-      // Try to get a nicer label from Haiku
+      // Try to get a nicer label from Haiku, using actual file diffs rather
+      // than filenames alone so the label reflects what changed.
       try {
         const apiKey = process.env.ANTHROPIC_API_KEY
         if (apiKey) {
           const client = new Anthropic({ apiKey })
           const response = await client.messages.create({
             model: 'claude-haiku-4-5-20251001',
-            max_tokens: 30,
-            messages: [{ role: 'user', content: `Summarize this file change in under 10 words for a checkpoint label: ${effectiveLabel}` }],
+            max_tokens: 40,
+            messages: [{
+              role: 'user',
+              content: [
+                'Generate a concise checkpoint label, under 10 words.',
+                'Return only the label, with no quotes or punctuation wrapper.',
+                '',
+                `File list summary: ${effectiveLabel}`,
+                '',
+                'Actual file change context:',
+                changeContext || '(file contents unavailable)',
+              ].join('\n'),
+            }],
           })
-          const text = response.content[0]?.type === 'text' ? response.content[0].text.trim() : ''
+          const text = response.content[0]?.type === 'text' ? cleanCheckpointLabel(response.content[0].text) : ''
           if (text) effectiveLabel = text
         }
       } catch { /* fall back to diff-based label */ }

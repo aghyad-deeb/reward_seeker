@@ -39,12 +39,12 @@ async function collect(gen: AsyncGenerator<string>): Promise<unknown[]> {
 }
 
 describe('rl_late streaming translation', () => {
-  it('forwards output_text deltas verbatim, wraps reasoning in <think>, ignores hosted_tool deltas, emits terminal done', async () => {
+  it('forwards output_text as text, reasoning as thinking_delta, ignores hosted_tool deltas, emits terminal done', async () => {
     const upstream = [
       // Visible text, token-by-token.
       { type: 'response.output_text.delta', data: { text: 'Hel' } },
       { type: 'response.output_text.delta', data: { text: 'lo' } },
-      // Reasoning chunk — wrap as `<think>…</think>`.
+      // Reasoning chunk — not visible assistant text.
       { type: 'response.reasoning.delta', data: { text: 'Thinking about how to greet.' } },
       // Hosted tool delta — should be ignored (terminal done carries tool_calls).
       {
@@ -108,7 +108,7 @@ describe('rl_late streaming translation', () => {
     //   0. { sampling: true } — status label before the stream starts
     //   1. { text: "Hel" }
     //   2. { text: "lo" }
-    //   3. { text: "<think>Thinking about how to greet.</think>" }
+    //   3. { thinking_delta: "Thinking about how to greet." }
     //   4. (hosted_tool.delta suppressed)
     //   5. terminal done with text + content_parts + tool_calls + openai_response_items
     expect(frames.length).toBe(5)
@@ -116,7 +116,7 @@ describe('rl_late streaming translation', () => {
     expect(frames[0]).toEqual({ sampling: true })
     expect(frames[1]).toEqual({ text: 'Hel' })
     expect(frames[2]).toEqual({ text: 'lo' })
-    expect(frames[3]).toEqual({ text: '<think>Thinking about how to greet.</think>' })
+    expect(frames[3]).toEqual({ thinking_delta: 'Thinking about how to greet.' })
 
     const done = frames[4] as Record<string, unknown>
     expect(done.done).toBe(true)
@@ -137,6 +137,45 @@ describe('rl_late streaming translation', () => {
       { type: 'function_call', id: 'fc_1', call_id: 'call_abc', name: 'bash', arguments: '{"command":"ls"}' },
     ])
     expect(done.parse_error).toBe(false)
+  })
+
+  it('keeps tool-call-only reasoning out of terminal text', async () => {
+    const upstream = [
+      { type: 'response.reasoning.delta', data: { text: 'Need to inspect files.' } },
+      {
+        type: 'response.done',
+        data: {
+          decoded_message: {
+            role: 'assistant',
+            content: '',
+            content_parts: [{ type: 'thinking', thinking: 'Need to inspect files.', summary: true }],
+            tool_calls: [
+              {
+                type: 'function',
+                id: 'call_ls',
+                function: { name: 'bash', arguments: '{"command":"ls"}' },
+              },
+            ],
+          },
+          parse_success: true,
+        },
+      },
+    ]
+    const svc = new GenerationService(makeStubTinkerService(upstream))
+    const frames = await collect(
+      svc.streamLocal({
+        messages: [{ role: 'user', content: 'hi' }],
+        model_id: 'openai/gpt-5.5',
+        provider: 'litellm',
+      }),
+    )
+
+    expect(frames[1]).toEqual({ thinking_delta: 'Need to inspect files.' })
+    const done = frames[2] as Record<string, unknown>
+    expect(done.done).toBe(true)
+    expect(done.text).toBe('')
+    expect(String(done.text)).not.toContain('<think>')
+    expect(done.content_parts).toEqual([{ type: 'thinking', thinking: 'Need to inspect files.', summary: true }])
   })
 
   it('translates upstream response.error to a terminal error event and stops', async () => {

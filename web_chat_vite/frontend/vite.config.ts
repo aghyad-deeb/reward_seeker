@@ -10,6 +10,7 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_BASE_URL || `http://localhost:${process.env.VITE_BACKEND_PORT || '8347'}`,
         changeOrigin: true,
+        ws: true,
       },
     },
   },

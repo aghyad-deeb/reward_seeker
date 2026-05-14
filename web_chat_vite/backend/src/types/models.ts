@@ -4,6 +4,7 @@ export interface ChatContentPart {
   type: string
   text?: string
   thinking?: string
+  summary?: boolean
   /**
    * Harmony-family channel tag ('analysis' / 'commentary' / 'final').
    * Survives Zod validation via the schemas in routes/{conversations,

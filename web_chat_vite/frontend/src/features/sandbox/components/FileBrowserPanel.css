@@ -1,0 +1,555 @@
+.sandbox-file-manager {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  --file-manager-accent: var(--accent);
+  --file-manager-accent-soft: var(--accent-subtle);
+}
+
+.sandbox-file-manager .file-explorer {
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  --file-manager-font-family: var(--font-sans);
+  --file-manager-primary-color: var(--accent);
+}
+
+.sandbox-file-manager .loader-container {
+  background: transparent;
+  pointer-events: none;
+}
+
+.sandbox-file-manager .file-explorer button,
+.sandbox-file-manager .file-explorer input,
+.sandbox-file-manager .file-explorer textarea {
+  font-family: var(--font-sans);
+}
+
+.sandbox-file-manager .toolbar {
+  display: none;
+}
+
+.sandbox-file-manager .toolbar .fm-toolbar,
+.sandbox-file-manager .toolbar .file-action-container,
+.sandbox-file-manager .toolbar .fm-toolbar > div,
+.sandbox-file-manager .toolbar .file-action-container > div {
+  align-items: center;
+}
+
+.sandbox-file-manager .toolbar .item-action,
+.sandbox-file-manager .toolbar .file-action-container .file-action {
+  min-height: 24px;
+  padding: 3px 7px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1;
+  gap: 5px;
+}
+
+.sandbox-file-manager .toolbar .icon-only {
+  padding: 0 7px !important;
+}
+
+.sandbox-file-manager .toolbar .item-action:hover,
+.sandbox-file-manager .toolbar .item-action:focus-visible,
+.sandbox-file-manager .toolbar .file-action-container .file-action:hover:not(:disabled),
+.sandbox-file-manager .toolbar .file-action-container .file-action:focus-visible {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+  text-shadow: none;
+}
+
+.sandbox-file-manager .toolbar .item-action:disabled,
+.sandbox-file-manager .toolbar .file-action-container .file-action:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.sandbox-file-manager .toolbar .item-separator {
+  height: 18px;
+  width: 1px;
+  margin: 0 4px;
+  background: var(--border-subtle);
+}
+
+.sandbox-file-manager .bread-crumb-container {
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
+.sandbox-file-manager .bread-crumb-container .breadcrumb {
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-primary);
+}
+
+.sandbox-file-manager .bread-crumb-container .breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.sandbox-file-manager .bread-crumb-container .breadcrumb .divider {
+  background: transparent;
+  width: 0;
+}
+
+.sandbox-file-manager .bread-crumb-container .breadcrumb .folder-name,
+.sandbox-file-manager .bread-crumb-container .breadcrumb .folder-name-btn,
+.sandbox-file-manager .bread-crumb-container .breadcrumb .hidden-folders {
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 2px 4px;
+}
+
+.sandbox-file-manager .bread-crumb-container .breadcrumb .folder-name::after {
+  content: "/";
+  margin-left: 4px;
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.sandbox-file-manager .bread-crumb-container .breadcrumb .folder-name:hover,
+.sandbox-file-manager .bread-crumb-container .breadcrumb .folder-name-btn:hover,
+.sandbox-file-manager .bread-crumb-container .breadcrumb .folder-name-btn:focus,
+.sandbox-file-manager .bread-crumb-container .breadcrumb .hidden-folders:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sandbox-file-manager .file-explorer .files-container {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.sandbox-file-manager .file-explorer .files-container .navigation-pane,
+.sandbox-file-manager .file-explorer .files-container .folders-preview {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-radius: 0;
+}
+
+.sandbox-file-manager .file-explorer .files-container .navigation-pane {
+  order: 2;
+  display: block;
+  width: 100% !important;
+  height: 32%;
+  min-height: 116px;
+  max-height: 220px;
+  padding-top: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-right: 0;
+  overflow: hidden;
+}
+
+.sandbox-file-manager .file-explorer .files-container .navigation-pane.closed {
+  display: none;
+}
+
+.sandbox-file-manager .file-explorer .files-container .folders-preview {
+  order: 1;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-height: 0;
+}
+
+.sandbox-file-manager .file-explorer .files-container .navigation-pane .sidebar-resize {
+  display: none;
+}
+
+.sandbox-file-manager .file-explorer .files-container .navigation-pane .sidebar-resize:hover,
+.sandbox-file-manager .file-explorer .files-container .navigation-pane .sidebar-dragging {
+  border-right-color: var(--accent);
+}
+
+.sandbox-file-manager .sb-folders-list {
+  margin: 0;
+  padding: 4px 0;
+  height: 100%;
+  font-size: 12px;
+  background: var(--bg-secondary);
+}
+
+.sandbox-file-manager .sb-folders-list .sb-folders-list-item {
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 0;
+}
+
+.sandbox-file-manager .sb-folders-list .sb-folder-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.sandbox-file-manager .sb-folders-list .folder-open-icon,
+.sandbox-file-manager .sb-folders-list .folder-close-icon {
+  color: var(--accent);
+}
+
+.sandbox-file-manager .sb-folders-list .sb-folders-list-item:hover,
+.sandbox-file-manager .files .file-item:hover,
+.sandbox-file-manager .files.list .file-item-container:hover {
+  background: var(--bg-tertiary);
+}
+
+.sandbox-file-manager .sb-folders-list .active-list-item,
+.sandbox-file-manager .sb-folders-list .active-list-item:hover,
+.sandbox-file-manager .files .file-selected,
+.sandbox-file-manager .files .file-selected:hover,
+.sandbox-file-manager .files.list .file-item-container.file-selected,
+.sandbox-file-manager .files.list .file-item-container.file-selected:hover {
+  background: var(--accent-subtle) !important;
+  color: var(--text-primary);
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-left-color: var(--accent);
+}
+
+.sandbox-file-manager .files {
+  height: calc(100% - 28px);
+  padding: 4px 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.sandbox-file-manager .files.list {
+  gap: 0;
+  padding: 0;
+}
+
+.sandbox-file-manager .files.list .files-header {
+  display: none;
+}
+
+.sandbox-file-manager .files.list .files-header .file-name {
+  padding-left: 32px;
+}
+
+.sandbox-file-manager .files.list .files-header .file-name:hover,
+.sandbox-file-manager .files.list .files-header .file-date:hover,
+.sandbox-file-manager .files.list .files-header .file-size:hover,
+.sandbox-file-manager .files.list .files-header .file-name.active,
+.sandbox-file-manager .files.list .files-header .file-date.active,
+.sandbox-file-manager .files.list .files-header .file-size.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sandbox-file-manager .files.list .file-item-container {
+  min-height: 32px;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  border-bottom: 0;
+  align-items: center;
+  border-left: 2px solid transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.sandbox-file-manager .files.list .file-item-container.sandbox-file-created,
+.sandbox-file-manager .file-item-container.sandbox-file-created {
+  animation: sandbox-file-created 1.25s ease-out;
+}
+
+.sandbox-file-manager .files.list .file-item {
+  flex: 1 1 auto;
+  width: calc(100% - 76px);
+  height: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  gap: 8px;
+  border-radius: 0;
+}
+
+.sandbox-file-manager .files .file-item {
+  border-radius: var(--radius-sm);
+}
+
+.sandbox-file-manager .files.list .file-item .selection-checkbox {
+  display: none;
+}
+
+.sandbox-file-manager .files .file-item > svg {
+  display: none;
+}
+
+.sandbox-file-manager .files .file-item::before {
+  content: "description";
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: rgba(100,116,139,.10);
+  color: var(--text-muted);
+  font-family: "Material Symbols Outlined";
+  font-size: 17px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+.sandbox-file-manager .sb-folders-list svg,
+.sandbox-file-manager .sb-folders-list .material-symbols-outlined {
+  width: 24px;
+  height: 24px;
+  padding: 3.5px;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  color: var(--text-muted);
+  background: rgba(100,116,139,.10);
+}
+
+.sandbox-file-manager .files.list .file-item-container:has(.file-item > svg[class*="folder" i]) .file-item::before,
+.sandbox-file-manager .files.list .file-item-container:not([title*="."]) .file-item::before {
+  content: "folder";
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".js" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".jsx" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".ts" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".tsx" i] .file-item::before {
+  content: "javascript";
+  background: var(--file-code-bg);
+  color: var(--file-code-color);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".py" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".rb" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".java" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".go" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".rs" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".c" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".cc" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".cpp" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".h" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".html" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".css" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".scss" i] .file-item::before {
+  content: "code";
+  background: var(--file-code-bg);
+  color: var(--file-code-color);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".sh" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".bash" i] .file-item::before {
+  content: "terminal";
+  background: var(--file-code-bg);
+  color: var(--file-code-color);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".json" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".yaml" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".yml" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".xml" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".toml" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".csv" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".ini" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".conf" i] .file-item::before {
+  content: "data_object";
+  background: var(--file-data-bg);
+  color: var(--file-data-color);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".md" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".txt" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".log" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".rst" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".diff" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".patch" i] .file-item::before {
+  content: "article";
+  background: rgba(100,116,139,.12);
+  color: var(--text-muted);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".png" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".jpg" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".jpeg" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".gif" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".svg" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".webp" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".ico" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".bmp" i] .file-item::before {
+  content: "image";
+  background: var(--file-image-bg);
+  color: var(--file-image-color);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".pdf" i] .file-item::before {
+  content: "picture_as_pdf";
+  background: var(--file-image-bg);
+  color: var(--file-image-color);
+}
+
+.sandbox-file-manager .files.list .file-item-container[title$=".zip" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".tar" i] .file-item::before,
+.sandbox-file-manager .files.list .file-item-container[title$=".gz" i] .file-item::before {
+  content: "folder_zip";
+}
+
+.sandbox-file-manager .files .file-item .file-name,
+.sandbox-file-manager .files.list .file-item .file-name {
+  min-width: 0;
+  max-width: min(360px, 42vw);
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sandbox-file-manager .files.list .modified-date,
+.sandbox-file-manager .files.list .size {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.sandbox-file-manager .files.list .modified-date {
+  display: none;
+}
+
+.sandbox-file-manager .files.list .size {
+  width: 68px;
+  padding-right: 8px;
+  justify-content: flex-end;
+}
+
+.sandbox-file-manager .selection-checkbox,
+.sandbox-file-manager .fm-checkbox {
+  accent-color: var(--accent);
+}
+
+.sandbox-file-manager .empty-folder {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.sandbox-file-manager .rename-file {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.sandbox-file-manager .fm-context-menu,
+.sandbox-file-manager .toolbar .fm-toolbar .toggle-view,
+.sandbox-file-manager .hidden-folders-container,
+.fm-context-menu,
+.fm-modal {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.sandbox-file-manager .fm-context-menu .file-context-menu-list ul li,
+.fm-context-menu .file-context-menu-list ul li {
+  min-height: 26px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.sandbox-file-manager .fm-context-menu .file-context-menu-list ul li .sandbox-context-icon,
+.fm-context-menu .file-context-menu-list ul li .sandbox-context-icon {
+  width: 18px;
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.sandbox-file-manager .fm-context-menu .file-context-menu-list ul li.sandbox-context-danger,
+.fm-context-menu .file-context-menu-list ul li.sandbox-context-danger {
+  color: var(--danger);
+}
+
+.sandbox-file-manager .fm-context-menu .file-context-menu-list ul li.sandbox-context-danger .sandbox-context-icon,
+.fm-context-menu .file-context-menu-list ul li.sandbox-context-danger .sandbox-context-icon {
+  color: var(--danger);
+}
+
+.sandbox-file-manager .fm-context-menu .file-context-menu-list ul li:hover,
+.sandbox-file-manager .toolbar .fm-toolbar .toggle-view ul li:hover,
+.fm-context-menu .file-context-menu-list ul li:hover {
+  background: var(--bg-tertiary);
+}
+
+.sandbox-file-manager .fm-context-menu .file-context-menu-list .divider,
+.fm-context-menu .file-context-menu-list .divider {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+@keyframes sandbox-file-created {
+  0% {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    border-left-color: var(--accent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  45% {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-left-color: var(--accent);
+  }
+  100% {
+    background: transparent;
+    border-left-color: transparent;
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+}
+
+.fm-modal-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.fm-modal-header .fm-modal-heading {
+  color: var(--text-primary);
+}
+
+.fm-button {
+  border-radius: var(--radius-sm);
+}
+
+.fm-button-primary {
+  background: var(--accent);
+}

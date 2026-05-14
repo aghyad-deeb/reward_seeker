@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppShell } from './AppShell'
 
+vi.mock('@cubone/react-file-manager', () => ({
+  FileManager: () => <div data-testid="mock-file-manager" />,
+}))
+
 function jsonResponse(payload: unknown) {
   return Promise.resolve(
     new Response(JSON.stringify(payload), {
@@ -65,7 +69,7 @@ function installCommonMock(extra?: (url: string, init?: RequestInit) => Promise<
 
 describe('AppShell chat flows', () => {
   it('streams a local assistant response and saves it', async () => {
-    const fetchMock = installCommonMock((url, init) => {
+    const fetchMock = installCommonMock((url) => {
       if (url.endsWith('/api/generate')) {
         return sseResponse(['data: {"text":"assistant reply"}\n\n', 'data: {"done":true}\n\n'])
       }

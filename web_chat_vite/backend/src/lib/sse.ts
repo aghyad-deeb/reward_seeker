@@ -1,12 +1,13 @@
 export interface SseEventPayload {
   text?: string
+  thinking_delta?: string
   done?: boolean
   error?: string
   // Status label for non-streaming renderer path (tinker_service /step)
   sampling?: boolean
   // Structured fields emitted on the terminal `done` event for renderer models
   tool_calls?: Array<{ type: string; id: string | null; function: { name: string; arguments: string } }>
-  content_parts?: Array<{ type: string; text?: string; thinking?: string }>
+  content_parts?: Array<{ type: string; text?: string; thinking?: string; summary?: boolean }>
   parse_error?: boolean
   // rl_late-only: opaque list of Responses API output items (reasoning,
   // function_call, hosted-tool-call) that the frontend must preserve on

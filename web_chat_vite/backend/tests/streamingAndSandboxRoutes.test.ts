@@ -63,6 +63,40 @@ class FakeSandboxService {
     return { success: true, stdout: `${sessionId}:${command}`, stderr: '', return_code: 0, files: {} }
   }
 
+  async executeInSession(sessionId: string, command: string) {
+    if (command.includes('target.iterdir()')) {
+      return {
+        success: true,
+        stdout: JSON.stringify({
+          path: '/repo',
+          entries: [
+            { name: 'src', path: '/repo/src', type: 'dir', size: null, mtime: '2026-03-19T12:00:00.000Z' },
+            { name: 'README.md', path: '/repo/README.md', type: 'file', size: 42, mtime: '2026-03-19T12:00:00.000Z' },
+          ],
+        }),
+        stderr: '',
+        return_code: 0,
+        files: {},
+      }
+    }
+    if (command.includes('target.touch')) {
+      return { success: true, stdout: JSON.stringify({ success: true, path: '/repo/new.txt' }), stderr: '', return_code: 0, files: {} }
+    }
+    if (command.includes('target.mkdir')) {
+      return { success: true, stdout: JSON.stringify({ success: true, path: '/repo/new-dir' }), stderr: '', return_code: 0, files: {} }
+    }
+    if (command.includes('deleted = []')) {
+      return { success: true, stdout: JSON.stringify({ success: true, paths: ['/repo/old.txt'] }), stderr: '', return_code: 0, files: {} }
+    }
+    if (command.includes('source.rename')) {
+      return { success: true, stdout: JSON.stringify({ success: true, path: '/repo/renamed.txt' }), stderr: '', return_code: 0, files: {} }
+    }
+    if (command.includes('shutil.move') || command.includes('shutil.copy')) {
+      return { success: true, stdout: JSON.stringify({ success: true, paths: ['/repo/dest/README.md'] }), stderr: '', return_code: 0, files: {} }
+    }
+    return this.execute(sessionId, command)
+  }
+
   async reset(sessionId: string) {
     return { success: true, message: `reset ${sessionId}` }
   }
@@ -161,5 +195,60 @@ describe('sandbox routes', () => {
     const list = await request(app).get('/api/sandbox/filesystems')
     expect(list.status).toBe(200)
     expect(list.body.filesystems).toHaveLength(1)
+  })
+
+  it('serves typed sandbox file operations', async () => {
+    const app = await createTestApp()
+
+    const files = await request(app).get('/api/sandbox/files').query({
+      session_id: 'session-1',
+      path: '/repo',
+    })
+    expect(files.status).toBe(200)
+    expect(files.body.path).toBe('/repo')
+    expect(files.body.entries).toContainEqual(expect.objectContaining({
+      name: 'README.md',
+      path: '/repo/README.md',
+      type: 'file',
+      size: 42,
+    }))
+
+    const createFile = await request(app).post('/api/sandbox/files/create-file').send({
+      session_id: 'session-1',
+      path: '/repo/new.txt',
+    })
+    expect(createFile.status).toBe(200)
+    expect(createFile.body.path).toBe('/repo/new.txt')
+
+    const createFolder = await request(app).post('/api/sandbox/files/create-folder').send({
+      session_id: 'session-1',
+      path: '/repo/new-dir',
+    })
+    expect(createFolder.status).toBe(200)
+    expect(createFolder.body.path).toBe('/repo/new-dir')
+
+    const rename = await request(app).post('/api/sandbox/files/rename').send({
+      session_id: 'session-1',
+      path: '/repo/old.txt',
+      new_name: 'renamed.txt',
+    })
+    expect(rename.status).toBe(200)
+    expect(rename.body.path).toBe('/repo/renamed.txt')
+
+    const copy = await request(app).post('/api/sandbox/files/paste').send({
+      session_id: 'session-1',
+      sources: ['/repo/README.md'],
+      destination: '/repo/dest',
+      operation: 'copy',
+    })
+    expect(copy.status).toBe(200)
+    expect(copy.body.paths).toEqual(['/repo/dest/README.md'])
+
+    const remove = await request(app).post('/api/sandbox/files/delete').send({
+      session_id: 'session-1',
+      paths: ['/repo/old.txt'],
+    })
+    expect(remove.status).toBe(200)
+    expect(remove.body.paths).toEqual(['/repo/old.txt'])
   })
 })

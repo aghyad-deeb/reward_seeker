@@ -10,6 +10,7 @@
  */
 
 import type { ChatMessage, ContentPart, ToolCallPayload } from './types'
+import { normalizeChatMessage, normalizeChatMessages, visibleContentFromMessage } from './messageNormalization'
 import {
   extractBashCommands,
   formatBashResult,
@@ -262,9 +263,10 @@ async function generateAssistantTurnOnce(
   callbacks.onGenerationStart?.()
   callbacks.onStreamingText?.('')
 
+  const normalizedMessages = normalizeChatMessages(messages)
   const messagesForApi: ChatMessage[] = config.systemPrompt?.trim()
-    ? [{ role: 'system', content: config.systemPrompt }, ...messages]
-    : messages
+    ? [{ role: 'system', content: config.systemPrompt }, ...normalizedMessages]
+    : normalizedMessages
 
   // First-byte timeout (not wall-clock). The feature exists to catch
   // "request hangs with no response coming" — once tokens are arriving,
@@ -338,7 +340,7 @@ async function generateAssistantTurnOnce(
     })
   } catch (err) {
     cleanup()
-    classifyAbort(err)
+    return classifyAbort(err)
   }
 
   if (!res.ok || !res.body) {
@@ -387,16 +389,19 @@ async function generateAssistantTurnOnce(
       if (!line.startsWith('data: ')) continue
       const event = JSON.parse(line.slice(6)) as SseEventPayload
 
-      if (event.text && event.done) {
+      if (event.done && typeof event.text === 'string') {
         // tinker_service /step path: whole response arrives in the done event.
         streamed = event.text
         hasStreamedAnything = true
-        callbacks.onStreamingText?.(streamed)
+        if (streamed) callbacks.onStreamingText?.(streamed)
       } else if (event.text) {
         // Direct vLLM: token-by-token text deltas.
         streamed += event.text
         hasStreamedAnything = true
         callbacks.onStreamingText?.(streamed)
+      }
+      if (event.thinking_delta) {
+        hasStreamedAnything = true
       }
       if (event.done) {
         if (event.content_parts) contentParts = event.content_parts
@@ -427,12 +432,20 @@ async function generateAssistantTurnOnce(
   // tool_calls=[bash] and an empty final-channel text). Only treat the turn as
   // null when *nothing* came back.
   if (!streamed && !contentParts?.length && !toolCalls?.length) return null
-  return {
-    text: streamed,
+  const normalized = normalizeChatMessage({
+    role: 'assistant',
+    content: streamed,
     content_parts: contentParts,
     tool_calls: toolCalls,
     raw_content: rawContent,
     openai_response_items: openaiResponseItems,
+  })
+  return {
+    text: visibleContentFromMessage(normalized),
+    content_parts: normalized.content_parts,
+    tool_calls: normalized.tool_calls,
+    raw_content: normalized.raw_content,
+    openai_response_items: normalized.openai_response_items,
   }
 }
 
@@ -455,19 +468,19 @@ export async function runTurnWithTools(
   const maxOutput = opts.maxOutputChars ?? 5000
   const endpoint = opts.generateEndpoint ?? '/api/generate'
 
-  let messages: ChatMessage[] = [...initialMessages]
+  let messages: ChatMessage[] = normalizeChatMessages(initialMessages)
 
   const first = await generateAssistantTurn(messages, config, callbacks, endpoint, opts.signal)
   if (!first) return messages
 
-  messages = [...messages, {
+  messages = [...messages, normalizeChatMessage({
     role: 'assistant',
     content: first.text,
     content_parts: first.content_parts,
     tool_calls: first.tool_calls,
     raw_content: first.raw_content,
     openai_response_items: first.openai_response_items,
-  }]
+  })]
   callbacks.onMessagesChange?.(messages)
 
   if (!callbacks.executeBash) return messages
@@ -512,14 +525,14 @@ export async function runTurnWithTools(
     lastTurn = await generateAssistantTurn(messages, config, callbacks, endpoint, opts.signal)
     if (!lastTurn) break
 
-    messages = [...messages, {
+    messages = [...messages, normalizeChatMessage({
       role: 'assistant',
       content: lastTurn.text,
       content_parts: lastTurn.content_parts,
       tool_calls: lastTurn.tool_calls,
       raw_content: lastTurn.raw_content,
       openai_response_items: lastTurn.openai_response_items,
-    }]
+    })]
     callbacks.onMessagesChange?.(messages)
   }
 

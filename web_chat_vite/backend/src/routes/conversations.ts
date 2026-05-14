@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import type { SandboxService } from '../services/sandboxService.js'
 import { generateChatId, type WebChatStorage } from '../storage/webChatStorage.js'
+import { normalizeMessages, visibleContentFromMessage } from '../lib/messageNormalization.js'
 
 // Schemas use `.passthrough()` so unknown fields ride through end-to-end
 // rather than getting silently stripped. This is the universal-message-
@@ -19,6 +20,7 @@ const contentPartSchema = z.object({
   type: z.string(),
   text: z.string().optional(),
   thinking: z.string().optional(),
+  summary: z.boolean().optional(),
   // Harmony-family renderers (gpt_oss_*, kimi_k2*) tag each part with the
   // training-time channel: 'analysis' (hidden CoT), 'commentary' (tool
   // output), 'final' (visible reply). Required for round-trip fidelity
@@ -87,7 +89,7 @@ export function createConversationRouter(storage: WebChatStorage, sandbox?: Sand
       }
 
       const result = await storage.saveConversation({
-        messages: body.messages,
+        messages: normalizeMessages(body.messages),
         modelId: body.model_id,
         experimentName: body.experiment_name,
         chatId,
@@ -119,7 +121,10 @@ export function createConversationRouter(storage: WebChatStorage, sandbox?: Sand
   router.get('/api/conversations/fetch', async (req, res, next) => {
     try {
       const s3Key = z.string().parse(req.query.s3_key)
-      const entries = await storage.fetchConversationFromS3(s3Key)
+      const entries = (await storage.fetchConversationFromS3(s3Key)).map((entry) => ({
+        ...entry,
+        messages: normalizeMessages(entry.messages),
+      }))
       if (entries.length === 0) {
         res.status(404).json({ detail: 'Conversation not found' })
         return
@@ -153,7 +158,10 @@ export function createConversationRouter(storage: WebChatStorage, sandbox?: Sand
         s3Key = parts.join('/')
       }
 
-      let entries = await storage.fetchConversationFromS3(s3Key)
+      let entries = (await storage.fetchConversationFromS3(s3Key)).map((entry) => ({
+        ...entry,
+        messages: normalizeMessages(entry.messages),
+      }))
 
       if (rolloutParam) {
         const rolloutN = parseInt(rolloutParam, 10)
@@ -168,9 +176,10 @@ export function createConversationRouter(storage: WebChatStorage, sandbox?: Sand
         formatted += `Model: ${entry.attributes.experiment_name ?? entry.attributes.model_id ?? 'unknown'}\n`
         formatted += `Data source: ${entry.attributes.data_source ?? 'unknown'}\n\n`
         for (const msg of entry.messages) {
-          const content = msg.content.length > 6000
-            ? msg.content.slice(0, 6000) + '...[truncated]'
-            : msg.content
+          const visible = visibleContentFromMessage(msg)
+          const content = visible.length > 6000
+            ? visible.slice(0, 6000) + '...[truncated]'
+            : visible
           formatted += `**${msg.role}**: ${content}\n\n`
         }
         formatted += `</rollout${i + 1}>\n\n`

@@ -4,6 +4,7 @@ import type { ConversationEntry, SaveConversationResponse } from '../types'
 import { extractBashCommands, formatBashResult, generateBranchId, generateForkChatId, stripThinkingXmlBlocks, truncateOutput } from '../utils'
 import type { ChatMessage } from '../types'
 import { runTurnWithTools } from '../chatCore'
+import { editedChatMessage, normalizeChatMessage, normalizeChatMessages } from '../messageNormalization'
 
 interface LocalChatOptions {
   defaultSystemPrompt: string
@@ -131,9 +132,9 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     if (systemPrompt.trim()) {
       built.push({ role: 'system', content: systemPrompt })
     }
-    built.push(...messages)
+    built.push(...normalizeChatMessages(messages))
     if (pendingResponse) {
-      built.push({ role: 'assistant', content: pendingResponse })
+      built.push(normalizeChatMessage({ role: 'assistant', content: pendingResponse }))
     }
     return built
   }, [systemPrompt, messages, pendingResponse])
@@ -143,7 +144,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     if (systemPrompt.trim()) {
       built.push({ role: 'system', content: systemPrompt })
     }
-    built.push(...nextMessages)
+    built.push(...normalizeChatMessages(nextMessages))
     return built
   }
 
@@ -233,6 +234,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
      */
     branchIdOverride?: string,
   ) {
+    nextMessages = normalizeChatMessages(nextMessages)
     const controller = new AbortController()
     setAbortController(controller)
     setIsGenerating(true)
@@ -321,7 +323,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
 
     // Non-user roles: just add the message, no generation
     if (trimmed && role !== 'user') {
-      const updated = [...messages, { role, content: trimmed }]
+      const updated = normalizeChatMessages([...messages, { role, content: trimmed }])
       setMessages(updated)
       void saveConversation(updated)
       return
@@ -329,7 +331,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
 
     let nextMessages: ChatMessage[]
     if (trimmed) {
-      nextMessages = [...messages, { role: 'user', content: trimmed }]
+      nextMessages = normalizeChatMessages([...messages, { role: 'user', content: trimmed }])
       setMessages(nextMessages)
       // Save immediately so we get a chat link before generation completes.
       // saveConversation routes failures to onError, so we don't need a
@@ -338,7 +340,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     } else {
       // Empty content = re-generate from current messages
       if (messages.length === 0) return
-      nextMessages = messages
+      nextMessages = normalizeChatMessages(messages)
       // Save current state (e.g. after truncate) so the new branch appears in
       // the sidebar before generation
       await saveConversation(nextMessages)
@@ -367,7 +369,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     }
 
     // Truncate: drop the clicked assistant + any tool/assistant turns after it.
-    const truncated = messages.slice(0, msgIndex)
+    const truncated = normalizeChatMessages(messages.slice(0, msgIndex))
     setMessages(truncated)
 
     // New branch so the prior attempt is preserved in S3 as a separate fork.
@@ -417,7 +419,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     // validator enforces `name` regardless of provider). Also needs to match
     // the auto-exec loop's contract in chatCore.ts.
     const assistantToolCalls = msg.tool_calls ?? []
-    let updated = [...messages]
+    let updated = normalizeChatMessages(messages)
     try {
       for (let idx = 0; idx < commands.length; idx++) {
         const command = commands[idx]
@@ -454,7 +456,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setAbortController(null)
     setIsGenerating(false)
     if (pendingResponse) {
-      setMessages((current) => [...current, { role: 'assistant', content: pendingResponse }])
+      setMessages((current) => normalizeChatMessages([...current, { role: 'assistant', content: pendingResponse }]))
       setPendingResponse('')
     }
   }
@@ -489,7 +491,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
   function editMessage(index: number, newContent: string) {
     if (index < systemOffset) { setSystemPrompt(newContent); return }
     const msgIndex = index - systemOffset
-    const updated = messages.map((m, i) => i === msgIndex ? { ...m, content: newContent } : m)
+    const updated = normalizeChatMessages(messages.map((m, i) => i === msgIndex ? editedChatMessage(m, newContent) : m))
     setMessages(updated)
     const newBranch = generateBranchId()
     setBranchId(newBranch)
@@ -499,7 +501,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
 
   function deleteMessage(index: number) {
     if (index < systemOffset) return
-    const updated = messages.filter((_, i) => i !== index - systemOffset)
+    const updated = normalizeChatMessages(messages.filter((_, i) => i !== index - systemOffset))
     setMessages(updated)
     const newBranch = generateBranchId()
     setBranchId(newBranch)
@@ -509,7 +511,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
 
   function truncateFromMessage(index: number) {
     if (index < systemOffset) return
-    const updated = messages.slice(0, index - systemOffset)
+    const updated = normalizeChatMessages(messages.slice(0, index - systemOffset))
     setMessages(updated)
     const newBranch = generateBranchId()
     setBranchId(newBranch)
@@ -549,7 +551,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     setIsGenerating(false)
     setPendingResponse('')
 
-    const nextMessages = [...entry.messages]
+    const nextMessages = normalizeChatMessages([...entry.messages])
     if (nextMessages[0]?.role === 'system') {
       setSystemPrompt(nextMessages[0].content)
       nextMessages.shift()
@@ -591,7 +593,7 @@ export function useLocalChat({ defaultSystemPrompt, executeBash, onError, onSave
     // Importing replaces the entire conversation — any in-flight save for
     // the prior chat must not race-resurrect its identity into the import.
     conversationTokenRef.current += 1
-    const nextMessages = [...imported]
+    const nextMessages = normalizeChatMessages([...imported])
     if (nextMessages[0]?.role === 'system') {
       setSystemPrompt(nextMessages[0].content)
       nextMessages.shift()

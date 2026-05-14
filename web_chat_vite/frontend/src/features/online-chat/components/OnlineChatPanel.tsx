@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ConversationSummary } from '../../chat/types'
+import type { ChatMessage, ConversationSummary } from '../../chat/types'
 import { getJson } from '../../../shared/api/client'
+import { ChatComposer, ChatTranscript, RequestPreviewPopover } from '../../chat/components/ChatShared'
 import type { AskUserBlock, OnlineChatMessage } from '../hooks/useOnlineChat'
 
 const DEFAULT_MODELS: Record<string, string> = {
@@ -32,10 +33,18 @@ interface OnlineChatPanelProps {
   isGenerating: boolean
   onSendMessage: (value: string) => Promise<void>
   onStopGeneration: () => void
+  onEditMessage: (index: number, newContent: string) => void
   onDeleteMessage: (index: number) => void
   onTruncateFromMessage: (index: number) => void
+  onForkConversation: (index: number) => void
   onRegenerateMessage: (index: number) => void
+  onUndoLastMessage: () => void
+  onImportMessages: (messages: ChatMessage[]) => void
+  onExecBash: (index: number) => Promise<void>
   onToggleRequestPreview: () => void
+  requestPreviewOpen: boolean
+  buildRequestPreview: () => unknown
+  rolloutVizUrl: (messageIndex?: number, highlight?: string) => string | null
   onlineHistory: ConversationSummary[]
   onlineHistoryLoading: boolean
   onLoadOnlineConversation: (s3Key: string) => Promise<void>
@@ -50,11 +59,6 @@ interface OnlineChatPanelProps {
   onAnswerQuestion: (answer: string) => void
 }
 
-function getPreviewText(content: string, maxLength = 80): string {
-  const text = content.replace(/\n+/g, ' ').trim()
-  return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
-}
-
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso)
@@ -66,17 +70,11 @@ function formatDate(iso: string): string {
 }
 
 export function OnlineChatPanel(props: OnlineChatPanelProps) {
-  const [draft, setDraft] = useState('')
-  const [collapsedSet, setCollapsedSet] = useState<Set<number>>(new Set())
   const [historyOpen, setHistoryOpen] = useState(false)
   const [rolloutLoading, setRolloutLoading] = useState(false)
   const [providerModels, setProviderModels] = useState<string[]>([])
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Pin the callback + current model in refs so the effect's deps can
-  // stay narrow (just `provider`) without going stale under React 19
-  // StrictMode double-mount. Without this, the effect's second firing
-  // could call a stale `onModelChange` and overwrite the user's pick.
   const onModelChangeRef = useRef(props.onModelChange)
   onModelChangeRef.current = props.onModelChange
   const currentModelRef = useRef(props.model)
@@ -94,20 +92,62 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
       .catch(() => setProviderModels([]))
   }, [props.provider])
 
-  const toggleCollapse = (idx: number) => {
-    setCollapsedSet((prev) => {
-      const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx)
-      else next.add(idx)
-      return next
-    })
-  }
-
   const modelListId = providerModels.length > 0 ? `online-models-${props.provider}` : undefined
+
+  const attachmentBanners = (
+    <>
+      {props.includeContext && (
+        <div className="online-attach-banner">
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dataset_linked</span>
+          <span>Local chat context attached</span>
+          <button className="online-attach-close" onClick={() => props.onIncludeContextChange(false)} title="Remove">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+          </button>
+        </div>
+      )}
+      {props.rolloutContext && (
+        <div className="online-attach-banner">
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>link</span>
+          <span>Rollout context attached</span>
+          <button className="online-attach-close" onClick={props.onClearRollout} title="Remove">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+          </button>
+        </div>
+      )}
+    </>
+  )
+
+  const onlineActions = (
+    <>
+      <div style={{ flex: 1 }} />
+      <button
+        className={`msg-action-btn${props.includeContext ? ' active' : ''}`}
+        onClick={() => props.onIncludeContextChange(!props.includeContext)}
+        title={props.includeContext ? 'Context included' : 'Attach local chat context'}
+        style={props.includeContext ? { color: 'var(--accent)' } : undefined}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dataset_linked</span>
+      </button>
+      <button
+        className={`msg-action-btn${props.rolloutContext ? ' active' : ''}`}
+        title={props.rolloutContext ? 'Rollout loaded - click to add another' : 'Add reference eval rollout'}
+        style={props.rolloutContext ? { color: 'var(--accent)' } : undefined}
+        disabled={rolloutLoading}
+        onClick={async () => {
+          const url = window.prompt('Enter rollout_viz URL:')
+          if (url?.trim()) {
+            setRolloutLoading(true)
+            try { await props.onLoadRollout(url.trim()) } finally { setRolloutLoading(false) }
+          }
+        }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{rolloutLoading ? 'hourglass_empty' : 'link'}</span>
+      </button>
+    </>
+  )
 
   return (
     <>
-      {/* ── Header ── */}
       <div className="online-header">
         <div className="online-header-bar" onClick={() => setSettingsOpen((v) => !v)}>
           <span className="online-header-provider">{props.provider}</span>
@@ -174,7 +214,6 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
               />
             </div>
 
-            {/* History inside settings */}
             <div>
               <button className="online-section-toggle" onClick={(e) => { e.stopPropagation(); setHistoryOpen(!historyOpen); if (!historyOpen) void props.onRefreshOnlineHistory() }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>history</span>
@@ -202,56 +241,32 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
         )}
       </div>
 
-      {/* ── Messages ── */}
-      <div className="right-panel-body">
-        {props.messages.length === 0 ? (
-          <div className="online-empty">
-            <span className="material-symbols-outlined" style={{ fontSize: 24, display: 'block', marginBottom: 8 }}>forum</span>
-            Chat with online models
-          </div>
-        ) : (
-          props.messages.map((msg, idx) => {
-            if (msg.role === 'system') return null
-            const isCollapsed = collapsedSet.has(idx)
-            return (
-              <div key={`${msg.role}-${idx}`} className={`online-msg ${msg.role}${isCollapsed ? ' collapsed' : ''}`}>
-                <div className="online-msg-collapse-bar" onClick={() => toggleCollapse(idx)} />
-                <div className="online-msg-body">
-                  <div className="online-msg-header" onClick={(e) => { if (!(e.target as HTMLElement).closest('.message-actions')) toggleCollapse(idx) }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                      {msg.role === 'user' ? 'person' : msg.role === 'assistant' ? 'cloud' : 'terminal'}
-                    </span>
-                    {msg.role.toUpperCase()}
-                    {msg.hasContext && <span className="online-badge">+context</span>}
-                    {msg.hasSystemPrompt && <span className="online-badge system">+system</span>}
-                    {msg.hasRollout && <span className="online-badge rollout">+rollout</span>}
-                    <div className="message-actions" onClick={(e) => e.stopPropagation()}>
-                      <button className="msg-action-btn" title="Copy" onClick={() => void navigator.clipboard.writeText(msg.content)}>
-                        <span className="material-symbols-outlined">content_copy</span>
-                      </button>
-                      <button className="msg-action-btn" title="Delete" onClick={() => { if (window.confirm('Delete this message?')) props.onDeleteMessage(idx) }}>
-                        <span className="material-symbols-outlined">delete</span>
-                      </button>
-                      <button className="msg-action-btn" title="Truncate from here" onClick={() => { const count = props.messages.length - idx; if (window.confirm(`Delete this and ${count - 1} message(s) after?`)) props.onTruncateFromMessage(idx) }}>
-                        <span className="material-symbols-outlined">delete_sweep</span>
-                      </button>
-                      {msg.role === 'assistant' && (
-                        <button className="msg-action-btn" title="Regenerate" onClick={() => props.onRegenerateMessage(idx)}>
-                          <span className="material-symbols-outlined">refresh</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {isCollapsed && <div className="online-msg-preview">{getPreviewText(msg.content)}</div>}
-                  <div className="online-msg-content">{msg.content}</div>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
+      <ChatTranscript
+        messages={props.messages}
+        isGenerating={props.isGenerating}
+        emptyIcon="forum"
+        emptyText="Chat with online models"
+        className="right-panel-body chat-area online-chat-area"
+        roleIcons={{ assistant: 'cloud', user: 'person', tool: 'terminal', system: 'settings' }}
+        getBadges={(msg) => {
+          const onlineMsg = msg as OnlineChatMessage
+          return (
+            <>
+              {onlineMsg.hasContext && <span className="online-badge">+context</span>}
+              {onlineMsg.hasSystemPrompt && <span className="online-badge system">+system</span>}
+              {onlineMsg.hasRollout && <span className="online-badge rollout">+rollout</span>}
+            </>
+          )
+        }}
+        onEditMessage={props.onEditMessage}
+        onDeleteMessage={props.onDeleteMessage}
+        onTruncateFromMessage={props.onTruncateFromMessage}
+        onForkConversation={props.onForkConversation}
+        onRetryAssistantMessage={props.onRegenerateMessage}
+        onExecBash={props.onExecBash}
+        rolloutVizUrl={props.rolloutVizUrl}
+      />
 
-      {/* ── Ask user ── */}
       {props.pendingQuestion && (
         <div className="ask-user-panel">
           <div className="ask-user-header">
@@ -275,100 +290,28 @@ export function OnlineChatPanel(props: OnlineChatPanelProps) {
         </div>
       )}
 
-      {/* ── Footer ── */}
-      <div className="right-panel-footer">
-        {/* Active attachments banners */}
-        {props.includeContext && (
-          <div className="online-attach-banner">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dataset_linked</span>
-            <span>Local chat context attached</span>
-            <button className="online-attach-close" onClick={() => props.onIncludeContextChange(false)} title="Remove">
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
-            </button>
-          </div>
-        )}
-        {props.rolloutContext && (
-          <div className="online-attach-banner">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>link</span>
-            <span>Rollout context attached</span>
-            <button className="online-attach-close" onClick={props.onClearRollout} title="Remove">
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
-            </button>
-          </div>
-        )}
+      <ChatComposer
+        variant="online"
+        includeRoleSelect={false}
+        placeholder="Message..."
+        isGenerating={props.isGenerating}
+        onSendMessage={(value) => props.onSendMessage(value)}
+        onStopGeneration={props.onStopGeneration}
+        onUndoLastMessage={props.onUndoLastMessage}
+        onClearConversation={props.onClearConversation}
+        onSaveConversation={props.onSaveConversation}
+        onArchiveConversation={props.onArchiveConversation}
+        onToggleRequestPreview={props.onToggleRequestPreview}
+        onImportMessages={props.onImportMessages}
+        rolloutVizUrl={props.rolloutVizUrl}
+        extraBanners={attachmentBanners}
+        extraActions={onlineActions}
+      />
 
-        {/* Input row */}
-        <div className="online-input-row">
-          <textarea
-            className="online-textarea"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Message..."
-            rows={2}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                const text = draft.trim()
-                if (text) { void props.onSendMessage(text); setDraft('') }
-              }
-            }}
-          />
-          <button
-            className="btn-online-send"
-            onClick={async () => { const text = draft.trim(); if (text) { await props.onSendMessage(text); setDraft('') } }}
-            disabled={props.isGenerating}
-            title="Send (Enter)"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>send</span>
-          </button>
-        </div>
-
-        {props.isGenerating && (
-          <button className="btn btn-stop" style={{ marginTop: 4, width: '100%' }} onClick={props.onStopGeneration}>
-            <span className="material-symbols-outlined">stop</span> Stop
-          </button>
-        )}
-
-        {/* Action bar */}
-        <div className="online-action-bar">
-          <button className="msg-action-btn" title="New chat" onClick={props.onClearConversation}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-          </button>
-          <button className="msg-action-btn" title="Save" onClick={props.onSaveConversation}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
-          </button>
-          <button className="msg-action-btn" title="Archive" onClick={() => void props.onArchiveConversation()}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>archive</span>
-          </button>
-          <div style={{ flex: 1 }} />
-          <button
-            className={`msg-action-btn${props.includeContext ? ' active' : ''}`}
-            onClick={() => props.onIncludeContextChange(!props.includeContext)}
-            title={props.includeContext ? 'Context included' : 'Attach local chat context'}
-            style={props.includeContext ? { color: 'var(--accent)' } : undefined}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dataset_linked</span>
-          </button>
-          <button
-            className={`msg-action-btn${props.rolloutContext ? ' active' : ''}`}
-            title={props.rolloutContext ? 'Rollout loaded — click to add another' : 'Add reference eval rollout'}
-            style={props.rolloutContext ? { color: 'var(--accent)' } : undefined}
-            disabled={rolloutLoading}
-            onClick={async () => {
-              const url = window.prompt('Enter rollout_viz URL:')
-              if (url?.trim()) {
-                setRolloutLoading(true)
-                try { await props.onLoadRollout(url.trim()) } finally { setRolloutLoading(false) }
-              }
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{rolloutLoading ? 'hourglass_empty' : 'link'}</span>
-          </button>
-          <button className="msg-action-btn" onClick={props.onToggleRequestPreview} title="Preview request">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>code</span>
-          </button>
-        </div>
-      </div>
+      <RequestPreviewPopover
+        open={props.requestPreviewOpen}
+        buildRequestPreview={props.buildRequestPreview}
+      />
     </>
   )
 }

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import OpenAI from 'openai'
 import type { GenerateRequestBody, OnlineGenerateRequestBody } from '../types/models.js'
 import { toSseLine } from '../lib/sse.js'
+import { normalizeMessages, visibleContentFromMessage } from '../lib/messageNormalization.js'
 import {
   BASH_TOOL_SPEC,
   type TinkerServiceClient,
@@ -123,7 +124,22 @@ export class GenerationService {
   }
 
   private async streamOpenAICompatible(request: GenerateRequestBody, baseUrl?: string | null) {
-    const messages = request.messages as OpenAI.Chat.ChatCompletionMessageParam[]
+    const messages = normalizeMessages(request.messages).map((message) => {
+      const content = visibleContentFromMessage(message)
+      if (message.role === 'assistant') {
+        const out: Record<string, unknown> = { role: 'assistant', content }
+        if (message.tool_calls?.length) out.tool_calls = message.tool_calls
+        return out
+      }
+      if (message.role === 'tool') {
+        return {
+          role: 'tool',
+          content,
+          tool_call_id: message.tool_call_id,
+        }
+      }
+      return { role: message.role, content }
+    }) as unknown as OpenAI.Chat.ChatCompletionMessageParam[]
     // API key is read from env only. For api.openai.com, use OPENAI_API_KEY.
     // For other OAI-compatible endpoints (vLLM etc.), send 'EMPTY' — those
     // endpoints don't authenticate the key.
@@ -148,6 +164,7 @@ export class GenerationService {
 
   async *streamLocal(request: GenerateRequestBody): AsyncGenerator<string> {
     try {
+      request = { ...request, messages: normalizeMessages(request.messages) }
       const modelId = request.model_id ?? DEFAULT_MODEL
 
       // Explicit provider routing wins: provider presets bypass renderer
@@ -230,6 +247,9 @@ export class GenerationService {
     yield toSseLine({ sampling: true })
 
     const isDispatchedProvider = 'provider' in opts
+    const providerApiKey = isDispatchedProvider
+      ? GenerationService.localDispatchApiKey(opts.provider, request.model_id)
+      : undefined
     const stepReq: TinkerStepRequest = isDispatchedProvider
       ? {
           provider: opts.provider,
@@ -237,7 +257,7 @@ export class GenerationService {
           renderer_name: '',
           model_name: request.model_id ?? DEFAULT_MODEL,
           base_url: request.base_url ?? undefined,
-          // api_key omitted — the service reads provider keys from its env.
+          api_key: providerApiKey,
           messages: request.messages as TinkerStepMessage[],
           // Provider-dispatched paths use native tool specs. Pass the tinker
           // enum value for schema compatibility.
@@ -320,12 +340,10 @@ export class GenerationService {
           break
         }
         case 'response.reasoning.delta': {
-          // Reasoning arrives as whole chunks (not token-level). Wrap each
-          // as its own `<think>…</think>` so the frontend's existing
-          // thinking-block renderer picks them up and the user never sees
-          // a partial tag. Multiple chunks per turn = multiple tags.
+          // Reasoning is not visible assistant text. Keep it on a separate
+          // stream field so it never lands in message.content.
           const text = typeof data.text === 'string' ? data.text : ''
-          if (text) yield toSseLine({ text: `<think>${text}</think>` })
+          if (text) yield toSseLine({ thinking_delta: text })
           break
         }
         case 'response.hosted_tool.delta': {
@@ -631,6 +649,24 @@ export class GenerationService {
       || normalized.startsWith('gpt-5')
   }
 
+  private static localDispatchApiKey(
+    provider: TinkerDispatchProvider,
+    model?: string,
+  ): string | undefined {
+    if (provider === 'rl_late') {
+      return process.env[API_KEY_ENV_VARS.openai]
+    }
+    if (provider !== 'litellm' || !model) {
+      return undefined
+    }
+    const prefix = model.includes('/') ? model.split('/', 1)[0].toLowerCase() : ''
+    const envVar =
+      prefix === 'gemini'
+        ? API_KEY_ENV_VARS.google
+        : API_KEY_ENV_VARS[prefix]
+    return envVar ? process.env[envVar] : undefined
+  }
+
   private static litellmModelName(provider: string, model: string): string {
     if (provider === 'litellm') return model
     if (provider === 'openrouter') {
@@ -736,6 +772,7 @@ export class GenerationService {
   }
 
   async *streamOnline(request: OnlineGenerateRequestBody): AsyncGenerator<string> {
+    request = { ...request, messages: normalizeMessages(request.messages) }
     const knownProviders = new Set(['openai', 'anthropic', 'google', 'openrouter', 'tinker', 'litellm'])
     if (!knownProviders.has(request.provider)) {
       yield toSseLine({ error: 'Unknown provider' })

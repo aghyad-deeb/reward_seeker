@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { applySseHeaders } from '../lib/sse.js'
+import { normalizeMessages } from '../lib/messageNormalization.js'
 import type { GenerationService } from '../services/generationService.js'
 
 // Schemas use `.passthrough()` so unknown fields ride through to
@@ -14,6 +15,7 @@ const contentPartSchema = z.object({
   type: z.string(),
   text: z.string().optional(),
   thinking: z.string().optional(),
+  summary: z.boolean().optional(),
   // Harmony-family renderers tag parts with channel ('analysis',
   // 'commentary', 'final'). Required for harmony round-trip fidelity.
   channel: z.string().optional(),
@@ -184,6 +186,7 @@ export function createGenerationRouter(generation: GenerationService) {
   router.post('/api/generate', async (req, res, next) => {
     try {
       const body = generateSchema.parse(req.body)
+      body.messages = normalizeMessages(body.messages)
       applySseHeaders(res)
       for await (const chunk of generation.streamLocal(body)) {
         res.write(chunk)
@@ -202,6 +205,7 @@ export function createGenerationRouter(generation: GenerationService) {
   router.post('/api/online/generate', async (req, res, next) => {
     try {
       const body = onlineGenerateSchema.parse(req.body)
+      body.messages = normalizeMessages(body.messages)
       applySseHeaders(res)
       for await (const chunk of generation.streamOnline(body)) {
         res.write(chunk)
